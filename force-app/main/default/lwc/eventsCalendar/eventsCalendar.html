@@ -1,0 +1,62 @@
+<template>
+  <lightning-card>
+    <div slot="title" class="slds-grid slds-grid_align-spread slds-p-horizontal_medium slds-p-vertical_xx-small">
+      <span class="slds-align-middle" style="display: flex; align-items: center;">
+        <lightning-icon icon-name="standard:event" size="small" class="slds-m-right_small"></lightning-icon>
+        <span>Events</span>
+      </span>
+      <lightning-button
+        variant="brand"
+        label="New Event"
+        title="New Event"
+        onclick={handleNewEvent}
+        size="small"
+        class="slds-m-left_x-large"
+        style="margin-left: 1.5rem;"
+      ></lightning-button>
+    </div>
+
+    <lightning-tabset variant="scoped">
+      <lightning-tab label={allTabLabel}>
+        <template if:true={allEvents}>
+          <lightning-datatable
+            key-field="Id"
+            data={allEvents}
+            columns={columns}
+            hide-checkbox-column
+          ></lightning-datatable>
+        </template>
+        <template if:true={isLoadingAll}>
+          <lightning-spinner alternative-text="Loading all events"></lightning-spinner>
+        </template>
+      </lightning-tab>
+      <lightning-tab label={upcomingTabLabel}>
+        <template if:true={upcomingEvents}>
+          <lightning-datatable
+            key-field="Id"
+            data={upcomingEvents}
+            columns={columns}
+            hide-checkbox-column
+          ></lightning-datatable>
+        </template>
+        <template if:true={isLoadingUpcoming}>
+          <lightning-spinner alternative-text="Loading upcoming events"></lightning-spinner>
+        </template>
+      </lightning-tab>
+
+      <lightning-tab label={pastTabLabel}>
+        <template if:true={pastEvents}>
+          <lightning-datatable
+            key-field="Id"
+            data={pastEvents}
+            columns={columns}
+            hide-checkbox-column
+          ></lightning-datatable>
+        </template>
+        <template if:true={isLoadingPast}>
+          <lightning-spinner alternative-text="Loading past events"></lightning-spinner>
+        </template>
+      </lightning-tab>
+    </lightning-tabset>
+  </lightning-card>
+</template>

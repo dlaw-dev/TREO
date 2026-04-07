@@ -1,0 +1,48 @@
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: 100px;
+    gap: 2px;
+}
+
+.calendar-header {
+    font-weight: bold;
+    text-align: center;
+    padding: 4px;
+    border-bottom: 1px solid #ddd;
+}
+
+.calendar-cell {
+    border: 1px solid #ddd;
+    padding: 4px;
+    font-size: 0.75rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.calendar-cell--empty {
+    background: #f9f9f9;
+}
+
+.day-number {
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+.event-pill {
+    background: #e3f3ff;
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin-top: 2px;
+    font-size: 0.65rem;
+    cursor: pointer;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+/* 🔥 Highlight for today's date */
+.calendar-cell--today {
+    border: 2px solid #1b96ff;
+    background: #f0f7ff;
+}

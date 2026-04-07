@@ -1,0 +1,46 @@
+<template>
+  <lightning-card title="Timer">
+    <div class="slds-p-around_small">
+      <template if:true={active}>
+        <p class="slds-text-heading_small">
+          {matterName}
+          <a href={matterUrl} target="_blank" class="slds-text-heading_small slds-m-left_small">Open Matter</a>
+        </p>
+        <p class="slds-m-top_x-small slds-text-title_caps">{elapsedLabel}</p>
+
+        <div class="slds-m-top_small slds-button-group" role="group">
+          <lightning-button
+            variant="brand"
+            label="Start"
+            onclick={handleStart}
+            disabled={startDisabled}>
+          </lightning-button>
+
+          <lightning-button
+            label="Pause"
+            onclick={handlePause}
+            disabled={pauseDisabled}>
+          </lightning-button>
+
+          <lightning-button
+            label="Resume"
+            onclick={handleResume}
+            disabled={resumeDisabled}>
+          </lightning-button>
+
+          <lightning-button
+            variant="destructive"
+            label="Stop"
+            onclick={handleStop}
+            disabled={stopDisabled}>
+          </lightning-button>
+        </div>
+
+      </template>
+
+      <template if:false={active}>
+        <p>No active timer</p>
+      </template>
+    </div>
+  </lightning-card>
+</template>

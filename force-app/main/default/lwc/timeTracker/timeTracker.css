@@ -1,0 +1,64 @@
+.elapsed { font-weight: 600; }
+.slds-modal__container { max-width: 56rem !important; width: 95%; }
+
+/* Slightly increase the overall font size in the component */
+:host {
+  font-size: 1.05rem;
+}
+
+/* Make form labels and input text a bit larger */
+.slds-form-element__label {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+lightning-input,
+lightning-textarea {
+  font-size: 1rem;
+}
+
+/* Make the icons (play, pause, stop) larger and smoother */
+/* Larger, smoother icons for central focus */
+lightning-button-icon {
+  --slds-c-icon-size: 3rem;
+  --slds-c-icon-color-foreground: #032d60;
+  margin: 0 1.25rem;
+  transition: transform 0.2s ease-in-out;
+}
+
+lightning-button-icon:hover {
+  transform: scale(1.15);
+}
+
+/* Make the elapsed timer text stand out more */
+.elapsed {
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+/* Center the control buttons horizontally in the component */
+.slds-grid_align-spread,
+.button-container {
+  justify-content: center;
+  text-align: center;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Center text like elapsed timer below the buttons */
+.elapsed {
+  display: block;
+  text-align: center;
+  margin-top: 0.75rem;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+/* Limit component width and center buttons */
+.button-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 25rem;
+  margin: 0 auto;
+}

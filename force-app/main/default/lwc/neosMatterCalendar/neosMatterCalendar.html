@@ -1,0 +1,56 @@
+<template>
+    <lightning-card title="Matter Calendar" icon-name="standard:event">
+        <div class="slds-p-around_small">
+            <div class="slds-m-vertical_small slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                <lightning-button-icon icon-name="utility:chevronleft"
+                                       alternative-text="Previous Month"
+                                       onclick={handlePrevMonth}>
+                </lightning-button-icon>
+
+                <h2>{monthLabel} {year}</h2>
+
+                <lightning-button-icon icon-name="utility:chevronright"
+                                       alternative-text="Next Month"
+                                       onclick={handleNextMonth}>
+                </lightning-button-icon>
+            </div>
+
+            <div class="calendar-grid">
+                <!-- Weekday headers -->
+                <div class="calendar-header">Sun</div>
+                <div class="calendar-header">Mon</div>
+                <div class="calendar-header">Tue</div>
+                <div class="calendar-header">Wed</div>
+                <div class="calendar-header">Thu</div>
+                <div class="calendar-header">Fri</div>
+                <div class="calendar-header">Sat</div>
+
+                <!-- Day cells -->
+                <template for:each={calendarDays} for:item="day">
+                    <div key={day.key}
+                         class={day.cellClass}
+                         data-date={day.dateString}
+                         onclick={handleDayClick}>
+                        <div class="day-number">
+                            {day.dayNumber}
+                        </div>
+
+                        <template if:true={day.events}>
+                            <template for:each={day.events} for:item="evt">
+                                <div key={evt.id} class="event-pill"
+                                     data-id={evt.id}
+                                     onclick={handleEventClick}>
+                                    {evt.label}
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+            <template if:false={hasEvents}>
+                <p class="slds-m-top_small">No events found for this matter.</p>
+            </template>
+        </div>
+    </lightning-card>
+</template>

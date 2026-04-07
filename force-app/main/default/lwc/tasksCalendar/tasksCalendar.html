@@ -1,0 +1,96 @@
+<template>
+  <lightning-card>
+    <!-- Header -->
+    <div
+      slot="title"
+      class="slds-grid slds-grid_align-spread slds-p-horizontal_medium slds-p-vertical_xx-small"
+    >
+      <span
+        class="slds-align-middle"
+        style="display: flex; align-items: center;"
+      >
+        <lightning-icon
+          icon-name="standard:task"
+          size="small"
+          class="slds-m-right_small"
+        ></lightning-icon>
+        <span>Tasks</span>
+      </span>
+
+      <lightning-button
+        variant="brand"
+        label="New Task"
+        title="New Task"
+        onclick={handleNewTask}
+        size="small"
+        class="slds-m-left_x-large"
+        style="margin-left: 1.5rem;"
+      ></lightning-button>
+    </div>
+
+    <!-- Tabs -->
+    <lightning-tabset variant="scoped">
+
+      <!-- All Tasks -->
+      <lightning-tab label={allTabLabel}>
+        <template if:true={allTasksSorted}>
+          <lightning-datatable
+    key-field="Id"
+    data={allTasksSorted}
+    columns={columns}
+    hide-checkbox-column
+    onrowaction={handleRowAction}
+    density="compact">
+</lightning-datatable>
+        </template>
+
+        <template if:true={isLoading}>
+          <lightning-spinner
+            alternative-text="Loading tasks"
+            size="medium"
+          ></lightning-spinner>
+        </template>
+      </lightning-tab>
+
+      <!-- Upcoming -->
+      <lightning-tab label={upcomingTabLabel}>
+        <template if:true={upcomingTasksSorted}>
+          <lightning-datatable
+            key-field="Id"
+            data={upcomingTasksSorted}
+            columns={columns}
+            hide-checkbox-column
+            onrowaction={handleRowAction}
+          ></lightning-datatable>
+        </template>
+      </lightning-tab>
+
+      <!-- Past -->
+      <lightning-tab label={pastTabLabel}>
+        <template if:true={pastTasksSorted}>
+          <lightning-datatable
+            key-field="Id"
+            data={pastTasksSorted}
+            columns={columns}
+            hide-checkbox-column
+            onrowaction={handleRowAction}
+          ></lightning-datatable>
+        </template>
+      </lightning-tab>
+
+      <!-- No Deadline -->
+      <lightning-tab label={noDeadlineTabLabel}>
+        <template if:true={tasksNoDeadline}>
+          <lightning-datatable
+            key-field="Id"
+            data={tasksNoDeadline}
+            columns={columns}
+            hide-checkbox-column
+            onrowaction={handleRowAction}
+          ></lightning-datatable>
+        </template>
+      </lightning-tab>
+
+    </lightning-tabset>
+  </lightning-card>
+</template>

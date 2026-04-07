@@ -1,0 +1,131 @@
+ <template>
+  <lightning-card title="Time Tracker" icon-name="utility:clock">
+    <div class="slds-p-around_medium slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+      <div>
+        <template if:false={isRunning}>
+          <lightning-button-icon icon-name="utility:play" variant="brand"
+                                 alternative-text="Start" onclick={handleStart}></lightning-button-icon>
+        </template>
+
+        <template if:true={isRunning}>
+          <!-- Show Pause when not paused -->
+          <template if:false={isPaused}>
+            <lightning-button-icon
+              icon-name="utility:pause"
+              variant="neutral"
+              alternative-text="Pause"
+              title="Pause"
+              onclick={handlePause}></lightning-button-icon>
+          </template>
+
+          <!-- Show Resume when paused -->
+          <template if:true={isPaused}>
+            <lightning-button-icon
+              icon-name="utility:play"
+              variant="brand"
+              alternative-text="Resume"
+              title="Resume"
+              onclick={handleResume}></lightning-button-icon>
+          </template>
+
+          <!-- Stop always visible while running -->
+          <lightning-button-icon class="slds-m-left_small"
+                                 icon-name="utility:stop"
+                                 variant="destructive"
+                                 alternative-text="Stop"
+                                 title="Stop"
+                                 onclick={handleStop}></lightning-button-icon>
+
+          <!-- Optional: Reset/Delete (only if handlers exist) -->
+          <!--
+          <lightning-button-icon class="slds-m-left_small"
+                                 icon-name="utility:refresh"
+                                 alternative-text="Reset"
+                                 title="Reset Timer"
+                                 onclick={handleReset}></lightning-button-icon>
+
+          <lightning-button-icon class="slds-m-left_small"
+                                 icon-name="utility:delete"
+                                 variant="destructive"
+                                 alternative-text="Delete"
+                                 title="Delete Timer"
+                                 onclick={handleDelete}></lightning-button-icon>
+          -->
+        </template>
+      </div>
+      <div class="elapsed">{elapsedLabel}</div>
+    </div>
+  </lightning-card>
+
+  <!-- Save Time Entry Modal -->
+  <template if:true={showModal}>
+    <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+      <div class="slds-modal__container">
+        <header class="slds-modal__header">
+          <h2 class="slds-text-heading_medium">Save Time Entry</h2>
+        </header>
+
+        <div class="slds-modal__content slds-p-around_medium">
+          <div class="slds-grid slds-wrap slds-gutters">
+
+            <!-- Left column -->
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+              <div class="slds-form slds-form_stacked">
+                <!-- NEOS Matter as clickable link -->
+                <div class="slds-form-element slds-m-bottom_x-small">
+                  <label class="slds-form-element__label">NEOS Matter</label>
+                  <div class="slds-form-element__control">
+                    <lightning-formatted-url value={matterUrl} label={matterDisplay}></lightning-formatted-url>
+                  </div>
+                </div>
+
+                <!-- Current Local Date/Time -->
+                <div class="slds-form-element slds-m-bottom_small">
+                  <lightning-input
+                    type="datetime"
+                    label="Current Local Date/Time"
+                    value={currentDateTime}
+                    onchange={handleCurrentDateTimeChange}>
+                  </lightning-input>
+                </div>
+
+                <lightning-input
+                  type="checkbox"
+                  label="Auto start another timer for this matter"
+                  checked={autoRestart}
+                  onchange={toggleAutoRestart}>
+                </lightning-input>
+              </div>
+            </div>
+
+            <!-- Right column -->
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+              <lightning-input
+                type="text"
+                name="timeSpent"
+                label="Time Spent"
+                value={timeSpentStr}
+                onchange={handleTimeSpentChange}>
+              </lightning-input>
+
+              <lightning-textarea
+                class="slds-m-top_small"
+                label="Notes"
+                value={noteValue}
+                onchange={handleNoteChange}
+                required
+                placeholder="Describe what you did">
+              </lightning-textarea>
+            </div>
+          </div>
+        </div>
+
+        <footer class="slds-modal__footer">
+          <lightning-button variant="neutral" label="Cancel" onclick={closeModal}></lightning-button>
+          <lightning-button variant="brand" label="Save" onclick={saveModal}></lightning-button>
+        </footer>
+      </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open"></div>
+  </template>
+</template>

@@ -1,0 +1,157 @@
+<template>
+    <!-- Header -->
+    <lightning-modal-header label="New Task"></lightning-modal-header>
+
+    <lightning-modal-body>
+
+        <!-- Subject -->
+        <lightning-input
+            label="Subject"
+            required
+            value={subject}
+            onchange={handleSubject}>
+        </lightning-input>
+
+        <!-- Selected Assignee -->
+        <template if:true={hasSelectedAssignee}>
+            <div class="slds-box slds-m-top_medium">
+                <div class="slds-text-title_caps slds-m-bottom_x-small">
+                    Assignee
+                </div>
+
+                <template for:each={selectedUsers} for:item="u">
+                    <lightning-pill
+                        key={u.id}
+                        label={u.name}
+                        data-id={u.id}
+                        onremove={removeUser}>
+                    </lightning-pill>
+                </template>
+            </div>
+        </template>
+
+        <!-- Assignee Search -->
+        <div class="slds-m-top_large">
+            <lightning-input
+                type="search"
+                label="Search Users"
+                onfocus={handleUserFocus}
+                oninput={handleUserSearch}
+                onkeydown={handleUserKeydown}>
+            </lightning-input>
+
+            <template for:each={userResults} for:item="u">
+                <div
+                    key={u.Id}
+                    class="slds-grid slds-grid_align-spread slds-p-vertical_x-small">
+                    <span>{u.Name}</span>
+                    <lightning-button
+                        label="Add"
+                        data-id={u.Id}
+                        onclick={addUser}>
+                    </lightning-button>
+                </div>
+            </template>
+        </div>
+
+        <!-- Status + Priority -->
+        <div class="slds-grid slds-gutters slds-m-top_large">
+            <div class="slds-col slds-size_1-of-2">
+                <lightning-combobox
+                    label="Status"
+                    value={status}
+                    options={statusOptions}
+                    onchange={handleStatus}>
+                </lightning-combobox>
+            </div>
+
+            <div class="slds-col slds-size_1-of-2">
+                <lightning-combobox
+                    label="Priority"
+                    value={priority}
+                    options={priorityOptions}
+                    onchange={handlePriority}>
+                </lightning-combobox>
+            </div>
+        </div>
+
+        <!-- Task Subtype -->
+        <lightning-combobox
+            class="slds-m-top_medium"
+            label="Task Subtype"
+            value={taskSubtype}
+            options={taskSubtypeOptions}
+            onchange={handleTaskSubtype}>
+        </lightning-combobox>
+
+        <!-- Description -->
+        <lightning-textarea
+            class="slds-m-top_medium"
+            label="Description"
+            value={description}
+            onchange={handleDescription}>
+        </lightning-textarea>
+
+        <!-- Due Date + Reminders -->
+        <div class="slds-grid slds-gutters slds-m-top_large">
+
+            <!-- Due Date -->
+            <div class="slds-col slds-size_1-of-2">
+                <lightning-input
+                    type="date"
+                    label="Due Date"
+                    value={activityDate}
+                    onchange={handleDueDate}>
+                </lightning-input>
+            </div>
+
+            <!-- Multi Reminders -->
+            <div class="slds-col slds-size_1-of-2">
+                <lightning-dual-listbox
+                    name="reminders"
+                    label="Reminders"
+                    source-label="Available"
+                    selected-label="Selected"
+                    options={reminderOptions}
+                    value={selectedReminderTypes}
+                    onchange={handleReminderChange}
+                    disabled={isReminderDisabled}>
+                </lightning-dual-listbox>
+            </div>
+
+        </div>
+
+        <!-- Internal / External -->
+        <div class="slds-m-top_medium">
+            <lightning-input
+                type="checkbox"
+                label="Internal / External"
+                checked={internalExternal}
+                onchange={handleInternalExternal}>
+            </lightning-input>
+        </div>
+
+        <!-- Related To -->
+        <lightning-input
+            class="slds-m-top_medium"
+            label="Related To"
+            value={recordName}
+            disabled>
+        </lightning-input>
+
+    </lightning-modal-body>
+
+    <!-- Footer -->
+    <lightning-modal-footer>
+        <lightning-button
+            label="Cancel"
+            onclick={handleCancel}>
+        </lightning-button>
+
+        <lightning-button
+            variant="brand"
+            label="Save"
+            onclick={handleSave}>
+        </lightning-button>
+    </lightning-modal-footer>
+</template>
