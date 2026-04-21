@@ -1,26 +1,48 @@
 import { LightningElement, api, wire, track } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
+import { refreshApex } from '@salesforce/apex';
 import getMatterEvents from '@salesforce/apex/NeosMatterCalendarController.getMatterEvents';
 
-export default class NeosMatterCalendar extends LightningElement {
+export default class NeosMatterCalendar extends NavigationMixin(LightningElement) {
     @api recordId;
 
     @track events = [];
     @track calendarDays = [];
     @track month;
     @track year;
+    @track hoveredEventId;
+    @track hoveredEvent;
+    @track tooltipStyle;
+    wiredEventsResult;
+    focusHandler;
 
     connectedCallback() {
         const today = new Date();
         this.month = today.getMonth(); // 0–11
         this.year = today.getFullYear();
         this.buildCalendar();
+
+        this.focusHandler = () => {
+            this.handleRefresh();
+        };
+        window.addEventListener('focus', this.focusHandler);
+    }
+
+    disconnectedCallback() {
+        if (this.focusHandler) {
+            window.removeEventListener('focus', this.focusHandler);
+        }
     }
 
     @wire(getMatterEvents, { matterId: '$recordId' })
-    wiredEvents({ data, error }) {
+    wiredEvents(result) {
+        this.wiredEventsResult = result;
+        const { data, error } = result;
+
         if (data) {
             this.events = data.map(evt => {
                 const subject = evt.Subject || 'No Subject';
+                const isCancelled = this.isCancelled(evt.Status__c);
                 let label = subject;
 
                 // Build a local time label like "2:30 PM Subject"
@@ -39,8 +61,21 @@ export default class NeosMatterCalendar extends LightningElement {
                     id: evt.Id,
                     subject,
                     label,
+                    isCancelled,
                     start: evt.StartDateTime,
-                    end: evt.EndDateTime
+                    end: evt.EndDateTime,
+                    isAllDay: evt.IsAllDayEvent,
+                    type: evt.Type,
+                    location: evt.Location,
+                    description: evt.Description,
+                    tooltipClass: isCancelled ? 'event-tooltip event-tooltip--cancelled' : 'event-tooltip',
+                    subjectClass: isCancelled ? 'event-tooltip__subject event-tooltip__subject--cancelled' : 'event-tooltip__subject',
+                    tooltipDateTime: this.formatEventDateTimeRange(
+                        evt.StartDateTime,
+                        evt.EndDateTime,
+                        evt.IsAllDayEvent
+                    ),
+                    shortDescription: this.truncateText(evt.Description, 140)
                 };
             });
             this.buildCalendar();
@@ -49,6 +84,11 @@ export default class NeosMatterCalendar extends LightningElement {
             this.events = [];
             this.buildCalendar();
         }
+    }
+
+    async handleRefresh() {
+        if (!this.wiredEventsResult) return;
+        await refreshApex(this.wiredEventsResult);
     }
 
     get hasEvents() {
@@ -137,7 +177,10 @@ export default class NeosMatterCalendar extends LightningElement {
             const dd = String(dayNum).padStart(2, '0');
             const dateStr = `${yyyy}-${mm}-${dd}`;
 
-            const dayEvents = eventsByDate[dateStr] || null;
+            const dayEvents = (eventsByDate[dateStr] || null)?.map(evt => ({
+                ...evt,
+                pillClass: this.getPillClass(evt)
+            }));
 
             // base class
             let cellClass = 'calendar-cell';
@@ -164,11 +207,147 @@ export default class NeosMatterCalendar extends LightningElement {
         console.log('Day clicked:', dateStr);
     }
 
+    handleEventMouseEnter(event) {
+        const hoveredEventId = event.currentTarget.dataset.id;
+        const hoveredEvent = this.events.find(evt => evt.id === hoveredEventId);
+
+        if (!hoveredEvent) {
+            return;
+        }
+
+        this.hoveredEventId = hoveredEventId;
+        this.hoveredEvent = hoveredEvent;
+        this.tooltipStyle = this.getTooltipStyle(event.currentTarget);
+        this.buildCalendar();
+    }
+
+    handleEventMouseLeave() {
+        if (!this.hoveredEventId) return;
+
+        this.hoveredEventId = null;
+        this.hoveredEvent = null;
+        this.tooltipStyle = null;
+        this.buildCalendar();
+    }
+
     handleEventClick(event) {
         event.stopPropagation();
         const id = event.currentTarget.dataset.id;
         if (id) {
-            window.open('/' + id, '_blank');
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: {
+                    recordId: id,
+                    objectApiName: 'Event',
+                    actionName: 'view'
+                }
+            });
         }
+    }
+
+    getPillClass(evt) {
+        let pillClass = 'event-pill';
+
+        if (evt.isCancelled) {
+            pillClass += ' event-pill--cancelled';
+        }
+
+        if (this.hoveredEventId === evt.id) {
+            pillClass += evt.isCancelled
+                ? ' event-pill--cancelled-active'
+                : ' event-pill--active';
+        }
+
+        return pillClass;
+    }
+
+    isCancelled(status) {
+        return typeof status === 'string' && ['cancelled', 'canceled'].includes(status.trim().toLowerCase());
+    }
+
+    formatEventDateTimeRange(startValue, endValue, isAllDay) {
+        if (!startValue) {
+            return '';
+        }
+
+        const start = new Date(startValue);
+        const end = endValue ? new Date(endValue) : null;
+
+        if (Number.isNaN(start.getTime())) {
+            return '';
+        }
+
+        if (isAllDay) {
+            return new Intl.DateTimeFormat('en-US', {
+                timeZone: 'UTC',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            }).format(start);
+        }
+
+        const dateLabel = new Intl.DateTimeFormat('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        }).format(start);
+
+        const startTimeLabel = new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: '2-digit'
+        }).format(start);
+
+        if (!end || Number.isNaN(end.getTime())) {
+            return `${dateLabel} at ${startTimeLabel}`;
+        }
+
+        const endTimeLabel = new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: '2-digit'
+        }).format(end);
+
+        const isSameDay = start.toDateString() === end.toDateString();
+
+        if (isSameDay) {
+            return `${dateLabel}, ${startTimeLabel} - ${endTimeLabel}`;
+        }
+
+        const endDateLabel = new Intl.DateTimeFormat('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+        }).format(end);
+
+        return `${dateLabel}, ${startTimeLabel} - ${endDateLabel}`;
+    }
+
+    truncateText(value, maxLength) {
+        if (!value || value.length <= maxLength) {
+            return value;
+        }
+
+        return `${value.slice(0, maxLength).trimEnd()}...`;
+    }
+
+    getTooltipStyle(target) {
+        const rect = target.getBoundingClientRect();
+        const tooltipWidth = 256;
+        const spacing = 8;
+        const viewportPadding = 12;
+
+        let left = rect.left;
+        let top = rect.bottom + spacing;
+
+        if (left + tooltipWidth > window.innerWidth - viewportPadding) {
+            left = window.innerWidth - tooltipWidth - viewportPadding;
+        }
+
+        if (left < viewportPadding) {
+            left = viewportPadding;
+        }
+
+        return `position: fixed; top: ${top}px; left: ${left}px; width: ${tooltipWidth}px;`;
     }
 }

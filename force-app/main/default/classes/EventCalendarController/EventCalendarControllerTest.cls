@@ -1,11 +1,36 @@
 @IsTest
 private class EventCalendarControllerTest {
 
+    private static User createUser(String prefix) {
+        Profile sysAdmin = [
+            SELECT Id
+            FROM Profile
+            WHERE Name = 'System Administrator'
+            LIMIT 1
+        ];
+
+        User userRecord = new User(
+            Alias = prefix.left(4),
+            Email = prefix + '@example.com',
+            EmailEncodingKey = 'UTF-8',
+            LastName = prefix,
+            LanguageLocaleKey = 'en_US',
+            LocaleSidKey = 'en_US',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            Username = prefix + System.currentTimeMillis() + '@example.com',
+            ProfileId = sysAdmin.Id
+        );
+
+        insert userRecord;
+        return userRecord;
+    }
+
     @IsTest
     static void testUpcomingEvents() {
         // Create Matter
         NEOS_Matter__c matter = new NEOS_Matter__c(
-            Name = 'Test Matter'
+            Name = 'Test Matter',
+            Case_Title__c = 'Test Matter'
         );
         insert matter;
 
@@ -18,6 +43,13 @@ private class EventCalendarControllerTest {
         );
         insert upcoming;
 
+        User attendee = createUser('upcomingattendee');
+        insert new EventRelation(
+            EventId = upcoming.Id,
+            RelationId = attendee.Id,
+            IsInvitee = true
+        );
+
         Test.startTest();
         List<Event> results =
             EventCalendarController.getUpcomingEvents(matter.Id);
@@ -25,13 +57,15 @@ private class EventCalendarControllerTest {
 
         System.assertEquals(1, results.size(), 'Should return one upcoming event');
         System.assertEquals(upcoming.Id, results[0].Id);
+        System.assertEquals(1, results[0].EventRelations.size(), 'Should include attendee relations');
     }
 
     @IsTest
     static void testPastEvents() {
         // Create Matter
         NEOS_Matter__c matter = new NEOS_Matter__c(
-            Name = 'Test Matter Past'
+            Name = 'Test Matter Past',
+            Case_Title__c = 'Test Matter Past'
         );
         insert matter;
 

@@ -1,0 +1,8 @@
+<template>
+    <template if:true={typeAttributes.isCancelled}>
+        <span style="color: #ba0517; text-decoration: line-through;">{typeAttributes.value}</span>
+    </template>
+    <template if:false={typeAttributes.isCancelled}>
+        <span>{typeAttributes.value}</span>
+    </template>
+</template>

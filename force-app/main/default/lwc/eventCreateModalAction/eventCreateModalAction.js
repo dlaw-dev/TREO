@@ -6,9 +6,10 @@ import { getPicklistValues } from 'lightning/uiObjectInfoApi';
 
 import searchUsers from '@salesforce/apex/EventAttendeeUiController.searchUsers';
 import searchGroups from '@salesforce/apex/EventAttendeeUiController.searchGroups';
+import getGroupUsers from '@salesforce/apex/EventAttendeeUiController.getGroupUsers';
 import saveEventWithAttendees from '@salesforce/apex/EventAttendeeUiController.saveEventWithAttendees';
 
-import MATTER_NAME from '@salesforce/schema/neos_matter__c.Name';
+import CASE_TITLE from '@salesforce/schema/neos_matter__c.Case_Title__c';
 import EVENT_TYPE_FIELD from '@salesforce/schema/Event.Type';
 
 const MASTER_RECORD_TYPE_ID = '012000000000000AAA';
@@ -33,7 +34,7 @@ export default class EventCreateModalAction extends LightningModal {
     startDateTime;
     endDateTime;
     isAllDay = false;
-    showAs = 'Busy';
+    showAs = 'Free';
     typeValue = '';
     isReminderSet = false;
     location = '';
@@ -55,6 +56,7 @@ export default class EventCreateModalAction extends LightningModal {
         { label: '30 Days Before', value: '30 Days Before' },
         { label: '15 Days Before', value: '15 Days Before' },
         { label: '10 Days Before', value: '10 Days Before' },
+        { label: '7 Days Before', value: '7 Days Before' },
         { label: '5 Days Before', value: '5 Days Before' },
         { label: '4 Days Before', value: '4 Days Before' },
         { label: '3 Days Before', value: '3 Days Before' },
@@ -104,15 +106,38 @@ export default class EventCreateModalAction extends LightningModal {
         return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
     }
 
+    parseLocalDateTime(value) {
+        if (!value) {
+            return null;
+        }
+
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    toIsoString(value) {
+        if (!value) {
+            return null;
+        }
+
+        const parsed = new Date(value);
+
+        if (Number.isNaN(parsed.getTime())) {
+            return null;
+        }
+
+        return parsed.toISOString();
+    }
+
     /* -------------------------
        Matter record
     -------------------------- */
 
-    @wire(getRecord, { recordId: '$recordId', fields: [MATTER_NAME] })
+    @wire(getRecord, { recordId: '$recordId', fields: [CASE_TITLE] })
     matter;
 
     get relatedToName() {
-        return this.matter?.data?.fields?.Name?.value;
+        return this.matter?.data?.fields?.Case_Title__c?.value;
     }
 
     renderedCallback() {
@@ -156,7 +181,33 @@ export default class EventCreateModalAction extends LightningModal {
     -------------------------- */
 
     handleSubject = e => this.subject = e.target.value;
-    handleStart = e => this.startDateTime = e.target.value;
+    handleStart = e => {
+        const nextStartValue = e.target.value;
+        const previousStart = this.parseLocalDateTime(this.startDateTime);
+        const previousEnd = this.parseLocalDateTime(this.endDateTime);
+        const nextStart = this.parseLocalDateTime(nextStartValue);
+
+        this.startDateTime = nextStartValue;
+
+        if (!nextStart) {
+            return;
+        }
+
+        if (previousStart && previousEnd) {
+            const durationMs = previousEnd.getTime() - previousStart.getTime();
+
+            if (durationMs > 0) {
+                this.endDateTime = this.format(
+                    new Date(nextStart.getTime() + durationMs)
+                );
+                return;
+            }
+        }
+
+        this.endDateTime = this.format(
+            new Date(nextStart.getTime() + (60 * 60 * 1000))
+        );
+    };
     handleEnd = e => this.endDateTime = e.target.value;
     handleAllDay = e => this.isAllDay = e.target.checked;
     handleShowAs = e => this.showAs = e.target.value;
@@ -226,11 +277,23 @@ export default class EventCreateModalAction extends LightningModal {
     }
 
     async searchUsersInternal(keyword) {
-        this.userResults = await searchUsers({ keyword });
+        const results = await searchUsers({ keyword });
+
+        this.userResults = results.filter(
+            user => !this.selectedUserIds.has(user.Id)
+        );
     }
 
     async searchGroupsInternal(keyword) {
-        this.groupResults = await searchGroups({ keyword });
+        const existingGroupsById = new Map(
+            this.groupResults.map(group => [group.Id, group])
+        );
+
+        this.groupResults = (await searchGroups({ keyword })).map(group =>
+            this.buildGroupResult(group, existingGroupsById.get(group.Id))
+        );
+
+        this.syncGroupMembersSelection();
     }
 
     /* -------------------------
@@ -239,23 +302,57 @@ export default class EventCreateModalAction extends LightningModal {
 
     addUser(e) {
 
-        const id = e.target.dataset.id;
+        const id = e.currentTarget.dataset.id;
 
         if (this.selectedUserIds.has(id)) return;
 
         const u = this.userResults.find(x => x.Id === id);
 
-        this.selectedUserIds.add(id);
+        if (!u) return;
+
+        this.addSelectedUser(u);
+    }
+
+    addUserFromGroup(e) {
+
+        const userId = e.currentTarget.dataset.id;
+
+        if (this.selectedUserIds.has(userId)) return;
+
+        let user;
+
+        for (const group of this.groupResults) {
+            user = (group.members || []).find(member => member.Id === userId);
+
+            if (user) {
+                break;
+            }
+        }
+
+        if (!user) return;
+
+        this.addSelectedUser(user);
+    }
+
+    addSelectedUser(user) {
+
+        this.selectedUserIds.add(user.Id);
 
         this.selectedUsers = [
             ...this.selectedUsers,
-            { id, name: u.Name }
+            { id: user.Id, name: user.Name }
         ];
+
+        this.userResults = this.userResults.filter(
+            result => result.Id !== user.Id
+        );
+
+        this.syncGroupMembersSelection();
     }
 
     addGroup(e) {
 
-        const id = e.target.dataset.id;
+        const id = e.currentTarget.dataset.id;
 
         if (this.selectedGroupIds.has(id)) return;
 
@@ -277,6 +374,12 @@ export default class EventCreateModalAction extends LightningModal {
 
         this.selectedUsers =
             this.selectedUsers.filter(u => u.id !== id);
+
+        this.userResults = [
+            ...this.userResults
+        ];
+
+        this.syncGroupMembersSelection();
     }
 
     removeGroup(e) {
@@ -289,6 +392,89 @@ export default class EventCreateModalAction extends LightningModal {
             this.selectedGroups.filter(g => g.id !== id);
     }
 
+    async toggleGroupMembers(e) {
+
+        const id = e.currentTarget.dataset.id;
+        const group = this.groupResults.find(item => item.Id === id);
+
+        if (!group) return;
+
+        if (group.membersLoaded) {
+            this.updateGroupResult(id, {
+                isExpanded: !group.isExpanded,
+                memberToggleLabel: group.isExpanded ? 'Show users' : 'Hide users'
+            });
+            return;
+        }
+
+        this.updateGroupResult(id, {
+            isExpanded: true,
+            isLoadingMembers: true,
+            memberToggleLabel: 'Hide users'
+        });
+
+        try {
+            const members = await getGroupUsers({ groupId: id });
+
+            this.updateGroupResult(id, {
+                members: members.map(member => this.buildGroupMember(member)),
+                membersLoaded: true,
+                isLoadingMembers: false,
+                showNoMembers: members.length === 0
+            });
+        } catch (error) {
+            this.updateGroupResult(id, {
+                isExpanded: false,
+                isLoadingMembers: false,
+                memberToggleLabel: 'Show users'
+            });
+
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Error',
+                    message: error?.body?.message || error.message,
+                    variant: 'error'
+                })
+            );
+        }
+    }
+
+    buildGroupResult(group, existingGroup) {
+        return {
+            ...group,
+            isExpanded: existingGroup?.isExpanded || false,
+            isLoadingMembers: false,
+            membersLoaded: existingGroup?.membersLoaded || false,
+            members: (existingGroup?.members || []).map(member => this.buildGroupMember(member)),
+            memberToggleLabel: existingGroup?.isExpanded ? 'Hide users' : 'Show users',
+            showNoMembers: existingGroup?.showNoMembers || false
+        };
+    }
+
+    buildGroupMember(member) {
+        const isSelected = this.selectedUserIds.has(member.Id);
+
+        return {
+            ...member,
+            isSelected,
+            actionLabel: isSelected ? 'Selected' : 'Add'
+        };
+    }
+
+    updateGroupResult(id, changes) {
+        this.groupResults = this.groupResults.map(group =>
+            group.Id === id ? { ...group, ...changes } : group
+        );
+    }
+
+    syncGroupMembersSelection() {
+        this.groupResults = this.groupResults.map(group => ({
+            ...group,
+            members: (group.members || []).map(member => this.buildGroupMember(member)),
+            showNoMembers: group.membersLoaded && (group.members || []).length === 0
+        }));
+    }
+
     /* -------------------------
        Save Event
     -------------------------- */
@@ -296,14 +482,24 @@ export default class EventCreateModalAction extends LightningModal {
     async save() {
 
         try {
+            const startDateTimeIso = this.toIsoString(this.startDateTime);
+            const endDateTimeIso = this.toIsoString(this.endDateTime);
+
+            if (!startDateTimeIso || !endDateTimeIso) {
+                throw new Error('Enter a valid start and end date/time.');
+            }
+
+            if (new Date(endDateTimeIso).getTime() <= new Date(startDateTimeIso).getTime()) {
+                throw new Error('End must be after Start.');
+            }
 
             await saveEventWithAttendees({
 
                 caseId: this.recordId,
                 ownerId: FIRM_CALENDAR_USER_ID,
                 subject: this.subject,
-                startDateTimeIso: this.startDateTime,
-                endDateTimeIso: this.endDateTime,
+                startDateTimeIso,
+                endDateTimeIso,
                 isAllDay: this.isAllDay,
                 showAs: this.showAs,
 isReminderSet: this.isReminderSet,

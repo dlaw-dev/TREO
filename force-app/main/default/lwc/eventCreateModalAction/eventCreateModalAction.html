@@ -52,17 +52,15 @@
                     </lightning-input>
 
                     <template for:each={userResults} for:item="u">
-                        <div
+                        <button
                             key={u.Id}
-                            class="slds-grid slds-grid_align-spread slds-p-vertical_x-small">
-                            <span>{u.Name}</span>
-
-                            <lightning-button
-                                label="Add"
-                                data-id={u.Id}
-                                onclick={addUser}>
-                            </lightning-button>
-                        </div>
+                            type="button"
+                            class="result-row slds-grid slds-grid_align-spread slds-p-around_small"
+                            data-id={u.Id}
+                            onclick={addUser}>
+                            <span class="result-row__label">{u.Name}</span>
+                            <span class="result-row__action">Add</span>
+                        </button>
                     </template>
                 </lightning-tab>
 
@@ -76,16 +74,53 @@
                     </lightning-input>
 
                     <template for:each={groupResults} for:item="g">
-                        <div
-                            key={g.Id}
-                            class="slds-grid slds-grid_align-spread slds-p-vertical_x-small">
-                            <span>{g.Name}</span>
-
-                            <lightning-button
-                                label="Add"
+                        <div key={g.Id} class="slds-m-top_small">
+                            <button
+                                type="button"
+                                class="result-row slds-grid slds-grid_align-spread slds-p-around_small"
                                 data-id={g.Id}
                                 onclick={addGroup}>
-                            </lightning-button>
+                                <span class="result-row__label">{g.Name}</span>
+                                <span class="result-row__action">Add</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="group-users-toggle slds-button slds-button_reset slds-m-top_x-small"
+                                data-id={g.Id}
+                                onclick={toggleGroupMembers}>
+                                {g.memberToggleLabel}
+                            </button>
+
+                            <template if:true={g.isExpanded}>
+                                <div class="group-members slds-m-top_x-small slds-m-left_medium">
+                                    <template if:true={g.isLoadingMembers}>
+                                        <lightning-spinner
+                                            size="small"
+                                            alternative-text="Loading group users">
+                                        </lightning-spinner>
+                                    </template>
+
+                                    <template for:each={g.members} for:item="member">
+                                        <button
+                                            key={member.Id}
+                                            type="button"
+                                            class="member-row slds-grid slds-grid_align-spread slds-p-around_x-small"
+                                            data-id={member.Id}
+                                            onclick={addUserFromGroup}
+                                            disabled={member.isSelected}>
+                                            <span>{member.Name}</span>
+                                            <span class="result-row__action">{member.actionLabel}</span>
+                                        </button>
+                                    </template>
+
+                                    <template if:true={g.showNoMembers}>
+                                        <div class="slds-text-body_small slds-text-color_weak slds-p-vertical_x-small">
+                                            No users found in this group.
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
                         </div>
                     </template>
                 </lightning-tab>

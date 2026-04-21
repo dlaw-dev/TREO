@@ -16,7 +16,8 @@ public with sharing class TaskUiController {
         String priority,
         String description,
         String taskSubtype,
-        Boolean internalExternal,
+        String taskSubtypeIfOther,
+        String internalExternalType,
         List<String> reminderTypes
     ) {
         try {
@@ -79,7 +80,8 @@ public with sharing class TaskUiController {
                 Priority             = priority,
                 Description          = description,
                 Task_Subtype__c      = taskSubtype,
-                Internal_External__c = internalExternal,
+                Task_Subtype_If_Other__c = taskSubtypeIfOther,
+                Internal_External_Type__c = internalExternalType,
                 IsReminderSet        = setNativeReminder,
                 ReminderDateTime     = nativeReminderDT
             );

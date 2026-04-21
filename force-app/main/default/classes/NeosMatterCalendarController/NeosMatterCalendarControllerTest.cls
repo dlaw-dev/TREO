@@ -1,11 +1,13 @@
-@IsTest
+@IsTest(SeeAllData=true)
 private class NeosMatterCalendarControllerTest {
+    private static final Id FIRM_CALENDAR_USER_ID = '005Hs00000GDhuK';
 
     @IsTest
     static void testGetMatterEvents_withMatter() {
         // Create a Matter
         NEOS_Matter__c matter = new NEOS_Matter__c(
-            Name = 'Test Matter'
+            Name = 'Test Matter',
+            Case_Title__c = 'Test Matter'
         );
         insert matter;
 
@@ -14,6 +16,7 @@ private class NeosMatterCalendarControllerTest {
             Subject = 'Test Event',
             StartDateTime = System.now(),
             EndDateTime = System.now().addHours(1),
+            OwnerId = FIRM_CALENDAR_USER_ID,
             Neos_Matter__c = matter.Id
         );
         insert e;

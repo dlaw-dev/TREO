@@ -1,0 +1,19 @@
+<template>
+    <template if:true={typeAttributes.isCancelled}>
+        <a
+            href={typeAttributes.value}
+            target={typeAttributes.target}
+            style="color: #ba0517; text-decoration: line-through;"
+        >
+            {typeAttributes.label}
+        </a>
+    </template>
+    <template if:false={typeAttributes.isCancelled}>
+        <a
+            href={typeAttributes.value}
+            target={typeAttributes.target}
+        >
+            {typeAttributes.label}
+        </a>
+    </template>
+</template>

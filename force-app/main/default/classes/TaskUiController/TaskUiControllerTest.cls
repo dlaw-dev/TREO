@@ -34,6 +34,12 @@ private class TaskUiControllerTest {
         return matter;
     }
 
+    private static String getInternalExternalTypeValue() {
+        List<Schema.PicklistEntry> entries =
+            Task.Internal_External_Type__c.getDescribe().getPicklistValues();
+        return entries.isEmpty() ? null : entries[0].getValue();
+    }
+
     /* =========================================================
        Positive Test – With Multiple Reminders
     ========================================================== */
@@ -55,6 +61,7 @@ private class TaskUiControllerTest {
         List<Schema.PicklistEntry> subtypeEntries =
             Task.Task_Subtype__c.getDescribe().getPicklistValues();
         String taskSubtypeValue = subtypeEntries[0].getValue();
+        String internalExternalTypeValue = getInternalExternalTypeValue();
 
         Id taskId;
 
@@ -69,7 +76,8 @@ private class TaskUiControllerTest {
                 'Normal',
                 'Test Description',
                 taskSubtypeValue,
-                true,
+                null,
+                internalExternalTypeValue,
                 reminderTypes
             );
         }
@@ -109,6 +117,7 @@ private class TaskUiControllerTest {
         List<Schema.PicklistEntry> subtypeEntries =
             Task.Task_Subtype__c.getDescribe().getPicklistValues();
         String taskSubtypeValue = subtypeEntries[0].getValue();
+        String internalExternalTypeValue = getInternalExternalTypeValue();
 
         Id taskId;
 
@@ -123,7 +132,8 @@ private class TaskUiControllerTest {
                 'Normal',
                 'No reminder description',
                 taskSubtypeValue,
-                false,
+                null,
+                internalExternalTypeValue,
                 new List<String>()
             );
         }
@@ -181,7 +191,8 @@ private class TaskUiControllerTest {
                 'Normal',
                 'Invalid owner test',
                 null,
-                false,
+                null,
+                getInternalExternalTypeValue(),
                 null
             );
         } catch (Exception e) {
@@ -207,6 +218,7 @@ private class TaskUiControllerTest {
         List<Schema.PicklistEntry> subtypeEntries =
             Task.Task_Subtype__c.getDescribe().getPicklistValues();
         String taskSubtypeValue = subtypeEntries[0].getValue();
+        String internalExternalTypeValue = getInternalExternalTypeValue();
 
         // Force coverage of unused branches
         List<String> reminderTypes = new List<String>{
@@ -227,7 +239,8 @@ private class TaskUiControllerTest {
                     'Normal',
                     'Coverage Description',
                     taskSubtypeValue,
-                    true,
+                    null,
+                    internalExternalTypeValue,
                     reminderTypes
                 );
             } catch (Exception e) {

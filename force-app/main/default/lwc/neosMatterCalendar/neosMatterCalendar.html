@@ -1,18 +1,31 @@
 <template>
     <lightning-card title="Matter Calendar" icon-name="standard:event">
         <div class="slds-p-around_small">
-            <div class="slds-m-vertical_small slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
-                <lightning-button-icon icon-name="utility:chevronleft"
-                                       alternative-text="Previous Month"
-                                       onclick={handlePrevMonth}>
-                </lightning-button-icon>
+            <div class="calendar-toolbar slds-m-bottom_small">
+                <div class="calendar-toolbar-spacer"></div>
 
-                <h2>{monthLabel} {year}</h2>
+                <div class="calendar-nav">
+                    <lightning-button-icon icon-name="utility:chevronleft"
+                                           alternative-text="Previous Month"
+                                           onclick={handlePrevMonth}>
+                    </lightning-button-icon>
 
-                <lightning-button-icon icon-name="utility:chevronright"
-                                       alternative-text="Next Month"
-                                       onclick={handleNextMonth}>
-                </lightning-button-icon>
+                    <h2 class="calendar-month-label">{monthLabel} {year}</h2>
+
+                    <lightning-button-icon icon-name="utility:chevronright"
+                                           alternative-text="Next Month"
+                                           onclick={handleNextMonth}>
+                    </lightning-button-icon>
+                </div>
+
+                <div class="calendar-toolbar-actions">
+                    <lightning-button-icon
+                        icon-name="utility:refresh"
+                        alternative-text="Refresh Calendar"
+                        title="Refresh Calendar"
+                        onclick={handleRefresh}>
+                    </lightning-button-icon>
+                </div>
             </div>
 
             <div class="calendar-grid">
@@ -37,16 +50,46 @@
 
                         <template if:true={day.events}>
                             <template for:each={day.events} for:item="evt">
-                                <div key={evt.id} class="event-pill"
-                                     data-id={evt.id}
-                                     onclick={handleEventClick}>
-                                    {evt.label}
+                                <div
+                                    key={evt.id}
+                                    class="event-pill-wrapper"
+                                    data-id={evt.id}
+                                    onmouseenter={handleEventMouseEnter}
+                                    onmouseleave={handleEventMouseLeave}>
+                                    <div
+                                        class={evt.pillClass}
+                                        data-id={evt.id}
+                                        onclick={handleEventClick}>
+                                        {evt.label}
+                                    </div>
                                 </div>
                             </template>
                         </template>
                     </div>
                 </template>
             </div>
+
+            <template if:true={hoveredEvent}>
+                <section class={hoveredEvent.tooltipClass} role="tooltip" style={tooltipStyle}>
+                    <div class={hoveredEvent.subjectClass}>{hoveredEvent.subject}</div>
+
+                    <template if:true={hoveredEvent.tooltipDateTime}>
+                        <div class="event-tooltip__row">{hoveredEvent.tooltipDateTime}</div>
+                    </template>
+
+                    <template if:true={hoveredEvent.type}>
+                        <div class="event-tooltip__row">Type: {hoveredEvent.type}</div>
+                    </template>
+
+                    <template if:true={hoveredEvent.location}>
+                        <div class="event-tooltip__row">Location: {hoveredEvent.location}</div>
+                    </template>
+
+                    <template if:true={hoveredEvent.shortDescription}>
+                        <div class="event-tooltip__description">{hoveredEvent.shortDescription}</div>
+                    </template>
+                </section>
+            </template>
 
             <template if:false={hasEvents}>
                 <p class="slds-m-top_small">No events found for this matter.</p>

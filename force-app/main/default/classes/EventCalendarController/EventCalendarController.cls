@@ -10,10 +10,17 @@ public with sharing class EventCalendarController {
             SELECT
                 Id,
                 Subject,
+                Status__c,
                 Type,
                 Location,
+                IsAllDayEvent,
                 StartDateTime,
-                EndDateTime
+                EndDateTime,
+                (
+                    SELECT Relation.Name
+                    FROM EventRelations
+                    WHERE IsParent = false
+                )
             FROM Event
             WHERE IsDeleted = false
               AND OwnerId = :FIRM_CALENDAR_USER_ID
@@ -32,10 +39,17 @@ public with sharing class EventCalendarController {
             SELECT
                 Id,
                 Subject,
+                Status__c,
                 Type,
                 Location,
+                IsAllDayEvent,
                 StartDateTime,
-                EndDateTime
+                EndDateTime,
+                (
+                    SELECT Relation.Name
+                    FROM EventRelations
+                    WHERE IsParent = false
+                )
             FROM Event
             WHERE IsDeleted = false
               AND OwnerId = :FIRM_CALENDAR_USER_ID

@@ -36,21 +36,19 @@
                 type="search"
                 label="Search Users"
                 onfocus={handleUserFocus}
-                oninput={handleUserSearch}
-                onkeydown={handleUserKeydown}>
+                onchange={handleUserSearch}>
             </lightning-input>
 
             <template for:each={userResults} for:item="u">
-                <div
+                <button
                     key={u.Id}
-                    class="slds-grid slds-grid_align-spread slds-p-vertical_x-small">
-                    <span>{u.Name}</span>
-                    <lightning-button
-                        label="Add"
-                        data-id={u.Id}
-                        onclick={addUser}>
-                    </lightning-button>
-                </div>
+                    type="button"
+                    class="result-row slds-grid slds-grid_align-spread slds-p-around_small"
+                    data-id={u.Id}
+                    onclick={addUser}>
+                    <span class="result-row__label">{u.Name}</span>
+                    <span class="result-row__action">Add</span>
+                </button>
             </template>
         </div>
 
@@ -83,6 +81,18 @@
             options={taskSubtypeOptions}
             onchange={handleTaskSubtype}>
         </lightning-combobox>
+
+        <template if:true={showTaskSubtypeIfOther}>
+            <lightning-input
+                data-id="taskSubtypeIfOther"
+                class="slds-m-top_medium"
+                label="Task Subtype (If Other)"
+                required
+                message-when-value-missing="Enter a subtype when Task Subtype is Other."
+                value={taskSubtypeIfOther}
+                onchange={handleTaskSubtypeIfOther}>
+            </lightning-input>
+        </template>
 
         <!-- Description -->
         <lightning-textarea
@@ -123,12 +133,12 @@
 
         <!-- Internal / External -->
         <div class="slds-m-top_medium">
-            <lightning-input
-                type="checkbox"
+            <lightning-combobox
                 label="Internal / External"
-                checked={internalExternal}
-                onchange={handleInternalExternal}>
-            </lightning-input>
+                value={internalExternalType}
+                options={internalExternalTypeOptions}
+                onchange={handleInternalExternalType}>
+            </lightning-combobox>
         </div>
 
         <!-- Related To -->

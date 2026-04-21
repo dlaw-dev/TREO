@@ -19,12 +19,12 @@
     <lightning-tabset variant="scoped">
       <lightning-tab label={allTabLabel}>
         <template if:true={allEvents}>
-          <lightning-datatable
+          <c-events-calendar-datatable
             key-field="Id"
             data={allEvents}
-            columns={columns}
+            columns={highlightedColumns}
             hide-checkbox-column
-          ></lightning-datatable>
+          ></c-events-calendar-datatable>
         </template>
         <template if:true={isLoadingAll}>
           <lightning-spinner alternative-text="Loading all events"></lightning-spinner>
@@ -55,6 +55,20 @@
         </template>
         <template if:true={isLoadingPast}>
           <lightning-spinner alternative-text="Loading past events"></lightning-spinner>
+        </template>
+      </lightning-tab>
+
+      <lightning-tab label={cancelledTabLabel}>
+        <template if:true={cancelledEvents}>
+          <c-events-calendar-datatable
+            key-field="Id"
+            data={cancelledEvents}
+            columns={highlightedColumns}
+            hide-checkbox-column
+          ></c-events-calendar-datatable>
+        </template>
+        <template if:true={isLoadingAll}>
+          <lightning-spinner alternative-text="Loading cancelled events"></lightning-spinner>
         </template>
       </lightning-tab>
     </lightning-tabset>

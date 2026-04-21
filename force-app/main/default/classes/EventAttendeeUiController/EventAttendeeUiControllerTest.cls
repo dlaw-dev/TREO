@@ -9,7 +9,8 @@ public class EventAttendeeUiControllerTest {
     private static NEOS_Matter__c createMatter() {
 
         NEOS_Matter__c m = new NEOS_Matter__c(
-            Name = 'Test Matter'
+            Name = 'Test Matter',
+            Case_Title__c = 'Test Matter'
         );
 
         insert m;
@@ -218,5 +219,35 @@ public class EventAttendeeUiControllerTest {
                 'Returned group must match search keyword'
             );
         }
+    }
+
+    /* =========================================================
+       TEST 6: getGroupUsers
+       ========================================================= */
+    @IsTest
+    static void testGetGroupUsers() {
+
+        User u = createAllowedUser();
+
+        Group g = new Group(
+            Name = 'Team Roman',
+            DeveloperName = 'Team_Roman_Test',
+            Type = 'Regular'
+        );
+        insert g;
+
+        insert new GroupMember(
+            GroupId = g.Id,
+            UserOrGroupId = u.Id
+        );
+
+        Test.startTest();
+
+        List<User> users = EventAttendeeUiController.getGroupUsers(g.Id);
+
+        Test.stopTest();
+
+        System.assertEquals(1, users.size(), 'Should return the allowed group member');
+        System.assertEquals(u.Id, users[0].Id, 'Returned member should match the group member');
     }
 }
