@@ -26,6 +26,34 @@ This repository contains Salesforce metadata and custom code for TREO features, 
 - `force-app/main/default/classes/`: Apex controllers and tests that back the LWC experiences
 - `force-app/main/default/lwc/eventsCalendarDatatable/`: custom datatable cell types used by calendar views
 
+## Component and Class Map
+
+### Apex classes
+
+- `EventAttendeeUiController`: creates events, resolves selected users/groups, and creates attendee + reminder records.
+- `EventCalendarController`: returns upcoming/past matter events for calendar/list displays.
+- `TaskCalendarController`: returns upcoming/past matter tasks for calendar/list displays.
+- `TaskUiController`: creates tasks with assignees and supporting UI actions.
+- `NeosMatterCalendarController`: aggregates matter-level calendar data for combined timeline views.
+- `NeosMatterCustonNotesController`: queries and manages custom matter notes data.
+- `TimeTrackerController`: manages timer/time-entry actions for matter work tracking.
+- `TaskReminderProcessor`: processes due task/event reminder records and sends notifications.
+- `TaskReminderScheduler`: schedules recurring execution of reminder processing.
+
+### LWC bundles
+
+- `eventCreateModalAction`: modal UI to create events and select attendees/reminders.
+- `taskCreateModalAction`: modal UI to create tasks and assign users/groups.
+- `eventsCalendar`: event calendar shell and interactions on matter pages.
+- `tasksCalendar`: task calendar shell and interactions on matter pages.
+- `neosMatterCalendar`: combined matter calendar container and orchestration.
+- `eventsCalendarDatatable`: datatable renderer for event rows and custom cell types.
+- `eventsCalendarTooltipLink`: tooltip link cell for event calendar datatable views.
+- `neosCustomNotesTable`: searchable/sortable matter notes table UI.
+- `timeTracker`: timer and time logging UI for matter activity.
+- `timerUtility`: shared timer helper UI logic/components.
+- `costReportLink`: quick link/action component for cost report navigation.
+
 ## Prerequisites
 
 - Node.js and npm
