@@ -24,6 +24,8 @@ public with sharing class EventAttendeeUiController {
         'Senior Counsel'
     };
 
+    private static final Integer DUPLICATE_WINDOW_SECONDS = 10;
+
     /* =========================================================
        Lookup: Users
        ========================================================= */
@@ -161,11 +163,34 @@ public with sharing class EventAttendeeUiController {
         List<String> reminderOptions
     ) {
         try {
-            Datetime startDt =
-                (Datetime) JSON.deserialize('"' + startDateTimeIso + '"', Datetime.class);
+            Datetime startDt;
+            Datetime endDt;
 
-            Datetime endDt =
-                (Datetime) JSON.deserialize('"' + endDateTimeIso + '"', Datetime.class);
+            if (isAllDay) {
+                Date startDate = parseDateInput(startDateTimeIso);
+                Date endDate = parseDateInput(endDateTimeIso);
+
+                if (startDate == null || endDate == null) {
+                    throw new AuraHandledException('Enter a valid start and end date.');
+                }
+
+                if (endDate < startDate) {
+                    throw new AuraHandledException('End date must be on or after Start date.');
+                }
+
+                startDt = Datetime.newInstance(startDate, Time.newInstance(0, 0, 0, 0));
+                endDt = Datetime.newInstance(endDate, Time.newInstance(0, 0, 0, 0));
+            } else {
+                startDt =
+                    (Datetime) JSON.deserialize('"' + startDateTimeIso + '"', Datetime.class);
+
+                endDt =
+                    (Datetime) JSON.deserialize('"' + endDateTimeIso + '"', Datetime.class);
+
+                if (endDt.getTime() <= startDt.getTime()) {
+                    throw new AuraHandledException('End must be after Start.');
+                }
+            }
 
             Event ev = new Event(
                 Subject        = subject,
@@ -187,6 +212,37 @@ public with sharing class EventAttendeeUiController {
 
             if (isValidPicklistValue(Event.Type, typeValue)) {
                 ev.Type = typeValue;
+            }
+
+            // Serialize event creation per matter to avoid concurrent duplicate inserts.
+            if (caseId != null) {
+                [
+                    SELECT Id
+                    FROM NEOS_Matter__c
+                    WHERE Id = :caseId
+                    LIMIT 1
+                    FOR UPDATE
+                ];
+            }
+
+            Datetime duplicateThreshold = System.now().addSeconds(-DUPLICATE_WINDOW_SECONDS);
+            List<Event> recentDuplicates = [
+                SELECT Id
+                FROM Event
+                WHERE OwnerId = :ownerId
+                  AND NEOS_Matter__c = :caseId
+                  AND Subject = :subject
+                  AND StartDateTime = :startDt
+                  AND EndDateTime = :endDt
+                  AND IsAllDayEvent = :isAllDay
+                  AND ShowAs = :showAs
+                  AND CreatedDate >= :duplicateThreshold
+                ORDER BY CreatedDate DESC
+                LIMIT 1
+            ];
+
+            if (!recentDuplicates.isEmpty()) {
+                return recentDuplicates[0].Id;
             }
 
             insert ev;
@@ -333,6 +389,22 @@ public with sharing class EventAttendeeUiController {
     /* =========================================================
        Utility
        ========================================================= */
+
+    private static Date parseDateInput(String value) {
+        if (String.isBlank(value)) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+
+        if (trimmed.contains('T') || trimmed.contains('Z')) {
+            Datetime parsedDateTime =
+                (Datetime) JSON.deserialize('"' + trimmed + '"', Datetime.class);
+            return parsedDateTime == null ? null : parsedDateTime.date();
+        }
+
+        return Date.valueOf(trimmed);
+    }
 
     private static Boolean isValidPicklistValue(
         Schema.SObjectField field,

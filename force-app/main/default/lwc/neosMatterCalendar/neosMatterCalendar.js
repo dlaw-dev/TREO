@@ -45,8 +45,8 @@ export default class NeosMatterCalendar extends NavigationMixin(LightningElement
                 const isCancelled = this.isCancelled(evt.Status__c);
                 let label = subject;
 
-                // Build a local time label like "2:30 PM Subject"
-                if (evt.StartDateTime) {
+                // Build a local time label like "2:30 PM Subject" for non all-day events.
+                if (evt.StartDateTime && !evt.IsAllDayEvent) {
                     const dt = new Date(evt.StartDateTime);
                     if (!isNaN(dt.getTime())) {
                         const timeStr = dt.toLocaleTimeString([], {
@@ -144,13 +144,8 @@ export default class NeosMatterCalendar extends NavigationMixin(LightningElement
             this.events.forEach(evt => {
                 if (!evt.start) return;
 
-                const dt = new Date(evt.start); // Converts to local time
-                if (isNaN(dt.getTime())) return;
-
-                const yyyy = dt.getFullYear();
-                const mm = String(dt.getMonth() + 1).padStart(2, '0');
-                const dd = String(dt.getDate()).padStart(2, '0');
-                const dateKey = `${yyyy}-${mm}-${dd}`;
+                const dateKey = this.getEventDateKey(evt);
+                if (!dateKey) return;
 
                 if (!eventsByDate[dateKey]) {
                     eventsByDate[dateKey] = [];
@@ -263,6 +258,27 @@ export default class NeosMatterCalendar extends NavigationMixin(LightningElement
 
     isCancelled(status) {
         return typeof status === 'string' && ['cancelled', 'canceled'].includes(status.trim().toLowerCase());
+    }
+
+    getEventDateKey(evt) {
+        const dt = new Date(evt.start);
+        if (Number.isNaN(dt.getTime())) {
+            return null;
+        }
+
+        // Salesforce all-day events are effectively day-based values.
+        // Use UTC date parts to avoid timezone rollback (e.g. 5/11 showing on 5/10 in US timezones).
+        if (evt.isAllDay) {
+            const yyyy = dt.getUTCFullYear();
+            const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+            const dd = String(dt.getUTCDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        const yyyy = dt.getFullYear();
+        const mm = String(dt.getMonth() + 1).padStart(2, '0');
+        const dd = String(dt.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
     }
 
     formatEventDateTimeRange(startValue, endValue, isAllDay) {

@@ -10,6 +10,7 @@ public with sharing class EventCalendarController {
             SELECT
                 Id,
                 Subject,
+                Description,
                 Status__c,
                 Type,
                 Location,
@@ -39,6 +40,7 @@ public with sharing class EventCalendarController {
             SELECT
                 Id,
                 Subject,
+                Description,
                 Status__c,
                 Type,
                 Location,

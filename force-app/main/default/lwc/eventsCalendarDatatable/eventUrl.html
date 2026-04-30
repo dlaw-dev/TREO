@@ -1,19 +1,12 @@
 <template>
-    <template if:true={typeAttributes.isCancelled}>
-        <a
-            href={typeAttributes.value}
-            target={typeAttributes.target}
-            style="color: #ba0517; text-decoration: line-through;"
-        >
-            {typeAttributes.label}
-        </a>
-    </template>
-    <template if:false={typeAttributes.isCancelled}>
-        <a
-            href={typeAttributes.value}
-            target={typeAttributes.target}
-        >
-            {typeAttributes.label}
-        </a>
-    </template>
+    <c-events-calendar-tooltip-link
+        label={typeAttributes.label}
+        value={typeAttributes.value}
+        target={typeAttributes.target}
+        is-cancelled={typeAttributes.isCancelled}
+        tooltip-date-time={typeAttributes.tooltipDateTime}
+        event-type={typeAttributes.eventType}
+        location={typeAttributes.location}
+        description={typeAttributes.description}
+    ></c-events-calendar-tooltip-link>
 </template>

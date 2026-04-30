@@ -81,11 +81,15 @@
 .event-pill--cancelled {
     background: #fde7e9;
     color: #8e030f;
+    text-decoration-line: line-through;
+    text-decoration-thickness: 2px;
 }
 
 .event-pill--cancelled-active {
     background: #f9d2d7;
     color: #8e030f;
+    text-decoration-line: line-through;
+    text-decoration-thickness: 2px;
 }
 
 .event-pill-wrapper {
@@ -136,6 +140,8 @@
 
 .event-tooltip__subject--cancelled {
     color: #ba0517;
+    text-decoration-line: line-through;
+    text-decoration-thickness: 2px;
 }
 
 .event-tooltip__row {

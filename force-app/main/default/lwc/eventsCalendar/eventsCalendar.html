@@ -32,12 +32,12 @@
       </lightning-tab>
       <lightning-tab label={upcomingTabLabel}>
         <template if:true={upcomingEvents}>
-          <lightning-datatable
+          <c-events-calendar-datatable
             key-field="Id"
             data={upcomingEvents}
             columns={columns}
             hide-checkbox-column
-          ></lightning-datatable>
+          ></c-events-calendar-datatable>
         </template>
         <template if:true={isLoadingUpcoming}>
           <lightning-spinner alternative-text="Loading upcoming events"></lightning-spinner>
@@ -46,12 +46,12 @@
 
       <lightning-tab label={pastTabLabel}>
         <template if:true={pastEvents}>
-          <lightning-datatable
+          <c-events-calendar-datatable
             key-field="Id"
             data={pastEvents}
             columns={columns}
             hide-checkbox-column
-          ></lightning-datatable>
+          ></c-events-calendar-datatable>
         </template>
         <template if:true={isLoadingPast}>
           <lightning-spinner alternative-text="Loading past events"></lightning-spinner>

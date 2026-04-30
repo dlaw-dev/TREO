@@ -50,10 +50,16 @@ export default class EventsCalendar extends LightningElement {
         {
             label: 'Subject',
             fieldName: 'recordLink',
-            type: 'url',
+            type: 'eventUrl',
             typeAttributes: {
                 label: { fieldName: 'Subject' },
-                target: '_self'
+                value: { fieldName: 'recordLink' },
+                target: '_self',
+                isCancelled: { fieldName: 'isCancelled' },
+                tooltipDateTime: { fieldName: 'tooltipDateTime' },
+                eventType: { fieldName: 'Type' },
+                location: { fieldName: 'Location' },
+                description: { fieldName: 'shortDescription' }
             },
             sortable: true,
             cellAttributes: {
@@ -106,7 +112,11 @@ export default class EventsCalendar extends LightningElement {
                 label: { fieldName: 'Subject' },
                 value: { fieldName: 'recordLink' },
                 target: '_self',
-                isCancelled: { fieldName: 'isCancelled' }
+                isCancelled: { fieldName: 'isCancelled' },
+                tooltipDateTime: { fieldName: 'tooltipDateTime' },
+                eventType: { fieldName: 'Type' },
+                location: { fieldName: 'Location' },
+                description: { fieldName: 'shortDescription' }
             }
         },
         {
@@ -253,6 +263,12 @@ export default class EventsCalendar extends LightningElement {
             isCancelled,
             displayStart: this.formatEventDateTime(ev.StartDateTime, ev.IsAllDayEvent),
             displayAttendees: this.formatAttendees(ev.EventRelations),
+            tooltipDateTime: this.formatEventDateTimeRange(
+                ev.StartDateTime,
+                ev.EndDateTime,
+                ev.IsAllDayEvent
+            ),
+            shortDescription: this.truncateText(ev.Description, 140),
             statusCellClass: isCancelled ? 'slds-text-color_error slds-text-title_bold' : ''
         };
     }
@@ -295,5 +311,69 @@ export default class EventsCalendar extends LightningElement {
             hour: '2-digit',
             minute: '2-digit'
         }).format(date);
+    }
+
+    formatEventDateTimeRange(startValue, endValue, isAllDay) {
+        if (!startValue) {
+            return '';
+        }
+
+        const start = new Date(startValue);
+        const end = endValue ? new Date(endValue) : null;
+
+        if (Number.isNaN(start.getTime())) {
+            return '';
+        }
+
+        if (isAllDay) {
+            return new Intl.DateTimeFormat('en-US', {
+                timeZone: 'UTC',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            }).format(start);
+        }
+
+        const dateLabel = new Intl.DateTimeFormat('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        }).format(start);
+
+        const startTimeLabel = new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: '2-digit'
+        }).format(start);
+
+        if (!end || Number.isNaN(end.getTime())) {
+            return `${dateLabel} at ${startTimeLabel}`;
+        }
+
+        const endTimeLabel = new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: '2-digit'
+        }).format(end);
+
+        if (start.toDateString() === end.toDateString()) {
+            return `${dateLabel}, ${startTimeLabel} - ${endTimeLabel}`;
+        }
+
+        const endDateLabel = new Intl.DateTimeFormat('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+        }).format(end);
+
+        return `${dateLabel}, ${startTimeLabel} - ${endDateLabel}`;
+    }
+
+    truncateText(value, maxLength) {
+        if (!value || value.length <= maxLength) {
+            return value;
+        }
+
+        return `${value.slice(0, maxLength).trimEnd()}...`;
     }
 }

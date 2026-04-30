@@ -167,6 +167,112 @@ public class EventAttendeeUiControllerTest {
     }
 
     /* =========================================================
+       TEST 3B: Save All-Day Event uses Date boundaries
+       ========================================================= */
+    @IsTest
+    static void testSaveAllDayEventDateNormalization() {
+
+        NEOS_Matter__c m = createMatter();
+
+        Test.startTest();
+
+        Id eventId = EventAttendeeUiController.saveEventWithAttendees(
+            m.Id,
+            FIRM_CALENDAR_USER_ID,
+            'All Day Event',
+            '2026-04-15',
+            '2026-04-15',
+            true,
+            'Free',
+            false,
+            'Trial',
+            'Court',
+            'All day test',
+            null,
+            null,
+            new List<String>()
+        );
+
+        Test.stopTest();
+
+        Event saved = [
+            SELECT IsAllDayEvent, ActivityDate, StartDateTime, EndDateTime
+            FROM Event
+            WHERE Id = :eventId
+            LIMIT 1
+        ];
+
+        System.assertEquals(true, saved.IsAllDayEvent, 'Event should be all-day');
+        System.assertEquals(Date.newInstance(2026, 4, 15), saved.ActivityDate, 'ActivityDate should match selected date');
+        System.assertEquals(Date.newInstance(2026, 4, 15), saved.StartDateTime.dateGmt(), 'Start datetime should align to selected all-day date in GMT');
+        Date endDateGmt = saved.EndDateTime.dateGmt();
+        System.assert(
+            new Set<Date>{
+                Date.newInstance(2026, 4, 15),
+                Date.newInstance(2026, 4, 16)
+            }.contains(endDateGmt),
+            'End datetime should remain compatible with all-day rendering across timezone normalization'
+        );
+    }
+
+    /* =========================================================
+       TEST 3C: Duplicate submission returns existing event
+       ========================================================= */
+    @IsTest
+    static void testSaveEventDeduplicatesNearIdenticalSubmissions() {
+
+        NEOS_Matter__c m = createMatter();
+
+        Test.startTest();
+
+        Id eventId1 = EventAttendeeUiController.saveEventWithAttendees(
+            m.Id,
+            FIRM_CALENDAR_USER_ID,
+            'Possible Double Submit',
+            '2026-05-01T09:00:00.000Z',
+            '2026-05-01T10:00:00.000Z',
+            false,
+            'Busy',
+            false,
+            'Trial',
+            'Courtroom',
+            'Idempotency test',
+            null,
+            null,
+            new List<String>()
+        );
+
+        Id eventId2 = EventAttendeeUiController.saveEventWithAttendees(
+            m.Id,
+            FIRM_CALENDAR_USER_ID,
+            'Possible Double Submit',
+            '2026-05-01T09:00:00.000Z',
+            '2026-05-01T10:00:00.000Z',
+            false,
+            'Busy',
+            false,
+            'Trial',
+            'Courtroom',
+            'Idempotency test',
+            null,
+            null,
+            new List<String>()
+        );
+
+        Test.stopTest();
+
+        System.assertEquals(eventId1, eventId2, 'Second submit should return the first event');
+
+        Integer countEvents = [
+            SELECT COUNT()
+            FROM Event
+            WHERE NEOS_Matter__c = :m.Id
+              AND Subject = 'Possible Double Submit'
+        ];
+        System.assertEquals(1, countEvents, 'Only one event should be created');
+    }
+
+    /* =========================================================
        TEST 4: searchUsers
        ========================================================= */
     @IsTest

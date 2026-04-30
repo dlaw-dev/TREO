@@ -44,8 +44,10 @@
 
                 <lightning-tab label="People">
                     <lightning-input
+                        data-id="user-search-input"
                         type="search"
                         label="Search Users"
+                        value={userSearchKeyword}
                         onfocus={handleUserFocus}
                         onkeyup={handleUserSearch}
                         onkeydown={handleUserKeydown}>
@@ -66,8 +68,10 @@
 
                 <lightning-tab label="Groups">
                     <lightning-input
+                        data-id="group-search-input"
                         type="search"
                         label="Search Groups"
+                        value={groupSearchKeyword}
                         onfocus={handleGroupFocus}
                         onkeyup={handleGroupSearch}
                         onkeydown={handleGroupKeydown}>
@@ -235,6 +239,7 @@
         <lightning-button
             variant="brand"
             label="Save"
+            disabled={isSaveDisabled}
             onclick={save}>
         </lightning-button>
 

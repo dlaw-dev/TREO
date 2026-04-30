@@ -79,9 +79,12 @@ export default class EventCreateModalAction extends LightningModal {
 
     selectedUserIds = new Set();
     selectedGroupIds = new Set();
+    isSaving = false;
 
     userSearchTimeout;
     groupSearchTimeout;
+    userSearchKeyword = '';
+    groupSearchKeyword = '';
 
     /* -------------------------
        Init
@@ -176,6 +179,10 @@ export default class EventCreateModalAction extends LightningModal {
         ];
     }
 
+    get isSaveDisabled() {
+        return this.isSaving;
+    }
+
     /* -------------------------
        Field Handlers
     -------------------------- */
@@ -243,6 +250,7 @@ export default class EventCreateModalAction extends LightningModal {
         clearTimeout(this.userSearchTimeout);
 
         const val = e.target.value;
+        this.userSearchKeyword = val || '';
 
         this.userSearchTimeout = setTimeout(() => {
             this.searchUsersInternal(val || '');
@@ -254,6 +262,7 @@ export default class EventCreateModalAction extends LightningModal {
         clearTimeout(this.groupSearchTimeout);
 
         const val = e.target.value;
+        this.groupSearchKeyword = val || '';
 
         this.groupSearchTimeout = setTimeout(() => {
             this.searchGroupsInternal(val || '');
@@ -264,7 +273,9 @@ export default class EventCreateModalAction extends LightningModal {
 
         if (e.key === 'Enter') {
             e.preventDefault();
-            this.searchUsersInternal(e.target.value || '');
+            const keyword = e.target.value || '';
+            this.userSearchKeyword = keyword;
+            this.searchUsersInternal(keyword);
         }
     }
 
@@ -272,7 +283,9 @@ export default class EventCreateModalAction extends LightningModal {
 
         if (e.key === 'Enter') {
             e.preventDefault();
-            this.searchGroupsInternal(e.target.value || '');
+            const keyword = e.target.value || '';
+            this.groupSearchKeyword = keyword;
+            this.searchGroupsInternal(keyword);
         }
     }
 
@@ -348,6 +361,7 @@ export default class EventCreateModalAction extends LightningModal {
         );
 
         this.syncGroupMembersSelection();
+        this.resetSearchAfterSelection('user');
     }
 
     addGroup(e) {
@@ -364,6 +378,25 @@ export default class EventCreateModalAction extends LightningModal {
             ...this.selectedGroups,
             { id, name: g.Name }
         ];
+
+        this.resetSearchAfterSelection('group');
+    }
+
+    resetSearchAfterSelection(type) {
+        this.userSearchKeyword = '';
+        this.groupSearchKeyword = '';
+        clearTimeout(this.userSearchTimeout);
+        clearTimeout(this.groupSearchTimeout);
+
+        const selector = type === 'group'
+            ? 'lightning-input[data-id="group-search-input"]'
+            : 'lightning-input[data-id="user-search-input"]';
+
+        const searchInput = this.template.querySelector(selector);
+
+        if (searchInput) {
+            searchInput.focus();
+        }
     }
 
     removeUser(e) {
@@ -480,6 +513,11 @@ export default class EventCreateModalAction extends LightningModal {
     -------------------------- */
 
     async save() {
+        if (this.isSaving) {
+            return;
+        }
+
+        this.isSaving = true;
 
         try {
             const startDateTimeIso = this.toIsoString(this.startDateTime);
@@ -530,6 +568,8 @@ typeValue: this.typeValue,
                     variant: 'error'
                 })
             );
+        } finally {
+            this.isSaving = false;
         }
     }
 

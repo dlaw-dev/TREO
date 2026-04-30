@@ -12,7 +12,7 @@ export default class EventsCalendarDatatable extends LightningDatatable {
         eventUrl: {
             template: eventUrlTemplate,
             standardCellLayout: true,
-            typeAttributes: ['label', 'value', 'target', 'isCancelled']
+            typeAttributes: ['label', 'value', 'target', 'isCancelled', 'tooltipDateTime', 'eventType', 'location', 'description']
         }
     };
 }

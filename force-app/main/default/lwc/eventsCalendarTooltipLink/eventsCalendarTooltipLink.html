@@ -1,0 +1,37 @@
+<template>
+    <div
+        class="tooltip-anchor"
+        onmouseenter={handleMouseEnter}
+        onmouseleave={handleMouseLeave}
+    >
+        <a
+            href={value}
+            target={target}
+            class={linkClass}
+        >
+            {label}
+        </a>
+
+        <template if:true={showTooltip}>
+            <section class={tooltipClass} role="tooltip" style={tooltipStyle}>
+                <div class={subjectClass}>{label}</div>
+
+                <template if:true={tooltipDateTime}>
+                    <div class="event-tooltip__row">{tooltipDateTime}</div>
+                </template>
+
+                <template if:true={eventType}>
+                    <div class="event-tooltip__row">Type: {eventType}</div>
+                </template>
+
+                <template if:true={location}>
+                    <div class="event-tooltip__row">Location: {location}</div>
+                </template>
+
+                <template if:true={description}>
+                    <div class="event-tooltip__description">{description}</div>
+                </template>
+            </section>
+        </template>
+    </div>
+</template>
