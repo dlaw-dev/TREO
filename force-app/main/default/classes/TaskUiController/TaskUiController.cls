@@ -127,6 +127,17 @@ public with sharing class TaskUiController {
         }
     }
 
+    @AuraEnabled
+    public static void completeTask(Id taskId) {
+        try {
+            Task t = [SELECT Id FROM Task WHERE Id = :taskId LIMIT 1];
+            t.Status = 'Completed';
+            update t;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error completing task: ' + e.getMessage());
+        }
+    }
+
     // ======================================
     // Reminder Date Calculation Logic
     // ======================================

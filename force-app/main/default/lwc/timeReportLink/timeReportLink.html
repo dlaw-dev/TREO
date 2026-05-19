@@ -1,0 +1,22 @@
+<template>
+    <lightning-card>
+        <template if:true={isConfigured}>
+            <div class="slds-p-around_medium">
+                <lightning-icon
+                    icon-name="standard:report"
+                    size="small"
+                    class="slds-m-right_x-small"
+                ></lightning-icon>
+                <a href={reportUrl} onclick={handleClick}>
+                    {linkLabel}
+                </a>
+            </div>
+        </template>
+
+        <template if:false={isConfigured}>
+            <div class="slds-p-around_medium slds-text-color_error">
+                ⚠️ Place this component on a Lightning Record Page to load the report filter.
+            </div>
+        </template>
+    </lightning-card>
+</template>

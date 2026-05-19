@@ -137,22 +137,23 @@
 
             <lightning-input
                 class="slds-col"
-                type="datetime"
+                type={startInputType}
                 label="Start"
                 value={startDateTime}
                 onchange={handleStart}>
             </lightning-input>
 
-            <lightning-input
-                class="slds-col"
-                type="datetime"
-                label="End"
-                value={endDateTime}
-                onchange={handleEnd}>
-            </lightning-input>
+            <template if:false={isAllDay}>
+                <lightning-input
+                    class="slds-col"
+                    type="datetime"
+                    label="End"
+                    value={endDateTime}
+                    onchange={handleEnd}>
+                </lightning-input>
+            </template>
 
         </div>
-
         <!-- All Day -->
         <lightning-input
             class="slds-m-top_medium"

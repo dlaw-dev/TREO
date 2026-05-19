@@ -29,7 +29,10 @@ private class TaskUiControllerTest {
     }
 
     private static NEOS_Matter__c createMatter() {
-        NEOS_Matter__c matter = new NEOS_Matter__c(Name = 'Test Matter');
+        NEOS_Matter__c matter = new NEOS_Matter__c(
+            Name = 'Test Matter',
+            Case_Title__c = 'Test Matter Title'
+        );
         insert matter;
         return matter;
     }
@@ -201,6 +204,29 @@ private class TaskUiControllerTest {
         Test.stopTest();
 
         System.assertEquals(true, exceptionThrown);
+    }
+
+    /* =========================================================
+       Complete Task
+    ========================================================== */
+
+    @IsTest
+    static void testCompleteTask() {
+        User owner = createAllowedUser();
+
+        Task t = new Task(
+            Subject      = 'Task To Complete',
+            Status       = 'Not Started',
+            OwnerId      = owner.Id
+        );
+        insert t;
+
+        Test.startTest();
+        TaskUiController.completeTask(t.Id);
+        Test.stopTest();
+
+        Task updated = [SELECT Status FROM Task WHERE Id = :t.Id];
+        System.assertEquals('Completed', updated.Status);
     }
 
     /* =========================================================

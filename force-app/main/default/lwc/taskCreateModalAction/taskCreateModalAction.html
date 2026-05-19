@@ -1,8 +1,7 @@
 <template>
-    <!-- Header -->
     <lightning-modal-header label="New Task"></lightning-modal-header>
 
-    <lightning-modal-body>
+    <lightning-modal-body onclick={handleModalOutsideSearchClick}>
 
         <!-- Subject -->
         <lightning-input
@@ -32,24 +31,103 @@
 
         <!-- Assignee Search -->
         <div class="slds-m-top_large">
-            <lightning-input
-                type="search"
-                label="Search Users"
-                onfocus={handleUserFocus}
-                onchange={handleUserSearch}>
-            </lightning-input>
+            <lightning-tabset>
 
-            <template for:each={userResults} for:item="u">
-                <button
-                    key={u.Id}
-                    type="button"
-                    class="result-row slds-grid slds-grid_align-spread slds-p-around_small"
-                    data-id={u.Id}
-                    onclick={addUser}>
-                    <span class="result-row__label">{u.Name}</span>
-                    <span class="result-row__action">Add</span>
-                </button>
-            </template>
+                <lightning-tab label="People">
+                    <div class="search-container" onclick={handleSearchAreaClick}>
+                        <lightning-input
+                            data-id="user-search-input"
+                            type="search"
+                            label="Search Users"
+                            value={userSearchKeyword}
+                            onfocus={handleUserFocus}
+                            onclick={handleUserClick}
+                            onblur={handleUserBlur}
+                            onkeyup={handleUserSearch}
+                            onkeydown={handleUserKeydown}>
+                        </lightning-input>
+
+                        <template if:true={hasUserResults}>
+                            <div class="search-dropdown" onmousedown={handleSearchDropdownMouseDown}>
+                                <template for:each={userResults} for:item="u">
+                                    <button
+                                        key={u.Id}
+                                        type="button"
+                                        class="dropdown-item"
+                                        data-id={u.Id}
+                                        onclick={addUser}>
+                                        {u.Name}
+                                    </button>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-tab>
+
+                <lightning-tab label="Groups">
+                    <div class="search-container" onclick={handleSearchAreaClick}>
+                        <lightning-input
+                            data-id="group-search-input"
+                            type="search"
+                            label="Search Groups"
+                            value={groupSearchKeyword}
+                            onfocus={handleGroupFocus}
+                            onclick={handleGroupClick}
+                            onblur={handleGroupBlur}
+                            onkeyup={handleGroupSearch}
+                            onkeydown={handleGroupKeydown}>
+                        </lightning-input>
+
+                        <template if:true={hasGroupResults}>
+                            <div class="search-dropdown" onmousedown={handleSearchDropdownMouseDown}>
+                                <template for:each={groupResults} for:item="g">
+                                    <div key={g.Id} class="slds-m-top_small">
+                                        <button
+                                            type="button"
+                                            class="result-row slds-grid slds-grid_align-spread slds-p-around_small"
+                                            data-id={g.Id}
+                                            onclick={toggleGroupMembers}>
+                                            <span class="result-row__label">{g.Name}</span>
+                                            <span class="result-row__action">{g.memberToggleLabel}</span>
+                                        </button>
+
+                                        <template if:true={g.isExpanded}>
+                                            <div class="group-members slds-m-top_x-small slds-m-left_medium">
+                                                <template if:true={g.isLoadingMembers}>
+                                                    <lightning-spinner
+                                                        size="small"
+                                                        alternative-text="Loading group users">
+                                                    </lightning-spinner>
+                                                </template>
+
+                                                <template for:each={g.members} for:item="member">
+                                                    <button
+                                                        key={member.Id}
+                                                        type="button"
+                                                        class="member-row slds-grid slds-grid_align-spread slds-p-around_x-small"
+                                                        data-id={member.Id}
+                                                        onclick={addUserFromGroup}
+                                                        disabled={member.isSelected}>
+                                                        <span>{member.Name}</span>
+                                                        <span class="result-row__action">{member.actionLabel}</span>
+                                                    </button>
+                                                </template>
+
+                                                <template if:true={g.showNoMembers}>
+                                                    <div class="slds-text-body_small slds-text-color_weak slds-p-vertical_x-small">
+                                                        No users found in this group.
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-tab>
+
+            </lightning-tabset>
         </div>
 
         <!-- Status + Priority -->
@@ -105,7 +183,6 @@
         <!-- Due Date + Reminders -->
         <div class="slds-grid slds-gutters slds-m-top_large">
 
-            <!-- Due Date -->
             <div class="slds-col slds-size_1-of-2">
                 <lightning-input
                     type="date"
@@ -115,7 +192,6 @@
                 </lightning-input>
             </div>
 
-            <!-- Multi Reminders -->
             <div class="slds-col slds-size_1-of-2">
                 <lightning-dual-listbox
                     name="reminders"
@@ -132,14 +208,13 @@
         </div>
 
         <!-- Internal / External -->
-        <div class="slds-m-top_medium">
-            <lightning-combobox
-                label="Internal / External"
-                value={internalExternalType}
-                options={internalExternalTypeOptions}
-                onchange={handleInternalExternalType}>
-            </lightning-combobox>
-        </div>
+        <lightning-combobox
+            class="slds-m-top_medium"
+            label="Internal / External"
+            value={internalExternalType}
+            options={internalExternalTypeOptions}
+            onchange={handleInternalExternalType}>
+        </lightning-combobox>
 
         <!-- Related To -->
         <lightning-input
@@ -151,17 +226,23 @@
 
     </lightning-modal-body>
 
-    <!-- Footer -->
-    <lightning-modal-footer>
+    <lightning-modal-footer onclick={handleModalOutsideSearchClick}>
         <lightning-button
             label="Cancel"
             onclick={handleCancel}>
         </lightning-button>
 
         <lightning-button
+            label="Save &amp; New"
+            disabled={isSaveDisabled}
+            onclick={saveAndNew}>
+        </lightning-button>
+
+        <lightning-button
             variant="brand"
             label="Save"
-            onclick={handleSave}>
+            disabled={isSaveDisabled}
+            onclick={save}>
         </lightning-button>
     </lightning-modal-footer>
 </template>

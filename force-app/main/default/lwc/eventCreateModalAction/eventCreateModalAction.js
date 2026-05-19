@@ -132,6 +132,13 @@ export default class EventCreateModalAction extends LightningModal {
         return parsed.toISOString();
     }
 
+    toDateOnly(value) {
+        if (!value) {
+            return null;
+        }
+        return String(value).split('T')[0];
+    }
+
     /* -------------------------
        Matter record
     -------------------------- */
@@ -181,6 +188,10 @@ export default class EventCreateModalAction extends LightningModal {
 
     get isSaveDisabled() {
         return this.isSaving;
+    }
+
+    get startInputType() {
+        return this.isAllDay ? 'date' : 'datetime';
     }
 
     /* -------------------------
@@ -520,14 +531,21 @@ export default class EventCreateModalAction extends LightningModal {
         this.isSaving = true;
 
         try {
-            const startDateTimeIso = this.toIsoString(this.startDateTime);
-            const endDateTimeIso = this.toIsoString(this.endDateTime);
+            const startDateTimeIso = this.isAllDay
+                ? this.toDateOnly(this.startDateTime)
+                : this.toIsoString(this.startDateTime);
+            const endDateTimeIso = this.isAllDay
+                ? this.toDateOnly(this.startDateTime)
+                : this.toIsoString(this.endDateTime);
 
             if (!startDateTimeIso || !endDateTimeIso) {
                 throw new Error('Enter a valid start and end date/time.');
             }
 
-            if (new Date(endDateTimeIso).getTime() <= new Date(startDateTimeIso).getTime()) {
+            if (
+                !this.isAllDay &&
+                new Date(endDateTimeIso).getTime() <= new Date(startDateTimeIso).getTime()
+            ) {
                 throw new Error('End must be after Start.');
             }
 

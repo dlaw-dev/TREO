@@ -41,7 +41,7 @@ public with sharing class EventAttendeeUiController {
                 AND UserType = 'Standard'
                 AND Profile.Name IN :ALLOWED_PROFILE_NAMES
                 ORDER BY Name
-                LIMIT 10
+                LIMIT 100
             ];
         }
 
@@ -165,6 +165,7 @@ public with sharing class EventAttendeeUiController {
         try {
             Datetime startDt;
             Datetime endDt;
+            String normalizedSubject = subject == null ? null : subject.trim();
 
             if (isAllDay) {
                 Date startDate = parseDateInput(startDateTimeIso);
@@ -175,7 +176,8 @@ public with sharing class EventAttendeeUiController {
                 }
 
                 if (endDate < startDate) {
-                    throw new AuraHandledException('End date must be on or after Start date.');
+                    // Defensive normalization: if client sends stale all-day end date, keep same-day event.
+                    endDate = startDate;
                 }
 
                 startDt = Datetime.newInstance(startDate, Time.newInstance(0, 0, 0, 0));
@@ -193,7 +195,7 @@ public with sharing class EventAttendeeUiController {
             }
 
             Event ev = new Event(
-                Subject        = subject,
+                Subject        = normalizedSubject,
                 StartDateTime  = startDt,
                 EndDateTime    = endDt,
                 OwnerId        = ownerId,
@@ -216,7 +218,7 @@ public with sharing class EventAttendeeUiController {
 
             // Serialize event creation per matter to avoid concurrent duplicate inserts.
             if (caseId != null) {
-                [
+                List<NEOS_Matter__c> lockedMatter = [
                     SELECT Id
                     FROM NEOS_Matter__c
                     WHERE Id = :caseId
@@ -226,23 +228,24 @@ public with sharing class EventAttendeeUiController {
             }
 
             Datetime duplicateThreshold = System.now().addSeconds(-DUPLICATE_WINDOW_SECONDS);
-            List<Event> recentDuplicates = [
-                SELECT Id
-                FROM Event
-                WHERE OwnerId = :ownerId
-                  AND NEOS_Matter__c = :caseId
-                  AND Subject = :subject
-                  AND StartDateTime = :startDt
-                  AND EndDateTime = :endDt
-                  AND IsAllDayEvent = :isAllDay
-                  AND ShowAs = :showAs
-                  AND CreatedDate >= :duplicateThreshold
-                ORDER BY CreatedDate DESC
-                LIMIT 1
-            ];
+            List<Event> recentCandidates = new DedupeSupport().findRecentCandidates(
+                ownerId,
+                caseId,
+                normalizedSubject,
+                duplicateThreshold
+            );
 
-            if (!recentDuplicates.isEmpty()) {
-                return recentDuplicates[0].Id;
+            for (Event candidate : recentCandidates) {
+                if (
+                    candidate.StartDateTime != null &&
+                    candidate.EndDateTime != null &&
+                    candidate.StartDateTime.getTime() == startDt.getTime() &&
+                    candidate.EndDateTime.getTime() == endDt.getTime() &&
+                    candidate.IsAllDayEvent == isAllDay &&
+                    candidate.ShowAs == showAs
+                ) {
+                    return candidate.Id;
+                }
             }
 
             insert ev;
@@ -377,6 +380,9 @@ public with sharing class EventAttendeeUiController {
             }
 
             return ev.Id;
+        } catch (AuraHandledException e) {
+            // Preserve explicit validation/business messages instead of collapsing to "Script-thrown exception".
+            throw e;
         } catch (DmlException e) {
             throw new AuraHandledException('Error saving Event: ' + e.getDmlMessage(0));
         } catch (QueryException e) {
@@ -421,5 +427,39 @@ public with sharing class EventAttendeeUiController {
         }
 
         return false;
+    }
+
+    private without sharing class DedupeSupport {
+        private List<Event> findRecentCandidates(
+            Id ownerId,
+            Id caseId,
+            String normalizedSubject,
+            Datetime duplicateThreshold
+        ) {
+            if (caseId != null) {
+                return [
+                    SELECT Id, StartDateTime, EndDateTime, IsAllDayEvent, ShowAs
+                    FROM Event
+                    WHERE OwnerId = :ownerId
+                      AND (WhatId = :caseId OR NEOS_Matter__c = :caseId)
+                      AND Subject = :normalizedSubject
+                      AND CreatedDate >= :duplicateThreshold
+                    ORDER BY CreatedDate DESC
+                    LIMIT 10
+                ];
+            }
+
+            return [
+                SELECT Id, StartDateTime, EndDateTime, IsAllDayEvent, ShowAs
+                FROM Event
+                WHERE OwnerId = :ownerId
+                  AND WhatId = null
+                  AND NEOS_Matter__c = null
+                  AND Subject = :normalizedSubject
+                  AND CreatedDate >= :duplicateThreshold
+                ORDER BY CreatedDate DESC
+                LIMIT 10
+            ];
+        }
     }
 }

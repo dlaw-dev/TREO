@@ -1,9 +1,13 @@
 import { LightningElement, api, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import TaskCreateModalAction from 'c/taskCreateModalAction';
 import { refreshApex } from '@salesforce/apex';
+import { subscribe, MessageContext } from 'lightning/messageService';
+import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 
 import getTasksForMatter from '@salesforce/apex/TaskCalendarController.getTasksForMatter';
+import completeTask from '@salesforce/apex/TaskUiController.completeTask';
 
 export default class TasksCalendar extends NavigationMixin(LightningElement) {
 
@@ -13,6 +17,14 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     isLoading = true;
     error;
     wiredResult;
+
+    @wire(MessageContext) messageContext;
+
+    connectedCallback() {
+        subscribe(this.messageContext, TASK_CHANGED, () => {
+            refreshApex(this.wiredResult);
+        });
+    }
 
     columns = [
         {
@@ -25,21 +37,20 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
                 variant: 'base'
             }
         },
-        {
-    label: 'Due Date',
-    fieldName: 'ActivityDate',
-    type: 'date-local'
-},
-        { label: 'Status', fieldName: 'Status', type: 'text' },
-
-        // Task Subtype
+        { label: 'Due Date', fieldName: 'ActivityDate', type: 'date-local' },
+        { label: 'Status',      fieldName: 'Status',    type: 'text' },
         { label: 'Task Subtype', fieldName: 'TaskSubtype', type: 'text' },
-
-        // Priority (moved after subtype)
-        { label: 'Priority', fieldName: 'Priority', type: 'text' },
-
-        // Assignee
-        { label: 'Assignee', fieldName: 'OwnerName', type: 'text' }
+        { label: 'Priority',    fieldName: 'Priority',  type: 'text' },
+        { label: 'Assignee',    fieldName: 'OwnerName', type: 'text' },
+        {
+            type: 'action',
+            typeAttributes: {
+                rowActions: [
+                    { label: 'Complete',  name: 'complete' },
+                    { label: 'Duplicate', name: 'duplicate' }
+                ]
+            }
+        }
     ];
 
     // ---------- Wire ----------
@@ -74,6 +85,48 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
                     actionName: 'view'
                 }
             });
+        } else if (actionName === 'complete') {
+            this.handleCompleteTask(row);
+        } else if (actionName === 'duplicate') {
+            this.handleDuplicateTask(row);
+        }
+    }
+
+    async handleCompleteTask(row) {
+        try {
+            await completeTask({ taskId: row.Id });
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Success',
+                message: 'Task marked as Completed',
+                variant: 'success'
+            }));
+            await refreshApex(this.wiredResult);
+        } catch (e) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error',
+                message: e.body?.message || e.message,
+                variant: 'error'
+            }));
+        }
+    }
+
+    async handleDuplicateTask(row) {
+        const result = await TaskCreateModalAction.open({
+            size: 'medium',
+            recordId: this.recordId,
+            initialSubject:              row.Subject,
+            initialDueDate:              row.ActivityDate,
+            initialStatus:               row.Status,
+            initialPriority:             row.Priority,
+            initialDescription:          row.Description,
+            initialTaskSubtype:          row.TaskSubtype,
+            initialTaskSubtypeIfOther:   row.TaskSubtypeIfOther,
+            initialInternalExternalType: row.InternalExternalType,
+            initialAssignees:            row.OwnerId ? [{ id: row.OwnerId, name: row.OwnerName }] : []
+        });
+
+        if (result === 'success') {
+            await refreshApex(this.wiredResult);
         }
     }
 
