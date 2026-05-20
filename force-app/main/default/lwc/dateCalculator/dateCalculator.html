@@ -57,13 +57,13 @@
                             <div class="slds-text-title_caps slds-m-bottom_small">Custom</div>
                             <div class="slds-grid slds-gutters_small">
                                 <div class="slds-col">
-                                    <lightning-input type="number" label="Years"  min="0" value={addYears}  onchange={handleYears}></lightning-input>
+                                    <lightning-input type="number" label="Years"  value={addYears}  onchange={handleYears}></lightning-input>
                                 </div>
                                 <div class="slds-col">
-                                    <lightning-input type="number" label="Months" min="0" value={addMonths} onchange={handleMonths}></lightning-input>
+                                    <lightning-input type="number" label="Months" value={addMonths} onchange={handleMonths}></lightning-input>
                                 </div>
                                 <div class="slds-col">
-                                    <lightning-input type="number" label="Days"   min="0" value={addDays}   onchange={handleDays}></lightning-input>
+                                    <lightning-input type="number" label="Days"   value={addDays}   onchange={handleDays}></lightning-input>
                                 </div>
                             </div>
                             <template if:true={customResult}>
