@@ -1,0 +1,167 @@
+<template>
+    <lightning-card title="Deadline Calculator" icon-name="standard:event">
+        <div class="slds-p-around_medium">
+
+            <lightning-tabset>
+
+                <!-- ── ADD DAYS ─────────────────────────────────────────── -->
+                <lightning-tab label="Add Days">
+                    <div class="tab-body">
+                        <lightning-input type="date" label="Start Date" value={startDate} onchange={handleStartDate}></lightning-input>
+
+                        <div class="slds-m-top_medium">
+                            <div class="slds-text-title_caps slds-m-bottom_x-small">All Deadlines</div>
+                            <table class="deadline-table">
+                                <thead>
+                                    <tr>
+                                        <th>Period</th>
+                                        <th>Date</th>
+                                        <th>Day</th>
+                                        <th>From Today</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={deadlineRows} for:item="row">
+                                        <tr key={row.label} class={row.rowClass}>
+                                            <td class="col-label">{row.label}</td>
+                                            <td class="col-date">{row.dateStr}</td>
+                                            <td class="col-dow">{row.dow}</td>
+                                            <td class="col-days">{row.daysLabel}</td>
+                                            <td class="col-action">
+                                                <template if:true={row.isWeekend}>
+                                                    <span class="weekend-badge" title={row.weekendNote}>⚠️</span>
+                                                </template>
+                                                <button class="copy-sm" data-text={row.dateStr} onclick={handleRowCopy} title="Copy date">⎘</button>
+                                            </td>
+                                        </tr>
+                                        <template if:true={row.isWeekend}>
+                                            <tr key={row.wkKey} class="weekend-note-row">
+                                                <td colspan="5" class="weekend-note">{row.weekendNote}</td>
+                                            </tr>
+                                        </template>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="slds-m-top_large">
+                            <div class="slds-text-title_caps slds-m-bottom_small">Custom</div>
+                            <div class="slds-grid slds-gutters_small">
+                                <div class="slds-col">
+                                    <lightning-input type="number" label="Years"  min="0" value={addYears}  onchange={handleYears}></lightning-input>
+                                </div>
+                                <div class="slds-col">
+                                    <lightning-input type="number" label="Months" min="0" value={addMonths} onchange={handleMonths}></lightning-input>
+                                </div>
+                                <div class="slds-col">
+                                    <lightning-input type="number" label="Days"   min="0" value={addDays}   onchange={handleDays}></lightning-input>
+                                </div>
+                            </div>
+                            <template if:true={customResult}>
+                                <div class="result-box slds-m-top_medium">
+                                    <div class="result-date">{customResult.dateStr}</div>
+                                    <div class="result-sub">{customResult.dow} &middot; {customResult.daysLabel}</div>
+                                    <template if:true={customResult.isWeekend}>
+                                        <div class="result-weekend">{customResult.weekendNote}</div>
+                                    </template>
+                                    <button class="copy-btn slds-m-top_small" onclick={handleCopy}>{copyLabel}</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </lightning-tab>
+
+                <!-- ── COUNT DAYS ────────────────────────────────────────── -->
+                <lightning-tab label="Count Days">
+                    <div class="tab-body">
+                        <div class="slds-grid slds-gutters_small">
+                            <div class="slds-col">
+                                <lightning-input type="date" label="Start Date" value={countStart} onchange={handleCountStart}></lightning-input>
+                            </div>
+                            <div class="slds-col">
+                                <lightning-input type="date" label="End Date" value={countEnd} onchange={handleCountEnd}></lightning-input>
+                            </div>
+                        </div>
+                        <template if:true={countResult}>
+                            <div class="result-box slds-m-top_medium">
+                                <div class="result-date">{countResult.totalDays} days</div>
+                                <div class="result-sub slds-m-top_x-small">{countResult.weeksLine}</div>
+                                <div class="result-sub">{countResult.monthsLine}</div>
+                                <div class="result-sub">{countResult.yearsLine}</div>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-tab>
+
+                <!-- ── WORKDAYS ───────────────────────────────────────────── -->
+                <lightning-tab label="Workdays">
+                    <div class="tab-body">
+                        <div class="slds-grid slds-gutters_small">
+                            <div class="slds-col">
+                                <lightning-input type="date" label="Start Date" value={wdStart} onchange={handleWdStart}></lightning-input>
+                            </div>
+                            <div class="slds-col">
+                                <lightning-input type="date" label="End Date" value={wdEnd} onchange={handleWdEnd}></lightning-input>
+                            </div>
+                        </div>
+                        <template if:true={workdayResult}>
+                            <div class="result-box slds-m-top_medium">
+                                <div class="result-date">{workdayResult.workdays} business days</div>
+                                <div class="result-sub">{workdayResult.calendarDays} calendar days total</div>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-tab>
+
+                <!-- ── ADD WORKDAYS ──────────────────────────────────────── -->
+                <lightning-tab label="Add Workdays">
+                    <div class="tab-body">
+                        <lightning-input type="date" label="Start Date" value={awStart} onchange={handleAwStart}></lightning-input>
+                        <div class="slds-m-top_small">
+                            <lightning-input type="number" label="Business Days to Add" min="1" value={awDays} onchange={handleAwDays}></lightning-input>
+                        </div>
+                        <template if:true={addWorkdaysResult}>
+                            <div class="result-box slds-m-top_medium">
+                                <div class="result-date">{addWorkdaysResult.dateStr}</div>
+                                <div class="result-sub">{addWorkdaysResult.dow} &middot; {addWorkdaysResult.daysLabel}</div>
+                                <template if:true={addWorkdaysResult.isWeekend}>
+                                    <div class="result-weekend">{addWorkdaysResult.weekendNote}</div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-tab>
+
+                <!-- ── WEEKDAY ────────────────────────────────────────────── -->
+                <lightning-tab label="Weekday">
+                    <div class="tab-body">
+                        <lightning-input type="date" label="Date" value={weekdayDate} onchange={handleWeekdayDate}></lightning-input>
+                        <template if:true={weekdayResult}>
+                            <div class="result-box slds-m-top_medium">
+                                <div class="result-date">{weekdayResult.dow}</div>
+                                <div class="result-sub">{weekdayResult.dateStr}</div>
+                                <div class="result-sub">{weekdayResult.daysLabel}</div>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-tab>
+
+                <!-- ── WEEK № ─────────────────────────────────────────────── -->
+                <lightning-tab label="Week №">
+                    <div class="tab-body">
+                        <lightning-input type="date" label="Date" value={weekNumDate} onchange={handleWeekNumDate}></lightning-input>
+                        <template if:true={weekNumResult}>
+                            <div class="result-box slds-m-top_medium">
+                                <div class="result-date">Week {weekNumResult.weekNum}</div>
+                                <div class="result-sub">{weekNumResult.year}</div>
+                                <div class="result-sub">{weekNumResult.range}</div>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-tab>
+
+            </lightning-tabset>
+        </div>
+    </lightning-card>
+</template>

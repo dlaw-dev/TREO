@@ -1,0 +1,98 @@
+.deadline-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.deadline-table thead tr {
+    border-bottom: 2px solid var(--lwc-colorBorder, #d8dde6);
+}
+
+.deadline-table th {
+    text-align: left;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+    color: var(--lwc-colorTextWeak, #706e6b);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.deadline-row td {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--lwc-colorBorder, #e4e4e4);
+    vertical-align: middle;
+}
+
+.weekend-row td {
+    background: #fff8e8;
+}
+
+.weekend-note-row td {
+    background: #fff8e8;
+    padding: 0 0.5rem 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--lwc-colorBorder, #e4e4e4);
+}
+
+.weekend-note {
+    font-size: 0.75rem;
+    color: #a05c00;
+}
+
+.col-label { font-weight: 600; white-space: nowrap; }
+.col-date  { white-space: nowrap; }
+.col-dow   { color: var(--lwc-colorTextWeak, #706e6b); }
+.col-days  { color: var(--lwc-colorTextWeak, #706e6b); white-space: nowrap; }
+.col-action { text-align: right; white-space: nowrap; }
+
+.weekend-badge {
+    font-size: 0.8rem;
+    margin-right: 0.25rem;
+}
+
+.copy-sm {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--lwc-colorTextWeak, #706e6b);
+    padding: 0 0.2rem;
+}
+
+.copy-sm:hover { color: var(--lwc-colorTextDefault, #3e3e3c); }
+
+.result-box {
+    background: var(--lwc-colorBackgroundAlt, #f8f8f8);
+    border: 1px solid var(--lwc-colorBorder, #d8dde6);
+    border-radius: 0.375rem;
+    padding: 1rem;
+    text-align: center;
+}
+
+.result-date {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--lwc-colorTextDefault, #3e3e3c);
+}
+
+.result-dow {
+    font-size: 0.9rem;
+    color: var(--lwc-colorTextWeak, #706e6b);
+    margin-top: 0.2rem;
+}
+
+.result-weekend {
+    font-size: 0.85rem;
+    color: #a05c00;
+    margin-top: 0.4rem;
+}
+
+.copy-btn {
+    padding: 0.3rem 1rem;
+    border: 1px solid var(--lwc-colorBorder, #d8dde6);
+    border-radius: 1rem;
+    background: var(--lwc-colorBackgroundAlt, #fff);
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.copy-btn:hover { background: var(--lwc-colorBackgroundRowHover, #f3f3f3); }
