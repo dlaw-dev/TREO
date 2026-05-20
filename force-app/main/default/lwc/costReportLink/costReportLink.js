@@ -3,7 +3,7 @@ import { NavigationMixin } from 'lightning/navigation';
 
 // ─── CONFIGURE THESE ────────────────────────────────────────────────────────
 const REPORT_ID = '00OVt00000BiV6bMAF';
-const FILTER_INDEX = 2;
+const FILTER_INDEX = 4;
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default class CostReportLink extends NavigationMixin(LightningElement) {

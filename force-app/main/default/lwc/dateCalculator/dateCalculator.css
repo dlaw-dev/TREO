@@ -49,6 +49,27 @@
     margin-right: 0.25rem;
 }
 
+.holiday-row td {
+    background: #eaf4fb;
+}
+
+.holiday-note-row td {
+    background: #eaf4fb;
+    padding: 0 0.5rem 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--lwc-colorBorder, #e4e4e4);
+}
+
+.holiday-note {
+    font-size: 0.75rem;
+    color: #0a6ea8;
+}
+
+.result-holiday {
+    font-size: 0.85rem;
+    color: #0a6ea8;
+    margin-top: 0.4rem;
+}
+
 .copy-sm {
     background: none;
     border: none;

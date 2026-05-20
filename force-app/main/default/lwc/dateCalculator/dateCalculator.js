@@ -15,48 +15,98 @@ const DAYS         = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday
 const MONTHS       = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+// LA Superior Court judicial holidays 2026–2030 (exact observed dates from lacourt.ca.gov)
+const JUDICIAL_HOLIDAYS = {
+    '2026-01-01': "New Year's Day",         '2026-01-19': 'Martin Luther King, Jr. Birthday',
+    '2026-02-12': 'Lincoln Day',             '2026-02-16': "Presidents' Day",
+    '2026-03-31': 'Farmworkers Day',         '2026-05-25': 'Memorial Day',
+    '2026-06-19': 'Juneteenth',              '2026-07-03': 'Independence Day',
+    '2026-09-07': 'Labor Day',               '2026-09-25': 'Native American Day',
+    '2026-11-11': 'Veterans Day',            '2026-11-26': 'Thanksgiving Day',
+    '2026-11-27': 'Day after Thanksgiving',  '2026-12-25': 'Christmas Day',
+
+    '2027-01-01': "New Year's Day",          '2027-01-18': 'Martin Luther King, Jr. Birthday',
+    '2027-02-12': 'Lincoln Day',             '2027-02-15': "Presidents' Day",
+    '2027-03-31': 'Farmworkers Day',         '2027-05-31': 'Memorial Day',
+    '2027-06-18': 'Juneteenth',              '2027-07-05': 'Independence Day',
+    '2027-09-06': 'Labor Day',               '2027-09-24': 'Native American Day',
+    '2027-11-11': 'Veterans Day',            '2027-11-25': 'Thanksgiving Day',
+    '2027-11-26': 'Day after Thanksgiving',  '2027-12-24': 'Christmas Day',
+    '2027-12-31': "New Year's Day (2028)",
+
+    '2028-01-17': 'Martin Luther King, Jr. Birthday',
+    '2028-02-11': 'Lincoln Day',             '2028-02-21': "Presidents' Day",
+    '2028-03-31': 'Farmworkers Day',         '2028-05-29': 'Memorial Day',
+    '2028-06-19': 'Juneteenth',              '2028-07-04': 'Independence Day',
+    '2028-09-04': 'Labor Day',               '2028-09-22': 'Native American Day',
+    '2028-11-10': 'Veterans Day',            '2028-11-23': 'Thanksgiving Day',
+    '2028-11-24': 'Day after Thanksgiving',  '2028-12-25': 'Christmas Day',
+
+    '2029-01-01': "New Year's Day",          '2029-01-15': 'Martin Luther King, Jr. Birthday',
+    '2029-02-12': 'Lincoln Day',             '2029-02-19': "Presidents' Day",
+    '2029-03-30': 'Farmworkers Day',         '2029-05-28': 'Memorial Day',
+    '2029-06-19': 'Juneteenth',              '2029-07-04': 'Independence Day',
+    '2029-09-03': 'Labor Day',               '2029-09-28': 'Native American Day',
+    '2029-11-12': 'Veterans Day',            '2029-11-22': 'Thanksgiving Day',
+    '2029-11-23': 'Day after Thanksgiving',  '2029-12-25': 'Christmas Day',
+
+    '2030-01-01': "New Year's Day",          '2030-01-21': 'Martin Luther King, Jr. Birthday',
+    '2030-02-12': 'Lincoln Day',             '2030-02-18': "Presidents' Day",
+    '2030-04-01': 'Farmworkers Day',         '2030-05-27': 'Memorial Day',
+    '2030-06-19': 'Juneteenth',              '2030-07-04': 'Independence Day',
+    '2030-09-02': 'Labor Day',               '2030-09-27': 'Native American Day',
+    '2030-11-11': 'Veterans Day',            '2030-11-28': 'Thanksgiving Day',
+    '2030-11-29': 'Day after Thanksgiving',  '2030-12-25': 'Christmas Day',
+};
+
+const JUDICIAL_YEARS = new Set([2026, 2027, 2028, 2029, 2030]);
+
 export default class DateCalculator extends LightningElement {
-    // Add Days
+    // Add to Date
     @track startDate = today();
     @track addYears  = 0;
     @track addMonths = 0;
     @track addDays   = 0;
     @track copyLabel = 'Copy';
 
-    // Count Days
-    @track countStart = today();
-    @track countEnd   = '';
+    // Days Between
+    @track countStart       = today();
+    @track countEnd         = '';
+    @track businessDaysOnly = false;
 
-    // Workdays
-    @track wdStart = today();
-    @track wdEnd   = '';
-
-    // Add Workdays
+    // Add Business Days
     @track awStart = today();
     @track awDays  = 0;
 
-    // Weekday
+    // Day of Week
     @track weekdayDate = today();
 
-    // Week №
+    // Week Number
     @track weekNumDate = today();
 
-    // ── Add Days ─────────────────────────────────────────────────────────────
+    // ── Add to Date ───────────────────────────────────────────────────────────
 
     get deadlineRows() {
         if (!this.startDate) return [];
         return PRESETS.map(p => {
-            const d = addToDate(this.startDate, p.years, p.months, p.days);
-            const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+            const d           = addToDate(this.startDate, p.years, p.months, p.days);
+            const isWeekend   = d.getDay() === 0 || d.getDay() === 6;
+            const holidayName = getHolidayName(d);
+            const rowClass    = 'deadline-row' +
+                (isWeekend ? ' weekend-row' : '') +
+                (holidayName && !isWeekend ? ' holiday-row' : '');
             return {
                 label:       p.label,
                 wkKey:       p.label + '-wk',
+                holidayKey:  p.label + '-hol',
                 dateStr:     formatDate(d),
+                copyStr:     formatCopy(d),
                 dow:         DAYS[d.getDay()],
                 daysLabel:   daysLabel(d),
                 isWeekend,
                 weekendNote: isWeekend ? weekendNote(d) : '',
-                rowClass:    isWeekend ? 'deadline-row weekend-row' : 'deadline-row',
+                holidayName: holidayName || '',
+                rowClass,
             };
         });
     }
@@ -65,11 +115,13 @@ export default class DateCalculator extends LightningElement {
         if (!this.startDate || (!this.addYears && !this.addMonths && !this.addDays)) return null;
         const d = addToDate(this.startDate, this.addYears, this.addMonths, this.addDays);
         if (!d) return null;
-        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+        const isWeekend   = d.getDay() === 0 || d.getDay() === 6;
+        const holidayName = getHolidayName(d);
         return {
-            dateStr: formatDate(d), dow: DAYS[d.getDay()],
-            daysLabel: daysLabel(d), isWeekend,
-            weekendNote: isWeekend ? weekendNote(d) : '',
+            dateStr: formatDate(d), copyStr: formatCopy(d),
+            dow: DAYS[d.getDay()], daysLabel: daysLabel(d),
+            isWeekend, weekendNote: isWeekend ? weekendNote(d) : '',
+            holidayName: holidayName || '',
         };
     }
 
@@ -81,7 +133,7 @@ export default class DateCalculator extends LightningElement {
     handleCopy() {
         const r = this.customResult;
         if (!r) return;
-        navigator.clipboard.writeText(`${r.dateStr} (${r.dow})`).then(() => {
+        navigator.clipboard.writeText(r.copyStr).then(() => {
             this.copyLabel = 'Copied!';
             // eslint-disable-next-line @lwc/lwc/no-async-operation
             setTimeout(() => { this.copyLabel = 'Copy'; }, 2000);
@@ -92,71 +144,60 @@ export default class DateCalculator extends LightningElement {
         navigator.clipboard.writeText(e.currentTarget.dataset.text);
     }
 
-    // ── Count Days ───────────────────────────────────────────────────────────
+    // ── Days Between ─────────────────────────────────────────────────────────
 
-    get countResult() {
+    get daysBetweenResult() {
         if (!this.countStart || !this.countEnd) return null;
         const start = parseLocal(this.countStart);
         const end   = parseLocal(this.countEnd);
         if (end < start) return null;
         const totalDays = Math.round((end - start) / 864e5);
-        const weeks = Math.floor(totalDays / 7);
-        const remDays = totalDays % 7;
+        const weeks     = Math.floor(totalDays / 7);
+        const remDays   = totalDays % 7;
         const { years, months, days } = ymd(start, end);
         return {
             totalDays,
+            workdays:   countWorkdays(start, end),
             weeksLine:  `${weeks} week${weeks !== 1 ? 's' : ''}, ${remDays} day${remDays !== 1 ? 's' : ''}`,
             monthsLine: `${years * 12 + months} month${(years * 12 + months) !== 1 ? 's' : ''}, ${days} day${days !== 1 ? 's' : ''}`,
             yearsLine:  years > 0 ? `${years} year${years !== 1 ? 's' : ''}, ${months} month${months !== 1 ? 's' : ''}, ${days} day${days !== 1 ? 's' : ''}` : '',
         };
     }
 
-    handleCountStart(e) { this.countStart = e.detail.value; }
-    handleCountEnd(e)   { this.countEnd   = e.detail.value; }
+    handleCountStart(e)         { this.countStart       = e.detail.value;   }
+    handleCountEnd(e)           { this.countEnd         = e.detail.value;   }
+    handleBusinessDaysToggle(e) { this.businessDaysOnly = e.detail.checked; }
 
-    // ── Workdays ─────────────────────────────────────────────────────────────
-
-    get workdayResult() {
-        if (!this.wdStart || !this.wdEnd) return null;
-        const start = parseLocal(this.wdStart);
-        const end   = parseLocal(this.wdEnd);
-        if (end < start) return null;
-        const calendarDays = Math.round((end - start) / 864e5);
-        const workdays     = countWorkdays(start, end);
-        return { workdays, calendarDays };
-    }
-
-    handleWdStart(e) { this.wdStart = e.detail.value; }
-    handleWdEnd(e)   { this.wdEnd   = e.detail.value; }
-
-    // ── Add Workdays ─────────────────────────────────────────────────────────
+    // ── Add Business Days ─────────────────────────────────────────────────────
 
     get addWorkdaysResult() {
         if (!this.awStart || !this.awDays) return null;
         const d = addWorkdays(this.awStart, this.awDays);
         if (!d) return null;
-        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+        const isWeekend   = d.getDay() === 0 || d.getDay() === 6;
+        const holidayName = getHolidayName(d);
         return {
-            dateStr: formatDate(d), dow: DAYS[d.getDay()],
-            daysLabel: daysLabel(d), isWeekend,
-            weekendNote: isWeekend ? weekendNote(d) : '',
+            dateStr: formatDate(d), copyStr: formatCopy(d),
+            dow: DAYS[d.getDay()], daysLabel: daysLabel(d),
+            isWeekend, weekendNote: isWeekend ? weekendNote(d) : '',
+            holidayName: holidayName || '',
         };
     }
 
-    handleAwStart(e) { this.awStart = e.detail.value; }
+    handleAwStart(e) { this.awStart = e.detail.value;              }
     handleAwDays(e)  { this.awDays  = parseInt(e.detail.value, 10) || 0; }
 
-    // ── Weekday ──────────────────────────────────────────────────────────────
+    // ── Day of Week ───────────────────────────────────────────────────────────
 
     get weekdayResult() {
         if (!this.weekdayDate) return null;
         const d = parseLocal(this.weekdayDate);
-        return { dow: DAYS[d.getDay()], dateStr: formatDate(d), daysLabel: daysLabel(d) };
+        return { dow: DAYS[d.getDay()], dateStr: formatDate(d), daysLabel: daysLabel(d), holidayName: getHolidayName(d) || '' };
     }
 
     handleWeekdayDate(e) { this.weekdayDate = e.detail.value; }
 
-    // ── Week № ───────────────────────────────────────────────────────────────
+    // ── Week Number ───────────────────────────────────────────────────────────
 
     get weekNumResult() {
         if (!this.weekNumDate) return null;
@@ -164,21 +205,75 @@ export default class DateCalculator extends LightningElement {
         const num = isoWeek(d);
         const mon = weekStart(d);
         const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
-        return {
-            weekNum: num,
-            year:    d.getFullYear(),
-            range:   `${formatDate(mon)} – ${formatDate(sun)}`,
-        };
+        return { weekNum: num, year: d.getFullYear(), range: `${formatDate(mon)} – ${formatDate(sun)}`, holidayName: getHolidayName(d) || '' };
     }
 
     handleWeekNumDate(e) { this.weekNumDate = e.detail.value; }
 }
 
-// ── Pure helpers ──────────────────────────────────────────────────────────────
+// ── Holiday computation ───────────────────────────────────────────────────────
+
+const holidayCache = {};
+
+function computeHolidays(year) {
+    const h = {};
+
+    const addFixed = (month, day, name) => {
+        const d = new Date(year, month - 1, day);
+        const dow = d.getDay();
+        if (dow === 6) d.setDate(d.getDate() - 1);
+        if (dow === 0) d.setDate(d.getDate() + 1);
+        h[toISO(d)] = name;
+    };
+
+    const nthWeekday = (month, n, weekday) => {
+        const d = new Date(year, month - 1, 1);
+        let count = 0;
+        while (true) {
+            if (d.getDay() === weekday) { if (++count === n) return new Date(d); }
+            d.setDate(d.getDate() + 1);
+        }
+    };
+
+    const lastMonday = (month) => {
+        const d = new Date(year, month, 0);
+        while (d.getDay() !== 1) d.setDate(d.getDate() - 1);
+        return d;
+    };
+
+    addFixed(1,  1,  "New Year's Day");
+    addFixed(6,  19, "Juneteenth");
+    addFixed(7,  4,  "Independence Day");
+    addFixed(11, 11, "Veterans Day");
+    addFixed(12, 25, "Christmas Day");
+    h[toISO(nthWeekday(1, 3, 1))]  = "Martin Luther King Jr. Day";
+    h[toISO(nthWeekday(2, 3, 1))]  = "Presidents' Day";
+    h[toISO(lastMonday(5))]         = "Memorial Day";
+    h[toISO(nthWeekday(9, 1, 1))]  = "Labor Day";
+    h[toISO(nthWeekday(11, 4, 4))] = "Thanksgiving Day";
+
+    return h;
+}
+
+function holidaysForYear(year) {
+    if (!holidayCache[year]) holidayCache[year] = computeHolidays(year);
+    return holidayCache[year];
+}
+
+function getHolidayName(d) {
+    const iso = toISO(d);
+    if (JUDICIAL_YEARS.has(d.getFullYear())) return JUDICIAL_HOLIDAYS[iso] || null;
+    return holidaysForYear(d.getFullYear())[iso] || null;
+}
+
+function isHolidayDate(d) {
+    return !!getHolidayName(d);
+}
+
+// ── Pure date helpers ─────────────────────────────────────────────────────────
 
 function today() {
-    const d = new Date();
-    return toISO(d);
+    return toISO(new Date());
 }
 
 function toISO(d) {
@@ -204,14 +299,19 @@ function formatDate(d) {
     return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
+function formatCopy(d) {
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${mm}/${dd}/${d.getFullYear()}`;
+}
+
 function formatShort(d) {
     return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}`;
 }
 
 function daysFromToday(d) {
     const t = new Date(); const tod = new Date(t.getFullYear(), t.getMonth(), t.getDate());
-    const tgt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    return Math.round((tgt - tod) / 864e5);
+    return Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - tod) / 864e5);
 }
 
 function daysLabel(d) {
@@ -229,21 +329,15 @@ function weekendNote(d) {
     return `⚠️ Weekend — Fri ${formatShort(fri)} or Mon ${formatShort(mon)}`;
 }
 
-function ymd(start, end) {
-    let years  = end.getFullYear() - start.getFullYear();
-    let months = end.getMonth()    - start.getMonth();
-    let days   = end.getDate()     - start.getDate();
-    if (days < 0)   { months--; days += new Date(end.getFullYear(), end.getMonth(), 0).getDate(); }
-    if (months < 0) { years--;  months += 12; }
-    return { years, months, days };
+function isNonWorkday(d) {
+    return d.getDay() === 0 || d.getDay() === 6 || isHolidayDate(d);
 }
 
 function countWorkdays(start, end) {
     let count = 0;
     const cur = new Date(start);
     while (cur <= end) {
-        const day = cur.getDay();
-        if (day !== 0 && day !== 6) count++;
+        if (!isNonWorkday(cur)) count++;
         cur.setDate(cur.getDate() + 1);
     }
     return count;
@@ -254,9 +348,18 @@ function addWorkdays(dateStr, n) {
     let added = 0;
     while (added < n) {
         d.setDate(d.getDate() + 1);
-        if (d.getDay() !== 0 && d.getDay() !== 6) added++;
+        if (!isNonWorkday(d)) added++;
     }
     return d;
+}
+
+function ymd(start, end) {
+    let years  = end.getFullYear() - start.getFullYear();
+    let months = end.getMonth()    - start.getMonth();
+    let days   = end.getDate()     - start.getDate();
+    if (days < 0)   { months--; days += new Date(end.getFullYear(), end.getMonth(), 0).getDate(); }
+    if (months < 0) { years--;  months += 12; }
+    return { years, months, days };
 }
 
 function isoWeek(d) {
@@ -268,7 +371,6 @@ function isoWeek(d) {
 
 function weekStart(d) {
     const tmp = new Date(d);
-    const day = tmp.getDay();
-    tmp.setDate(tmp.getDate() - (day === 0 ? 6 : day - 1));
+    tmp.setDate(tmp.getDate() - (tmp.getDay() === 0 ? 6 : tmp.getDay() - 1));
     return tmp;
 }
