@@ -83,7 +83,7 @@
                 </div>
 
                 <!-- Refresh -->
-                <div class="slds-align_absolute-center">
+                <div class="slds-m-right_small slds-align_absolute-center">
                     <lightning-button-icon
                         icon-name="utility:refresh"
                         variant="border-filled"
@@ -92,8 +92,35 @@
                     </lightning-button-icon>
                 </div>
 
+                <!-- New Note -->
+                <div>
+                    <lightning-button label="New Note" variant="brand" onclick={openFlow}></lightning-button>
+                </div>
+
             </div>
         </div>
+
+        <!-- Flow Modal -->
+        <template if:true={isFlowOpen}>
+            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container" style="width: 60%; max-width: 60%;">
+                    <header class="slds-modal__header">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" onclick={closeFlow} title="Close">
+                            <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
+                        </button>
+                        <h2 class="slds-modal__title">New Note</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <lightning-flow
+                            flow-api-name="Create_Custom_Note_Flow_NEOS_Matter"
+                            flow-input-variables={flowInputVariables}
+                            onstatuschange={handleFlowStatusChange}>
+                        </lightning-flow>
+                    </div>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
 
         <!-- 🔽 TABLE -->
         <div class="slds-scrollable_x" style="max-width: 1600px; margin: auto;">

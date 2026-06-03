@@ -13,13 +13,15 @@ const COLUMNS = [
     },
     {
         label: 'Date',
-        fieldName: 'Date__c',
+        fieldName: 'NEOS_Created_Date__c',
         type: 'date',
-        initialWidth: 160,
+        initialWidth: 200,
         typeAttributes: {
             year: 'numeric',
             month: 'short',
-            day: 'numeric'
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
         }
     },
     {
@@ -58,6 +60,24 @@ export default class NeosMatterNotesTable extends NavigationMixin(LightningEleme
     notes = [];
     columns = COLUMNS;
     errorMessage;
+
+    // Flow modal
+    isFlowOpen = false;
+
+    get flowInputVariables() {
+        return [{ name: 'NeosMatterRecord', type: 'SObject', value: { Id: this.recordId } }];
+    }
+
+    openFlow() { this.isFlowOpen = true; }
+    closeFlow() { this.isFlowOpen = false; }
+
+    handleFlowStatusChange(event) {
+        const status = event.detail.status;
+        if (status === 'FINISHED' || status === 'FINISHED_SCREEN') {
+            this.isFlowOpen = false;
+            this.refreshNotes();
+        }
+    }
 
     // Sorting
     isChronological = false;
@@ -157,7 +177,7 @@ export default class NeosMatterNotesTable extends NavigationMixin(LightningEleme
 
         // Sorting
         if (this.isChronological) {
-            return rows.sort((a, b) => new Date(b.Date__c) - new Date(a.Date__c));
+            return rows.sort((a, b) => new Date(b.NEOS_Created_Date__c) - new Date(a.NEOS_Created_Date__c));
         }
 
         return rows.sort((a, b) => {
@@ -168,7 +188,7 @@ export default class NeosMatterNotesTable extends NavigationMixin(LightningEleme
                 return bPinned - aPinned;
             }
 
-            return new Date(b.Date__c) - new Date(a.Date__c);
+            return new Date(b.NEOS_Created_Date__c) - new Date(a.NEOS_Created_Date__c);
         });
     }
 
