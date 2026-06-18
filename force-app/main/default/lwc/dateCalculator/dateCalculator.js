@@ -171,7 +171,7 @@ export default class DateCalculator extends LightningElement {
     // ── Add Business Days ─────────────────────────────────────────────────────
 
     get addWorkdaysResult() {
-        if (!this.awStart || !this.awDays) return null;
+        if (!this.awStart || this.awDays === 0 || this.awDays == null) return null;
         const d = addWorkdays(this.awStart, this.awDays);
         if (!d) return null;
         const isWeekend   = d.getDay() === 0 || d.getDay() === 6;
@@ -345,10 +345,12 @@ function countWorkdays(start, end) {
 
 function addWorkdays(dateStr, n) {
     const d = parseLocal(dateStr);
-    let added = 0;
-    while (added < n) {
-        d.setDate(d.getDate() + 1);
-        if (!isNonWorkday(d)) added++;
+    if (n === 0) return d;
+    const step = n > 0 ? 1 : -1;
+    let remaining = Math.abs(n);
+    while (remaining > 0) {
+        d.setDate(d.getDate() + step);
+        if (!isNonWorkday(d)) remaining--;
     }
     return d;
 }

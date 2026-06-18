@@ -9,7 +9,7 @@ public with sharing class TaskUiController {
     @AuraEnabled
     public static Id saveTask(
         Id relatedId,
-        Id ownerId,
+        List<Id> ownerIds,
         String subject,
         Date dueDate,
         String status,
@@ -22,20 +22,26 @@ public with sharing class TaskUiController {
     ) {
         try {
 
-            // Validate owner
-            User validOwner = [
+            if (ownerIds == null || ownerIds.isEmpty()) {
+                throw new AuraHandledException('Please select an Assignee.');
+            }
+
+            // Validate all selected owners in one query
+            Map<Id, User> validOwners = new Map<Id, User>([
                 SELECT Id, Email
                 FROM User
-                WHERE Id = :ownerId
+                WHERE Id IN :ownerIds
                   AND IsActive = true
                   AND UserType = 'Standard'
                   AND Profile.Name IN :ALLOWED_PROFILE_NAMES
-                LIMIT 1
-            ];
+            ]);
+
+            if (validOwners.isEmpty()) {
+                throw new AuraHandledException('Selected assignee is not allowed.');
+            }
 
             // ===============================
-            // Native Reminder Logic (Option A)
-            // Always set a Day Of reminder
+            // Native Reminder Logic
             // ===============================
             Boolean setNativeReminder = (dueDate != null);
             Datetime nativeReminderDT;
@@ -57,8 +63,6 @@ public with sharing class TaskUiController {
                     }
                 }
 
-                // If user selected Day Of options, use earliest.
-                // Otherwise default to 9:00 AM Day Of.
                 if (earliestDayOf != null) {
                     nativeReminderDT = earliestDayOf;
                 } else {
@@ -69,59 +73,65 @@ public with sharing class TaskUiController {
                 }
             }
 
-            // Create Task
+            // First valid owner owns the task
+            Id primaryOwnerId;
+            for (Id oid : ownerIds) {
+                if (validOwners.containsKey(oid)) { primaryOwnerId = oid; break; }
+            }
+
             Task t = new Task(
-                WhatId               = relatedId,
-                NEOS_Matter__c       = relatedId,
-                OwnerId              = validOwner.Id,
-                Subject              = subject,
-                ActivityDate         = dueDate,
-                Status               = status,
-                Priority             = priority,
-                Description          = description,
-                Task_Subtype__c      = taskSubtype,
-                Task_Subtype_If_Other__c = taskSubtypeIfOther,
+                WhatId                    = relatedId,
+                NEOS_Matter__c            = relatedId,
+                OwnerId                   = primaryOwnerId,
+                Subject                   = subject,
+                ActivityDate              = dueDate,
+                Status                    = status,
+                Priority                  = priority,
+                Description               = description,
+                Task_Subtype__c           = taskSubtype,
+                Task_Subtype_If_Other__c  = taskSubtypeIfOther,
                 Internal_External_Type__c = internalExternalType,
-                IsReminderSet        = setNativeReminder,
-                ReminderDateTime     = nativeReminderDT
+                IsReminderSet             = setNativeReminder,
+                ReminderDateTime          = nativeReminderDT
             );
 
             insert t;
 
             // ===============================
-            // Custom Reminder Records
+            // Custom Reminder Records — one set per assignee
             // ===============================
             if (reminderTypes != null && dueDate != null && !reminderTypes.isEmpty()) {
 
                 List<Task_Reminder__c> reminders = new List<Task_Reminder__c>();
 
-                for (String typeLabel : reminderTypes) {
+                for (Id oid : ownerIds) {
+                    User owner = validOwners.get(oid);
+                    if (owner == null) continue;
 
-                    Datetime reminderDT =
-                        calculateReminderDatetime(dueDate, typeLabel);
+                    for (String typeLabel : reminderTypes) {
+                        Datetime reminderDT = calculateReminderDatetime(dueDate, typeLabel);
 
-                    if (reminderDT != null) {
-                        reminders.add(new Task_Reminder__c(
-                            Task_ID__c            = t.Id,
-                            Task_Name__c          = t.Subject,
-                            Reminder_Type__c      = typeLabel,
-                            Reminder_Date_Time__c = reminderDT,
-                            Is_Sent__c            = false,
-                            Recipient_User_Id__c  = t.OwnerId,
-                            Recipient_Email__c    = validOwner.Email
-                        ));
+                        if (reminderDT != null) {
+                            reminders.add(new Task_Reminder__c(
+                                Task_ID__c            = t.Id,
+                                Task_Name__c          = t.Subject,
+                                Reminder_Type__c      = typeLabel,
+                                Reminder_Date_Time__c = reminderDT,
+                                Is_Sent__c            = false,
+                                Recipient_User_Id__c  = oid,
+                                Recipient_Email__c    = owner.Email
+                            ));
+                        }
                     }
                 }
 
-                if (!reminders.isEmpty()) {
-                    insert reminders;
-                }
+                if (!reminders.isEmpty()) insert reminders;
             }
 
             return t.Id;
 
-        } catch (QueryException qe) {
-            throw new AuraHandledException('Selected assignee is not allowed.');
+        } catch (AuraHandledException e) {
+            throw e;
         } catch (Exception e) {
             throw new AuraHandledException('Error saving Task: ' + e.getMessage());
         }

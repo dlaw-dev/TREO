@@ -1,24 +1,13 @@
-:host ::deep(.slds-cell-wrap) {
-    white-space: normal !important;
+.note-description-cell {
+    white-space: normal;
     word-break: break-word;
     overflow-wrap: break-word;
-    max-width: 100%;
 }
 
-:host ::deep(.note-description-cell),
-:host ::deep(.note-description-cell .slds-truncate),
-:host ::deep(td.note-description-cell span) {
-    display: block !important;
-    white-space: normal !important;
-    word-break: break-word !important;
-    overflow-wrap: break-word !important;
-    hyphens: none !important;
-    width: 100% !important;
-    max-width: none !important;
-}
-
-:host ::deep(.slds-table_fixed-layout) {
-    table-layout: auto !important;
+.notes-table td {
+    vertical-align: top;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
 }
 
 /* 🔧 Alignment fix for toggle */

@@ -6,6 +6,10 @@ private class TaskUiControllerTest {
     ========================================================== */
 
     private static User createAllowedUser() {
+        return createAllowedUser('Owner', 'taskuicontroller.owner');
+    }
+
+    private static User createAllowedUser(String lastName, String emailPrefix) {
         Profile sysAdmin = [
             SELECT Id
             FROM Profile
@@ -15,10 +19,10 @@ private class TaskUiControllerTest {
 
         User u = new User(
             ProfileId = sysAdmin.Id,
-            LastName = 'Owner',
-            Email = 'taskuicontroller.owner@test.example',
-            Username = 'taskuicontroller.owner+' + System.now().getTime() + '@test.example',
-            Alias = 'towner',
+            LastName = lastName,
+            Email = emailPrefix + '@test.example',
+            Username = emailPrefix + '+' + System.now().getTime() + '@test.example',
+            Alias = lastName.left(8),
             TimeZoneSidKey = 'America/Los_Angeles',
             LocaleSidKey = 'en_US',
             EmailEncodingKey = 'UTF-8',
@@ -72,7 +76,7 @@ private class TaskUiControllerTest {
         System.runAs(owner) {
             taskId = TaskUiController.saveTask(
                 matter.Id,
-                owner.Id,
+                new List<Id>{ owner.Id },
                 'Test Subject',
                 dueDate,
                 'Not Started',
@@ -128,7 +132,7 @@ private class TaskUiControllerTest {
         System.runAs(owner) {
             taskId = TaskUiController.saveTask(
                 matter.Id,
-                owner.Id,
+                new List<Id>{ owner.Id },
                 'No Reminder Subject',
                 dueDate,
                 'Not Started',
@@ -187,7 +191,7 @@ private class TaskUiControllerTest {
         try {
             TaskUiController.saveTask(
                 matter.Id,
-                inactiveUser.Id,
+                new List<Id>{ inactiveUser.Id },
                 'Invalid Owner',
                 Date.today(),
                 'Not Started',
@@ -204,6 +208,58 @@ private class TaskUiControllerTest {
         Test.stopTest();
 
         System.assertEquals(true, exceptionThrown);
+    }
+
+    /* =========================================================
+       Multi-Assignee – One Task + TaskRelations + Reminders for All
+    ========================================================== */
+
+    @IsTest
+    static void testSaveTask_multipleAssignees() {
+
+        NEOS_Matter__c matter = createMatter();
+        User owner1 = createAllowedUser('OwnerOne', 'taskuicontroller.owner1');
+        User owner2 = createAllowedUser('OwnerTwo', 'taskuicontroller.owner2');
+
+        Date dueDate = Date.today().addDays(30);
+        List<String> reminderTypes = new List<String>{ '1 Day Before' };
+
+        List<Schema.PicklistEntry> subtypeEntries =
+            Task.Task_Subtype__c.getDescribe().getPicklistValues();
+        String taskSubtypeValue = subtypeEntries[0].getValue();
+
+        Id taskId;
+
+        Test.startTest();
+        System.runAs(owner1) {
+            taskId = TaskUiController.saveTask(
+                matter.Id,
+                new List<Id>{ owner1.Id, owner2.Id },
+                'Multi Assignee Subject',
+                dueDate,
+                'Not Started',
+                'Normal',
+                'Multi assignee description',
+                taskSubtypeValue,
+                null,
+                getInternalExternalTypeValue(),
+                reminderTypes
+            );
+        }
+        Test.stopTest();
+
+        // Only one Task record created
+        List<Task> tasks = [SELECT Id, OwnerId FROM Task WHERE Id = :taskId];
+        System.assertEquals(1, tasks.size());
+        System.assertEquals(owner1.Id, tasks[0].OwnerId);
+
+        // Reminders created for both assignees
+        List<Task_Reminder__c> reminders = [
+            SELECT Recipient_User_Id__c
+            FROM Task_Reminder__c
+            WHERE Task_ID__c = :taskId
+        ];
+        System.assertEquals(2, reminders.size());
     }
 
     /* =========================================================
@@ -258,7 +314,7 @@ private class TaskUiControllerTest {
             try {
                 TaskUiController.saveTask(
                     matter.Id,
-                    owner.Id,
+                    new List<Id>{ owner.Id },
                     'Coverage Test',
                     dueDate,
                     'Not Started',

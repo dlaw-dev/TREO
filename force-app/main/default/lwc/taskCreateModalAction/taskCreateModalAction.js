@@ -68,7 +68,7 @@ export default class TaskCreateModalAction extends LightningModal {
             for (const a of this._initialAssignees) {
                 if (a.id && !this.selectedUserIds.has(a.id)) {
                     this.selectedUserIds.add(a.id);
-                    this.selectedUsers = [{ id: a.id, name: a.name }];
+                    this.selectedUsers = [...this.selectedUsers, { id: a.id, name: a.name }];
                 }
             }
         }
@@ -499,10 +499,9 @@ export default class TaskCreateModalAction extends LightningModal {
     }
 
     addSelectedUser(user, keepUserSearchOpen = false) {
-        this.selectedUserIds.clear();
         this.selectedUserIds.add(user.Id);
 
-        this.selectedUsers = [{ id: user.Id, name: user.Name }];
+        this.selectedUsers = [...this.selectedUsers, { id: user.Id, name: user.Name }];
 
         this.syncGroupMembersSelection();
 
@@ -641,7 +640,7 @@ export default class TaskCreateModalAction extends LightningModal {
 
         await saveTask({
             relatedId: this.recordId,
-            ownerId: this.selectedUsers[0].id,
+            ownerIds: this.selectedUsers.map(u => u.id),
             subject: this.subject,
             dueDate: this.activityDate,
             status: this.status,

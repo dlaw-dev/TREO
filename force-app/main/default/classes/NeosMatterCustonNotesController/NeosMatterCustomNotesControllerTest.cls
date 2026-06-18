@@ -3,7 +3,7 @@ private class NeosMatterCustomNotesControllerTest {
 
     @IsTest
     static void testGetCustomNotes_returnsNotesForMatter() {
-        NEOS_Matter__c matter = new NEOS_Matter__c(Name = 'Test Matter');
+        NEOS_Matter__c matter = new NEOS_Matter__c(Name = 'Test Matter', Case_Title__c = 'Test Matter');
         insert matter;
 
         NEOS_Notes__c n1 = new NEOS_Notes__c(
@@ -32,7 +32,7 @@ private class NeosMatterCustomNotesControllerTest {
 
     @IsTest
     static void testGetPinnedNotes_returnsOnlyPinned() {
-        NEOS_Matter__c matter = new NEOS_Matter__c(Name = 'Pinned Matter');
+        NEOS_Matter__c matter = new NEOS_Matter__c(Name = 'Pinned Matter', Case_Title__c = 'Pinned Matter');
         insert matter;
 
         NEOS_Notes__c pinned = new NEOS_Notes__c(

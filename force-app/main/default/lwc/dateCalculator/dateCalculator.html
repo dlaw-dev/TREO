@@ -126,7 +126,7 @@
                     <div class="tab-body">
                         <lightning-input type="date" label="Start Date" value={awStart} onchange={handleAwStart}></lightning-input>
                         <div class="slds-m-top_small">
-                            <lightning-input type="number" label="Court Days to Add" min="1" value={awDays} onchange={handleAwDays}></lightning-input>
+                            <lightning-input type="number" label="Court Days to Add / Subtract" value={awDays} onchange={handleAwDays}></lightning-input>
                         </div>
                         <template if:true={addWorkdaysResult}>
                             <div class="result-box slds-m-top_medium">

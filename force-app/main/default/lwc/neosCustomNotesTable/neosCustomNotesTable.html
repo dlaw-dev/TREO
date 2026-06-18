@@ -124,14 +124,47 @@
 
         <!-- 🔽 TABLE -->
         <div class="slds-scrollable_x" style="max-width: 1600px; margin: auto;">
-            <lightning-datatable
-                key-field="Id"
-                data={paginatedNotes}
-                columns={columns}
-                hide-checkbox-column
-                onrowaction={handleRowAction}
-                style="min-width: 1000px;">
-            </lightning-datatable>
+            <table class="slds-table slds-table_cell-buffer slds-table_bordered notes-table" style="min-width: 1000px;">
+                <thead>
+                    <tr class="slds-line-height_reset">
+                        <th scope="col" style="width: 50px; text-align: center;">📌</th>
+                        <th class="slds-text-title_caps" scope="col" style="width: 200px;">Date</th>
+                        <th class="slds-text-title_caps" scope="col" style="width: 120px;">Staff</th>
+                        <th class="slds-text-title_caps" scope="col" style="width: 180px;">Note Category</th>
+                        <th class="slds-text-title_caps" scope="col">Note Description</th>
+                        <th scope="col" style="width: 80px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template for:each={paginatedNotes} for:item="note">
+                        <tr key={note.Id} class="slds-hint-parent">
+                            <td data-label="Pinned" class="slds-text-align_center">{note.PinnedIcon}</td>
+                            <td data-label="Date">
+                                <lightning-formatted-date-time
+                                    value={note.NEOS_Created_Date__c}
+                                    year="numeric"
+                                    month="short"
+                                    day="numeric"
+                                    hour="2-digit"
+                                    minute="2-digit">
+                                </lightning-formatted-date-time>
+                            </td>
+                            <td data-label="Staff">{note.StaffName}</td>
+                            <td data-label="Note Category">{note.Note_Category__c}</td>
+                            <td data-label="Note Description" class="note-description-cell">
+                                <lightning-formatted-rich-text value={note.Note_Description__c}></lightning-formatted-rich-text>
+                            </td>
+                            <td class="slds-text-align_right">
+                                <lightning-button
+                                    label="View"
+                                    data-id={note.Id}
+                                    onclick={handleViewClick}>
+                                </lightning-button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
         </div>
 
         <!-- 🔽 BOTTOM PAGINATION -->

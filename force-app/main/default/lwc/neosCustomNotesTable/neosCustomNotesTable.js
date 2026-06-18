@@ -3,62 +3,12 @@ import { NavigationMixin } from 'lightning/navigation';
 import { refreshApex } from '@salesforce/apex';
 import getCustomNotes from '@salesforce/apex/NeosMatterCustomNotesController.getCustomNotes';
 
-const COLUMNS = [
-    {
-        label: '📌',
-        fieldName: 'PinnedIcon',
-        type: 'text',
-        initialWidth: 60,
-        cellAttributes: { alignment: 'center' }
-    },
-    {
-        label: 'Date',
-        fieldName: 'NEOS_Created_Date__c',
-        type: 'date',
-        initialWidth: 200,
-        typeAttributes: {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        }
-    },
-    {
-        label: 'Staff',
-        fieldName: 'StaffName',
-        type: 'text',
-        initialWidth: 120
-    },
-    {
-        label: 'Note Category',
-        fieldName: 'Note_Category__c',
-        type: 'text',
-        initialWidth: 180
-    },
-    {
-        label: 'Note Description',
-        fieldName: 'CleanDescription',
-        type: 'text',
-        wrapText: true,
-        cellAttributes: {
-            class: 'slds-cell-wrap note-description-cell'
-        }
-    },
-    {
-        type: 'action',
-        typeAttributes: {
-            rowActions: [{ label: 'View', name: 'view' }]
-        }
-    }
-];
 
 export default class NeosMatterNotesTable extends NavigationMixin(LightningElement) {
     @api recordId;
     @track wiredNotesResult;
 
     notes = [];
-    columns = COLUMNS;
     errorMessage;
 
     // Flow modal
@@ -278,13 +228,9 @@ export default class NeosMatterNotesTable extends NavigationMixin(LightningEleme
     // =========================
     // Navigation
     // =========================
-    handleRowAction(event) {
-        const action = event.detail.action;
-        const row = event.detail.row;
-
-        if (action.name === 'view') {
-            this.navigateToRecord(row.Id);
-        }
+    handleViewClick(event) {
+        const recordId = event.currentTarget.dataset.id;
+        this.navigateToRecord(recordId);
     }
 
     navigateToRecord(recordId) {

@@ -28,13 +28,13 @@ public with sharing class NeosMatterCustomNotesController {
                    Name,
                    Note_Category__c,
                    Note_Description__c,
-                   Date__c,
+                   NEOS_Created_Date__c,
                    Staff__c,
                    Staff__r.Name,
                    Pinned_Note__c
             FROM NEOS_Notes__c
             WHERE NEOS_Matter__c IN :targetIds
-            ORDER BY Date__c DESC
+            ORDER BY NEOS_Created_Date__c DESC
         ];
     }
 
@@ -45,13 +45,13 @@ public with sharing class NeosMatterCustomNotesController {
             SELECT Id,
                    Name,
                    Note_Category__c,
-                   Date__c,
+                   NEOS_Created_Date__c,
                    Staff__c,
                    Staff__r.Name
             FROM NEOS_Notes__c
             WHERE Pinned_Note__c = TRUE
               AND NEOS_Matter__c IN :targetIds
-            ORDER BY Date__c DESC
+            ORDER BY NEOS_Created_Date__c DESC
         ];
     }
 }
