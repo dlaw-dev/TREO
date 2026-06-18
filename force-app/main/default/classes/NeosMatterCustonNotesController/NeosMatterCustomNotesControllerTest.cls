@@ -10,6 +10,7 @@ private class NeosMatterCustomNotesControllerTest {
             NEOS_Matter__c = matter.Id,
             Note_Title__c = 'Title 1',
             Note_Description__c = 'Desc 1',
+            Note_Category__c = 'Other',
             Pinned_Note__c = false
         );
 
@@ -17,6 +18,7 @@ private class NeosMatterCustomNotesControllerTest {
             NEOS_Matter__c = matter.Id,
             Note_Title__c = 'Title 2',
             Note_Description__c = 'Desc 2',
+            Note_Category__c = 'Other',
             Pinned_Note__c = true
         );
 
@@ -38,12 +40,14 @@ private class NeosMatterCustomNotesControllerTest {
         NEOS_Notes__c pinned = new NEOS_Notes__c(
             NEOS_Matter__c = matter.Id,
             Note_Title__c = 'Pinned',
+            Note_Category__c = 'Other',
             Pinned_Note__c = true
         );
 
         NEOS_Notes__c notPinned = new NEOS_Notes__c(
             NEOS_Matter__c = matter.Id,
             Note_Title__c = 'Not pinned',
+            Note_Category__c = 'Other',
             Pinned_Note__c = false
         );
 
