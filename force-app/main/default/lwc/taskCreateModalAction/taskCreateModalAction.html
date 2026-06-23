@@ -137,26 +137,14 @@
             </lightning-tabset>
         </div>
 
-        <!-- Status + Priority -->
-        <div class="slds-grid slds-gutters slds-m-top_large">
-            <div class="slds-col slds-size_1-of-2">
-                <lightning-combobox
-                    label="Status"
-                    value={status}
-                    options={statusOptions}
-                    onchange={handleStatus}>
-                </lightning-combobox>
-            </div>
-
-            <div class="slds-col slds-size_1-of-2">
-                <lightning-combobox
-                    label="Priority"
-                    value={priority}
-                    options={priorityOptions}
-                    onchange={handlePriority}>
-                </lightning-combobox>
-            </div>
-        </div>
+        <!-- Priority -->
+        <lightning-combobox
+            class="slds-m-top_large"
+            label="Priority"
+            value={priority}
+            options={priorityOptions}
+            onchange={handlePriority}>
+        </lightning-combobox>
 
         <!-- Task Subtype -->
         <lightning-combobox

@@ -36,10 +36,6 @@ export default class TaskCreateModalAction extends LightningModal {
     @api get initialDueDate() { return this._initialDueDate; }
     set initialDueDate(val) { this._initialDueDate = val; if (val != null) this.activityDate = val; }
 
-    _initialStatus;
-    @api get initialStatus() { return this._initialStatus; }
-    set initialStatus(val) { this._initialStatus = val; if (val != null) this.status = val; }
-
     _initialPriority;
     @api get initialPriority() { return this._initialPriority; }
     set initialPriority(val) { this._initialPriority = val; if (val != null) this.priority = val; }
@@ -76,7 +72,7 @@ export default class TaskCreateModalAction extends LightningModal {
 
     subject = '';
     activityDate;
-    status = 'Not Started';
+    status = 'Open';
     priority = 'Normal';
     description = '';
 
@@ -186,15 +182,6 @@ export default class TaskCreateModalAction extends LightningModal {
        Static Picklists
     -------------------------- */
 
-    get statusOptions() {
-        return [
-            { label: 'Not Started', value: 'Not Started' },
-            { label: 'In Progress', value: 'In Progress' },
-            { label: 'Open', value: 'Open' },
-            { label: 'Completed', value: 'Completed' }
-        ];
-    }
-
     get priorityOptions() {
         return [
             { label: 'Normal', value: 'Normal' },
@@ -228,7 +215,6 @@ export default class TaskCreateModalAction extends LightningModal {
         }
     };
     handleReminderSet = e => this.isReminderSet = e.target.checked;
-    handleStatus = e => this.status = e.target.value;
     handlePriority = e => this.priority = e.target.value;
     handleDescription = e => this.description = e.target.value;
     handleTaskSubtype = e => {
@@ -696,7 +682,7 @@ export default class TaskCreateModalAction extends LightningModal {
     resetForNew() {
         this.subject                = '';
         this.activityDate           = undefined;
-        this.status                 = 'Not Started';
+        this.status                 = 'Open';
         this.priority               = 'Normal';
         this.description            = '';
         this.taskSubtype            = '';
