@@ -17,15 +17,27 @@
         <span>Tasks</span>
       </span>
 
-      <lightning-button
-        variant="brand"
-        label="New Task"
-        title="New Task"
-        onclick={handleNewTask}
-        size="small"
-        class="slds-m-left_x-large"
+      <div
+        class="slds-grid slds-grid_vertical-align-center slds-m-left_x-large"
         style="margin-left: 1.5rem;"
-      ></lightning-button>
+      >
+        <lightning-button
+          variant="brand"
+          label="New Task"
+          title="New Task"
+          onclick={handleNewTask}
+          size="small">
+        </lightning-button>
+
+        <div class="slds-m-left_small slds-align_absolute-center">
+          <lightning-button-icon
+            icon-name="utility:refresh"
+            variant="border-filled"
+            alternative-text="Refresh"
+            onclick={handleRefresh}>
+          </lightning-button-icon>
+        </div>
+      </div>
     </div>
 
     <!-- Tabs -->

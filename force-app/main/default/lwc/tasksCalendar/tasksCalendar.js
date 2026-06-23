@@ -228,6 +228,10 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     }
 
     // ---------- Actions ----------
+    async handleRefresh() {
+        await refreshApex(this.wiredResult);
+    }
+
     async handleNewTask() {
         const result = await TaskCreateModalAction.open({
             size: 'medium',

@@ -191,7 +191,6 @@ export default class TaskCreateModalAction extends LightningModal {
 
     get priorityOptions() {
         return [
-            { label: 'Low', value: 'Low' },
             { label: 'Normal', value: 'Normal' },
             { label: 'High', value: 'High' }
         ];
