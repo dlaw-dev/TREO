@@ -85,6 +85,7 @@ export default class TaskCreateModalAction extends LightningModal {
     internalExternalType = '';
 
     @track selectedReminderTypes = [];
+    isReminderSet = false;
 
     isSaving = false;
 
@@ -218,8 +219,10 @@ export default class TaskCreateModalAction extends LightningModal {
 
         if (!this.activityDate) {
             this.selectedReminderTypes = [];
+            this.isReminderSet = false;
         }
     };
+    handleReminderSet = e => this.isReminderSet = e.target.checked;
     handleStatus = e => this.status = e.target.value;
     handlePriority = e => this.priority = e.target.value;
     handleDescription = e => this.description = e.target.value;
@@ -695,6 +698,7 @@ export default class TaskCreateModalAction extends LightningModal {
         this.taskSubtypeIfOther     = '';
         this.internalExternalType   = '';
         this.selectedReminderTypes  = [];
+        this.isReminderSet          = false;
         this.selectedUsers          = [];
         this.selectedUserIds        = new Set();
         this.userResults            = [];

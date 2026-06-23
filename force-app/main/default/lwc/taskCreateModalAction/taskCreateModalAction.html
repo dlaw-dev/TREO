@@ -13,7 +13,6 @@
 
         <!-- Description -->
         <lightning-textarea
-            class="slds-m-top_medium"
             label="Description"
             value={description}
             onchange={handleDescription}>
@@ -180,32 +179,38 @@
             </lightning-input>
         </template>
 
-        <!-- Due Date + Reminders -->
-        <div class="slds-grid slds-gutters slds-m-top_large">
+        <!-- Due Date -->
+        <lightning-input
+            class="slds-m-top_medium"
+            type="date"
+            label="Due Date"
+            value={activityDate}
+            onchange={handleDueDate}>
+        </lightning-input>
 
-            <div class="slds-col slds-size_1-of-2">
-                <lightning-input
-                    type="date"
-                    label="Due Date"
-                    value={activityDate}
-                    onchange={handleDueDate}>
-                </lightning-input>
-            </div>
+        <!-- Reminder Set -->
+        <lightning-input
+            class="slds-m-top_medium"
+            type="checkbox"
+            label="Reminder Set"
+            checked={isReminderSet}
+            disabled={isReminderDisabled}
+            onchange={handleReminderSet}>
+        </lightning-input>
 
-            <div class="slds-col slds-size_1-of-2">
-                <lightning-dual-listbox
-                    name="reminders"
-                    label="Reminders"
-                    source-label="Available"
-                    selected-label="Selected"
-                    options={reminderOptions}
-                    value={selectedReminderTypes}
-                    onchange={handleReminderChange}
-                    disabled={isReminderDisabled}>
-                </lightning-dual-listbox>
-            </div>
-
-        </div>
+        <!-- Reminder Picker -->
+        <template if:true={isReminderSet}>
+            <lightning-dual-listbox
+                class="slds-m-top_medium"
+                name="reminders"
+                label="Reminders"
+                source-label="Available"
+                selected-label="Selected"
+                options={reminderOptions}
+                value={selectedReminderTypes}
+                onchange={handleReminderChange}>
+            </lightning-dual-listbox>
+        </template>
 
         <!-- Internal / External -->
         <lightning-combobox
