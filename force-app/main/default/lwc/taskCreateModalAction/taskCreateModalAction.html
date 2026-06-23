@@ -200,16 +200,14 @@
 
         <!-- Reminder Picker -->
         <template if:true={isReminderSet}>
-            <lightning-dual-listbox
+            <lightning-checkbox-group
                 class="slds-m-top_medium"
                 name="reminders"
                 label="Reminders"
-                source-label="Available"
-                selected-label="Selected"
                 options={reminderOptions}
                 value={selectedReminderTypes}
                 onchange={handleReminderChange}>
-            </lightning-dual-listbox>
+            </lightning-checkbox-group>
         </template>
 
         <!-- Internal / External -->
