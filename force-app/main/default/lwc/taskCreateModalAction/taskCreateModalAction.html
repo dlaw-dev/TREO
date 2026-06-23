@@ -11,6 +11,14 @@
             onchange={handleSubject}>
         </lightning-input>
 
+        <!-- Description -->
+        <lightning-textarea
+            class="slds-m-top_medium"
+            label="Description"
+            value={description}
+            onchange={handleDescription}>
+        </lightning-textarea>
+
         <!-- Selected Assignee -->
         <template if:true={hasSelectedAssignee}>
             <div class="slds-box slds-m-top_medium">
@@ -171,14 +179,6 @@
                 onchange={handleTaskSubtypeIfOther}>
             </lightning-input>
         </template>
-
-        <!-- Description -->
-        <lightning-textarea
-            class="slds-m-top_medium"
-            label="Description"
-            value={description}
-            onchange={handleDescription}>
-        </lightning-textarea>
 
         <!-- Due Date + Reminders -->
         <div class="slds-grid slds-gutters slds-m-top_large">
