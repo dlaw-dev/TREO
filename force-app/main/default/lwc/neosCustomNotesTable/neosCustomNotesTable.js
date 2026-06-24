@@ -2,6 +2,8 @@ import { LightningElement, wire, api, track } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { refreshApex } from '@salesforce/apex';
 import getCustomNotes from '@salesforce/apex/NeosMatterCustomNotesController.getCustomNotes';
+import { MessageContext, subscribe, unsubscribe } from 'lightning/messageService';
+import NOTE_CREATED_CHANNEL from '@salesforce/messageChannel/noteCreated__c';
 
 
 export default class NeosMatterNotesTable extends NavigationMixin(LightningElement) {
@@ -10,6 +12,20 @@ export default class NeosMatterNotesTable extends NavigationMixin(LightningEleme
 
     notes = [];
     errorMessage;
+    _subscription = null;
+
+    @wire(MessageContext) _msgCtx;
+
+    connectedCallback() {
+        this._subscription = subscribe(this._msgCtx, NOTE_CREATED_CHANNEL, () => {
+            this.refreshNotes();
+        });
+    }
+
+    disconnectedCallback() {
+        unsubscribe(this._subscription);
+        this._subscription = null;
+    }
 
     // Flow modal
     isFlowOpen = false;
