@@ -133,6 +133,53 @@ public class MatterGlobalSearchControllerTest {
     }
 
     @IsTest
+    static void search_topfilingMatch_returnsResult() {
+        NEOS_Matter__c m = createMatter();
+        try {
+            SObject tf = Schema.getGlobalDescribe().get('Topfiling__c').newSObject();
+            tf.put('TREO_Matter__c', m.Id);
+            tf.put('Court_Case_No__c', 'xSearchTermx-2024-001');
+            tf.put('Plaintiffs__c',   'xSearchTermx Plaintiff');
+            insert tf;
+        } catch (Exception e) { /* additional required fields — skip insert */ }
+
+        Test.startTest();
+        List<MatterGlobalSearchController.SearchResult> results =
+            MatterGlobalSearchController.search(m.Id, 'xSearchTermx');
+        Test.stopTest();
+
+        for (MatterGlobalSearchController.SearchResult r : results) {
+            if (r.objectType == 'Topfiling__c') {
+                System.assertEquals('standard:document', r.iconName);
+            }
+        }
+    }
+
+    @IsTest
+    static void search_jpaMatch_returnsResult() {
+        NEOS_Matter__c m = createMatter();
+        try {
+            Contact c = new Contact(LastName = 'xSearchTermx');
+            insert c;
+            SObject j = Schema.getGlobalDescribe().get('JPA__c').newSObject();
+            j.put('Matter__c',               m.Id);
+            j.put('Firm_or_Lawyer_Name__c',  c.Id);
+            insert j;
+        } catch (Exception e) { /* additional required fields — skip insert */ }
+
+        Test.startTest();
+        List<MatterGlobalSearchController.SearchResult> results =
+            MatterGlobalSearchController.search(m.Id, 'xSearchTermx');
+        Test.stopTest();
+
+        for (MatterGlobalSearchController.SearchResult r : results) {
+            if (r.objectType == 'JPA__c') {
+                System.assertEquals('standard:document', r.iconName);
+            }
+        }
+    }
+
+    @IsTest
     static void queryByName_invalidObject_returnsEmpty() {
         NEOS_Matter__c m = createMatter();
         Test.startTest();

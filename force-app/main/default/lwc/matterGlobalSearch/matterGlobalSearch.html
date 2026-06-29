@@ -26,24 +26,47 @@
                             <span class="slds-m-left_x-small slds-text-title_caps">{group.label}</span>
                             <span class="result-count slds-m-left_x-small">{group.count}</span>
                         </div>
-                        <template for:each={group.results} for:item="result">
-                            <div
-                                key={result.id}
-                                class="result-item"
-                                data-id={result.id}
-                                data-type={result.objectType}
-                                onclick={handleResultClick}
-                                role="button"
-                                tabindex="0"
-                            >
-                                <div class="result-title">{result.title}</div>
-                                <template if:true={result.subtitle}>
-                                    <div class="result-subtitle">{result.subtitle}</div>
-                                </template>
-                                <template if:true={result.preview}>
-                                    <div class="result-preview">{result.preview}</div>
+                        <!-- Columnar layout for objects with defined column config -->
+                        <template if:true={group.hasColumns}>
+                            <div class={group.headerClass} aria-hidden="true">
+                                <span class="col-hdr">Name</span>
+                                <template for:each={group.columns} for:item="col">
+                                    <span key={col.label} class="col-hdr">{col.label}</span>
                                 </template>
                             </div>
+                            <template for:each={group.results} for:item="result">
+                                <div
+                                    key={result.id}
+                                    class={result.rowClass}
+                                    data-id={result.id}
+                                    data-type={result.objectType}
+                                    onclick={handleResultClick}
+                                    role="button"
+                                    tabindex="0"
+                                >
+                                    <span class="result-title">{result.title}</span>
+                                    <template for:each={result.cells} for:item="cell">
+                                        <span key={cell.label} class="result-cell">{cell.value}</span>
+                                    </template>
+                                </div>
+                            </template>
+                        </template>
+
+                        <!-- Simple stacked layout for generic objects -->
+                        <template if:true={group.hasNoColumns}>
+                            <template for:each={group.results} for:item="result">
+                                <div
+                                    key={result.id}
+                                    class="result-item"
+                                    data-id={result.id}
+                                    data-type={result.objectType}
+                                    onclick={handleResultClick}
+                                    role="button"
+                                    tabindex="0"
+                                >
+                                    <div class="result-title">{result.title}</div>
+                                </div>
+                            </template>
                         </template>
                     </div>
                 </template>

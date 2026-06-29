@@ -2,6 +2,16 @@ import { LightningElement, api, track } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import search from '@salesforce/apex/MatterGlobalSearchController.search';
 
+const COLUMNS = {
+    'NEOS_Notes__c':       [{ label: 'Category',    field: 'subtitle' }, { label: 'Description', field: 'preview' }],
+    'Time_Entry__c':       [{ label: 'Date',         field: 'subtitle' }, { label: 'Notes',       field: 'preview' }],
+    'Calendar_Event__c':   [{ label: 'Type',         field: 'subtitle' }, { label: 'Start',       field: 'preview' }],
+    'Task':                [{ label: 'Status / Due', field: 'subtitle' }, { label: 'Description', field: 'preview' }],
+    'Involved_Persons__c': [{ label: 'Relationship',  field: 'subtitle' }],
+    'Topfiling__c':        [{ label: 'Court Case #',  field: 'subtitle' }, { label: 'Status',      field: 'preview' }],
+    'JPA__c':              [{ label: 'JPA Portion',   field: 'subtitle' }],
+};
+
 export default class MatterGlobalSearch extends NavigationMixin(LightningElement) {
     @api recordId;
     @track results = [];
@@ -54,7 +64,25 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
             }
             groupMap.get(r.objectType).results.push(r);
         });
-        return [...groupMap.values()].map(g => ({ ...g, count: g.results.length }));
+        return [...groupMap.values()].map(g => {
+            const cols = COLUMNS[g.type] || [];
+            const hasColumns = cols.length > 0;
+            const colSuffix = cols.length === 1 ? 'cols-2' : 'cols-3';
+            const processedResults = g.results.map(r => ({
+                ...r,
+                cells: cols.map(c => ({ label: c.label, value: r[c.field] || '' })),
+                rowClass: hasColumns ? `result-grid ${colSuffix}` : 'result-item'
+            }));
+            return {
+                ...g,
+                count: g.results.length,
+                columns: cols,
+                hasColumns,
+                hasNoColumns: !hasColumns,
+                headerClass: `result-grid col-hdr-row ${colSuffix}`,
+                results: processedResults
+            };
+        });
     }
 
     get hasResults() {

@@ -33,7 +33,7 @@ public with sharing class MatterGlobalSearchController {
             r.objectLabel = 'Notes';
             r.title       = n.Name;
             r.subtitle    = n.Note_Category__c;
-            r.preview     = n.Note_Description__c != null ? n.Note_Description__c.abbreviate(250) : null;
+            r.preview     = n.Note_Description__c != null ? n.Note_Description__c.stripHtmlTags().normalizeSpace().abbreviate(250) : null;
             r.iconName    = 'standard:note';
             results.add(r);
         }
@@ -97,11 +97,70 @@ public with sharing class MatterGlobalSearchController {
 
         // Dynamic SOQL for remaining objects — gracefully skips if object/field doesn't exist
         results.addAll(queryByName('Involved_Parties__c',       'Matter__c',      'Involved Parties',    'standard:contact',         matterId, term));
-        results.addAll(queryByName('Involved_Persons__c',       'Matter__c',      'Involved Persons',    'standard:person_account',  matterId, term));
+
+        // Involved_Persons__c — search Person__r.Name and Relationship__c
+        try {
+            for (SObject ip : Database.query(
+                'SELECT Id, Person__r.Name, Relationship__c ' +
+                'FROM Involved_Persons__c ' +
+                'WHERE Matter__c = :matterId ' +
+                'AND (Person__r.Name LIKE :term OR Relationship__c LIKE :term) ' +
+                'LIMIT 10'
+            )) {
+                SearchResult r = new SearchResult();
+                r.id          = String.valueOf(ip.get('Id'));
+                r.objectType  = 'Involved_Persons__c';
+                r.objectLabel = 'Involved Persons';
+                r.iconName    = 'standard:person_account';
+                SObject personRef = ip.getSObject('Person__r');
+                r.title    = personRef != null ? (String) personRef.get('Name') : null;
+                r.subtitle = (String) ip.get('Relationship__c');
+                results.add(r);
+            }
+        } catch (Exception e) { /* object or fields absent — skip */ }
         results.addAll(queryByName('Counsel_Party_Junction__c', 'Matter__c',      'Counsel Parties',     'standard:related_list',    matterId, term));
         results.addAll(queryByName('Counsel_Junction__c',       'Matter__c',      'Counsel',             'standard:related_list',    matterId, term));
-        results.addAll(queryByName('Topfiling__c',              'TREO_Matter__c', 'Top Filings',         'standard:document',        matterId, term));
-        results.addAll(queryByName('JPA__c',                    'Matter__c',      'JPA',                 'standard:document',        matterId, term));
+        // Topfiling__c — Name is autonumber; search court case #, parties
+        try {
+            for (Topfiling__c t : [
+                SELECT Id, Court_Case_No__c, Plaintiffs__c, Defendants__c, Case_Status__c, LWDA_No__c
+                FROM Topfiling__c
+                WHERE TREO_Matter__c = :matterId
+                AND (Court_Case_No__c LIKE :term OR Plaintiffs__c LIKE :term
+                     OR Defendants__c LIKE :term OR LWDA_No__c LIKE :term)
+                LIMIT 10
+            ]) {
+                SearchResult r = new SearchResult();
+                r.id          = t.Id;
+                r.objectType  = 'Topfiling__c';
+                r.objectLabel = 'Top Filings';
+                r.iconName    = 'standard:document';
+                r.title       = t.Plaintiffs__c;
+                r.subtitle    = t.Court_Case_No__c;
+                r.preview     = t.Case_Status__c;
+                results.add(r);
+            }
+        } catch (Exception e) { /* object or fields absent — skip */ }
+
+        // JPA__c — Name is a system ID; Firm_or_Lawyer_Name__c is a lookup, traverse to .Name
+        try {
+            for (JPA__c j : [
+                SELECT Id, Firm_or_Lawyer_Name__r.Name, JPA_Portion__c
+                FROM JPA__c
+                WHERE Matter__c = :matterId
+                AND Firm_or_Lawyer_Name__r.Name LIKE :term
+                LIMIT 10
+            ]) {
+                SearchResult r = new SearchResult();
+                r.id          = j.Id;
+                r.objectType  = 'JPA__c';
+                r.objectLabel = 'JPA';
+                r.iconName    = 'standard:document';
+                r.title       = j.Firm_or_Lawyer_Name__r != null ? j.Firm_or_Lawyer_Name__r.Name : null;
+                r.subtitle    = j.JPA_Portion__c != null ? j.JPA_Portion__c.setScale(2).toPlainString() + '%' : null;
+                results.add(r);
+            }
+        } catch (Exception e) { /* object or fields absent — skip */ }
         results.addAll(queryByName('Arbitration_Details__c',    'NEOS_Matter__c', 'Arbitration Details', 'standard:case',            matterId, term));
         results.addAll(queryByName('NEOS_Expense__c',           'NEOS_Matter__c', 'Expenses',            'standard:expense',         matterId, term));
 

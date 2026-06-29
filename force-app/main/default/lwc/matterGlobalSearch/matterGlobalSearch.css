@@ -59,3 +59,47 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
 }
+
+/* Columnar grid layout */
+.result-grid {
+    display: grid;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #f3f2f2;
+    gap: 0.5rem;
+}
+
+.cols-2 { grid-template-columns: 1fr 1fr; }
+.cols-3 { grid-template-columns: 2fr 1fr 2fr; }
+
+.result-grid.col-hdr-row {
+    padding: 0.25rem 0.75rem;
+    background-color: #f8f7f6;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.col-hdr {
+    font-size: 0.688rem;
+    font-weight: 600;
+    color: #706e6b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.result-grid[role="button"] {
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.1s ease;
+}
+
+.result-grid[role="button"]:hover {
+    background-color: #f3f2f2;
+}
+
+.result-cell {
+    font-size: 0.75rem;
+    color: #3e3e3c;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
