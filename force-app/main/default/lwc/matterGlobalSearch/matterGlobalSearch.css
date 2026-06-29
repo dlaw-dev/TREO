@@ -3,6 +3,11 @@
     padding-bottom: 0.5rem;
 }
 
+.results-scroll {
+    max-height: 28rem;
+    overflow-y: auto;
+}
+
 .result-group {
     border-top: 1px solid #e5e5e5;
     margin-top: 0.5rem;

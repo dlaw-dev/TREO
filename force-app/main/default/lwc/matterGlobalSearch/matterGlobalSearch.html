@@ -31,7 +31,7 @@
         </template>
 
         <template if:true={hasResults}>
-            <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+            <div class="results-scroll slds-p-horizontal_medium slds-p-bottom_medium">
                 <template for:each={groupedResults} for:item="group">
                     <div key={group.type} class="result-group">
                         <div class="group-header">
