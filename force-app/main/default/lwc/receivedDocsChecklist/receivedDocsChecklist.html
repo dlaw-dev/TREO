@@ -1,0 +1,50 @@
+<template>
+    <div class="slds-p-around_small">
+
+        <!-- Display mode -->
+        <template if:false={isEditing}>
+            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_x-small">
+                <span class="slds-text-title_caps slds-text-color_weak">Received Docs</span>
+                <lightning-button-icon
+                    icon-name="utility:edit"
+                    variant="bare"
+                    size="small"
+                    alternative-text="Edit"
+                    onclick={handleEdit}>
+                </lightning-button-icon>
+            </div>
+            <template for:each={items} for:item="item">
+                <div key={item} class="slds-m-bottom_x-small">
+                    <lightning-input
+                        type="checkbox"
+                        label={item}
+                        checked
+                        disabled>
+                    </lightning-input>
+                </div>
+            </template>
+            <template if:false={hasItems}>
+                <p class="slds-text-color_weak">—</p>
+            </template>
+        </template>
+
+        <!-- Edit mode -->
+        <template if:true={isEditing}>
+            <lightning-record-edit-form
+                record-id={recordId}
+                object-api-name={objectApiName}
+                onsuccess={handleSuccess}
+                onload={handleFormLoad}>
+                <template if:true={isFormLoading}>
+                    <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+                </template>
+                <lightning-input-field field-name="Received_Docs__c"></lightning-input-field>
+                <div class="slds-m-top_small slds-grid slds-grid_align-end">
+                    <lightning-button label="Cancel" onclick={handleCancel} class="slds-m-right_x-small"></lightning-button>
+                    <lightning-button type="submit" label="Save" variant="brand"></lightning-button>
+                </div>
+            </lightning-record-edit-form>
+        </template>
+
+    </div>
+</template>
