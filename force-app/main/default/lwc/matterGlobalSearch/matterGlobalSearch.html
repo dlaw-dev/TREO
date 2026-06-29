@@ -1,0 +1,65 @@
+<template>
+    <lightning-card title="Matter Search" icon-name="utility:search">
+        <div class="slds-p-horizontal_medium slds-p-bottom_x-small">
+            <lightning-input
+                type="search"
+                label="Search"
+                variant="label-hidden"
+                placeholder="Search notes, time entries, events, parties..."
+                value={searchTerm}
+                onchange={handleSearch}
+            ></lightning-input>
+        </div>
+
+        <template if:true={isLoading}>
+            <div class="slds-align_absolute-center slds-p-around_medium">
+                <lightning-spinner alternative-text="Searching..." size="small"></lightning-spinner>
+            </div>
+        </template>
+
+        <template if:true={hasResults}>
+            <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+                <template for:each={groupedResults} for:item="group">
+                    <div key={group.type} class="result-group">
+                        <div class="group-header">
+                            <lightning-icon icon-name={group.iconName} size="x-small"></lightning-icon>
+                            <span class="slds-m-left_x-small slds-text-title_caps">{group.label}</span>
+                            <span class="result-count slds-m-left_x-small">{group.count}</span>
+                        </div>
+                        <template for:each={group.results} for:item="result">
+                            <div
+                                key={result.id}
+                                class="result-item"
+                                data-id={result.id}
+                                data-type={result.objectType}
+                                onclick={handleResultClick}
+                                role="button"
+                                tabindex="0"
+                            >
+                                <div class="result-title">{result.title}</div>
+                                <template if:true={result.subtitle}>
+                                    <div class="result-subtitle">{result.subtitle}</div>
+                                </template>
+                                <template if:true={result.preview}>
+                                    <div class="result-preview">{result.preview}</div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <template if:true={noResults}>
+            <div class="slds-align_absolute-center slds-p-around_medium">
+                <p class="slds-text-color_weak">No results found for &ldquo;{searchTerm}&rdquo;</p>
+            </div>
+        </template>
+
+        <template if:true={showPrompt}>
+            <div class="slds-align_absolute-center slds-p-around_medium">
+                <p class="slds-text-color_weak">Type at least 3 characters to search</p>
+            </div>
+        </template>
+    </lightning-card>
+</template>
