@@ -8,6 +8,8 @@
     <targetConfigs>
         <targetConfig targets="lightning__RecordPage">
             <property name="objectApiName" type="String" label="Object API Name" description="e.g. NEOS_Matter__c"/>
+            <property name="fieldApiName" type="String" label="Field API Name" default="Received_Docs__c" description="e.g. Received_Docs__c"/>
+            <property name="sectionLabel" type="String" label="Section Label" default="Docs"/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>
