@@ -7,6 +7,7 @@ const COLUMNS = {
     'Time_Entry__c':       [{ label: 'Date',         field: 'subtitle' }, { label: 'Notes',       field: 'preview' }],
     'Calendar_Event__c':   [{ label: 'Type',         field: 'subtitle' }, { label: 'Start',       field: 'preview' }],
     'Task':                [{ label: 'Status / Due', field: 'subtitle' }, { label: 'Description', field: 'preview' }],
+    'Involved_Parties__c': [{ label: 'Relationship',  field: 'subtitle' }],
     'Involved_Persons__c': [{ label: 'Relationship',  field: 'subtitle' }],
     'Topfiling__c':        [{ label: 'Court Case #',  field: 'subtitle' }, { label: 'Status',      field: 'preview' }],
     'JPA__c':              [{ label: 'JPA Portion',   field: 'subtitle' }],

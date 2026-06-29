@@ -96,7 +96,25 @@ public with sharing class MatterGlobalSearchController {
         }
 
         // Dynamic SOQL for remaining objects — gracefully skips if object/field doesn't exist
-        results.addAll(queryByName('Involved_Parties__c',       'Matter__c',      'Involved Parties',    'standard:contact',         matterId, term));
+        // Involved_Parties__c
+        try {
+            for (Involved_Parties__c p : [
+                SELECT Id, Name, Relationship__c
+                FROM Involved_Parties__c
+                WHERE Matter__c = :matterId
+                AND (Name LIKE :term OR Relationship__c LIKE :term)
+                LIMIT 10
+            ]) {
+                SearchResult r = new SearchResult();
+                r.id          = p.Id;
+                r.objectType  = 'Involved_Parties__c';
+                r.objectLabel = 'Involved Parties';
+                r.iconName    = 'standard:contact';
+                r.title       = p.Name;
+                r.subtitle    = p.Relationship__c;
+                results.add(r);
+            }
+        } catch (Exception e) { /* object or fields absent — skip */ }
 
         // Involved_Persons__c — search Person__r.Name and Relationship__c
         try {
@@ -123,11 +141,12 @@ public with sharing class MatterGlobalSearchController {
         // Topfiling__c — Name is autonumber; search court case #, parties
         try {
             for (Topfiling__c t : [
-                SELECT Id, Court_Case_No__c, Plaintiffs__c, Defendants__c, Case_Status__c, LWDA_No__c
+                SELECT Id, Court_Case_No__c, Plaintiffs__c, Defendants__c, Case_Status__c, LWDA_No__c, Court__r.Name
                 FROM Topfiling__c
                 WHERE TREO_Matter__c = :matterId
                 AND (Court_Case_No__c LIKE :term OR Plaintiffs__c LIKE :term
-                     OR Defendants__c LIKE :term OR LWDA_No__c LIKE :term)
+                     OR Defendants__c LIKE :term OR LWDA_No__c LIKE :term
+                     OR Court__r.Name LIKE :term)
                 LIMIT 10
             ]) {
                 SearchResult r = new SearchResult();
