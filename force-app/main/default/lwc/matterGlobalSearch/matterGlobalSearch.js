@@ -17,6 +17,7 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
     @track results = [];
     @track isLoading = false;
     @track searchTerm = '';
+    @track selectedType = 'all';
     @track error = null;
     _debounceTimer;
 
@@ -38,6 +39,7 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
     runSearch() {
         this.isLoading = true;
         this.error = null;
+        this.selectedType = 'all';
         search({ matterId: this.recordId, searchTerm: this.searchTerm })
             .then(data => {
                 this.results = data;
@@ -51,16 +53,33 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
             });
     }
 
-    get groupedResults() {
-        const groupMap = new Map();
+    get filterOptions() {
+        const seen = new Map();
         this.results.forEach(r => {
+            if (!seen.has(r.objectType)) seen.set(r.objectType, r.objectLabel);
+        });
+        return [
+            { label: 'All Types', value: 'all' },
+            ...[...seen.entries()].map(([value, label]) => ({ label, value }))
+        ];
+    }
+
+    get showTypeFilter() {
+        return !this.isLoading && new Set(this.results.map(r => r.objectType)).size > 1;
+    }
+
+    handleTypeFilter(event) {
+        this.selectedType = event.detail.value;
+    }
+
+    get groupedResults() {
+        const filtered = this.selectedType === 'all'
+            ? this.results
+            : this.results.filter(r => r.objectType === this.selectedType);
+        const groupMap = new Map();
+        filtered.forEach(r => {
             if (!groupMap.has(r.objectType)) {
-                groupMap.set(r.objectType, {
-                    type: r.objectType,
-                    label: r.objectLabel,
-                    iconName: r.iconName,
-                    results: []
-                });
+                groupMap.set(r.objectType, { type: r.objectType, label: r.objectLabel, iconName: r.iconName, results: [] });
             }
             groupMap.get(r.objectType).results.push(r);
         });

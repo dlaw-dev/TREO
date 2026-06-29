@@ -17,6 +17,19 @@
             </div>
         </template>
 
+        <template if:true={showTypeFilter}>
+            <div class="filter-bar slds-p-horizontal_medium slds-p-bottom_x-small">
+                <lightning-combobox
+                    label="Filter by type"
+                    variant="label-hidden"
+                    value={selectedType}
+                    options={filterOptions}
+                    onchange={handleTypeFilter}
+                    dropdown-alignment="left"
+                ></lightning-combobox>
+            </div>
+        </template>
+
         <template if:true={hasResults}>
             <div class="slds-p-horizontal_medium slds-p-bottom_medium">
                 <template for:each={groupedResults} for:item="group">
