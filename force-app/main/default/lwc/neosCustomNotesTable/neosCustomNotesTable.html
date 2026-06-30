@@ -1,103 +1,89 @@
 <template>
     <lightning-card>
 
-        <!-- 🔷 HEADER -->
-        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-p-horizontal_small slds-m-bottom_small">
+        <!-- 🔷 HEADER ROW 1: Title + Actions -->
+        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-p-horizontal_small slds-m-bottom_x-small">
 
-            <!-- LEFT: Icon + Title -->
             <div class="slds-media slds-media_center">
                 <lightning-icon
                     icon-name="custom:custom46"
                     size="small"
                     class="slds-m-right_x-small">
                 </lightning-icon>
-
                 <div class="slds-text-heading_small">
                     Notes ({displayNotes.length})
                 </div>
             </div>
 
-            <!-- RIGHT: ALL CONTROLS INLINE -->
             <div class="slds-grid slds-grid_vertical-align-center">
-
-                <!-- Pagination -->
-                <template if:true={hasMultiplePages}>
-                    <div class="slds-grid slds-grid_align-center slds-grid_vertical-align-center slds-m-right_large" style="min-width: 300px;">
-                        <lightning-button 
-                            label="Prev"
-                            onclick={handlePrevPage}
-                            disabled={isPrevDisabled}
-                            class="slds-m-right_x-small">
-                        </lightning-button>
-
-                        <span class="slds-m-horizontal_small">
-                            Page {currentPage} of {totalPages}
-                        </span>
-
-                        <lightning-button 
-                            label="Next"
-                            onclick={handleNextPage}
-                            disabled={isNextDisabled}
-                            class="slds-m-left_x-small">
-                        </lightning-button>
-                    </div>
-                </template>
-
-                <!-- 🔍 Search -->
-                <div class="slds-m-right_large">
-                    <lightning-input
-                        type="search"
-                        variant="label-hidden"
-                        placeholder="Search notes..."
-                        onchange={handleSearch}
-                        style="width: 200px;">
-                    </lightning-input>
-                </div>
-
-                <!-- Sort -->
-                <div class="slds-grid slds-grid_vertical-align-center slds-align_absolute-center slds-m-right_large">
-                    <span class="slds-m-right_x-small">Sort</span>
-
-                    <lightning-input
-                        class="fix-toggle"
-                        type="toggle"
-                        variant="label-hidden"
-                        message-toggle-inactive="Pinned"
-                        message-toggle-active="Date"
-                        checked={isChronological}
-                        onchange={handleToggleMode}>
-                    </lightning-input>
-                </div>
-
-                <!-- Page Size -->
-                <div class="slds-grid slds-grid_vertical-align-center slds-align_absolute-center slds-m-right_large">
-                    <span class="slds-m-right_x-small">Per page</span>
-
-                    <lightning-combobox
-                        variant="label-hidden"
-                        value={pageSize}
-                        options={pageSizeOptions}
-                        onchange={handlePageSizeChange}
-                        style="width: 80px;">
-                    </lightning-combobox>
-                </div>
-
-                <!-- Refresh -->
-                <div class="slds-m-right_small slds-align_absolute-center">
-                    <lightning-button-icon
-                        icon-name="utility:refresh"
-                        variant="border-filled"
-                        alternative-text="Refresh"
-                        onclick={handleRefresh}>
-                    </lightning-button-icon>
-                </div>
-
-                <!-- New Note -->
-                <div>
-                    <lightning-button label="New Note" variant="brand" onclick={openFlow}></lightning-button>
-                </div>
-
+                <lightning-button-icon
+                    icon-name="utility:refresh"
+                    variant="border-filled"
+                    alternative-text="Refresh"
+                    onclick={handleRefresh}
+                    class="slds-m-right_x-small">
+                </lightning-button-icon>
+                <lightning-button label="New Note" variant="brand" onclick={openFlow}></lightning-button>
             </div>
+        </div>
+
+        <!-- 🔷 HEADER ROW 2: Controls -->
+        <div class="slds-grid slds-grid_vertical-align-center slds-p-horizontal_small slds-m-bottom_small" style="flex-wrap: wrap; gap: 8px;">
+
+            <!-- Pagination -->
+            <template if:true={hasMultiplePages}>
+                <div class="slds-grid slds-grid_vertical-align-center">
+                    <lightning-button
+                        label="Prev"
+                        onclick={handlePrevPage}
+                        disabled={isPrevDisabled}
+                        class="slds-m-right_x-small">
+                    </lightning-button>
+                    <span class="slds-m-horizontal_x-small">Page {currentPage} of {totalPages}</span>
+                    <lightning-button
+                        label="Next"
+                        onclick={handleNextPage}
+                        disabled={isNextDisabled}
+                        class="slds-m-left_x-small">
+                    </lightning-button>
+                </div>
+            </template>
+
+            <!-- Search -->
+            <lightning-input
+                type="search"
+                variant="label-hidden"
+                placeholder="Search notes..."
+                onchange={handleSearch}
+                style="width: 200px;">
+            </lightning-input>
+
+            <!-- Sort -->
+            <div class="slds-grid slds-grid_vertical-align-center">
+                <span class="slds-m-right_x-small">Sort</span>
+                <lightning-input
+                    class="fix-toggle"
+                    type="toggle"
+                    variant="label-hidden"
+                    message-toggle-inactive="Pinned"
+                    message-toggle-active="Date"
+                    checked={isChronological}
+                    onchange={handleToggleMode}>
+                </lightning-input>
+            </div>
+
+            <!-- Page Size -->
+            <div class="slds-grid slds-grid_vertical-align-center">
+                <span class="slds-m-right_x-small">Per page</span>
+                <lightning-combobox
+                    variant="label-hidden"
+                    value={pageSize}
+                    options={pageSizeOptions}
+                    onchange={handlePageSizeChange}
+                    style="width: 80px;">
+                </lightning-combobox>
+            </div>
+
         </div>
 
         <!-- Flow Modal -->
