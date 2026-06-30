@@ -460,6 +460,18 @@ export default class EventCreateModalAction extends LightningModal {
         return this.typeValue?.toLowerCase() === 'mediation';
     }
 
+    get newMediatorBoxClass() {
+        return this.isCreatingProvider ? 'slds-m-top_small' : 'slds-hide';
+    }
+
+    get mediatorFilter() {
+        return {
+            criteria: [
+                { fieldPath: 'Role__c', operator: 'eq', value: 'Mediator' }
+            ]
+        };
+    }
+
     get isSaveDisabled() {
         return this.isSaving;
     }

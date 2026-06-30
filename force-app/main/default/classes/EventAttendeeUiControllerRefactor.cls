@@ -957,6 +957,19 @@ public with sharing class EventAttendeeUiControllerRefactor {
                 new List<CalendarRescheduleAction.Request>{ req }
             )[0].newEventId;
 
+            // Copy Mediator__c from source event to the rescheduled event
+            List<SObject> sourceEvents = Database.query(
+                'SELECT Mediator__c FROM Calendar_Event__c WHERE Id = :eventId LIMIT 1'
+            );
+            if (!sourceEvents.isEmpty()) {
+                Id mediatorId = (Id) sourceEvents[0].get('Mediator__c');
+                if (mediatorId != null) {
+                    SObject newEvt = new Calendar_Event__c(Id = newEvtId);
+                    newEvt.put('Mediator__c', mediatorId);
+                    update newEvt;
+                }
+            }
+
             // Transfer reminders: delete from source, recreate on new event
             if (!oldReminders.isEmpty()) new DeleteHelper().deleteReminderList(oldReminders);
             if (!reminderTypes.isEmpty()) {

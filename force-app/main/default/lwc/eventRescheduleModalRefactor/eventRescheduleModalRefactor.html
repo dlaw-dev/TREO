@@ -1,0 +1,74 @@
+<template>
+    <lightning-modal-header label="Reschedule Event"></lightning-modal-header>
+
+    <lightning-modal-body>
+        <p class="slds-m-bottom_medium reschedule-subject">{subject}</p>
+
+        <div class="slds-form-element">
+            <label class="slds-form-element__label">{startDateLabel}</label>
+            <div class="slds-form-element__control">
+                <input type="text" class="slds-input fp-input" data-id="date-input" placeholder="MM/DD/YYYY" />
+            </div>
+        </div>
+
+        <lightning-input
+            class="slds-m-top_medium"
+            type="checkbox"
+            label="All-Day Event"
+            checked={isAllDayLocal}
+            onchange={handleAllDayToggle}>
+        </lightning-input>
+
+        <template if:false={showTimes}>
+            <div class="slds-form-element slds-m-top_medium">
+                <label class="slds-form-element__label">End Date</label>
+                <div class="slds-form-element__control">
+                    <input type="text" class="slds-input fp-input" data-id="end-date-input" placeholder="MM/DD/YYYY" />
+                </div>
+            </div>
+        </template>
+
+        <template if:true={showTimes}>
+            <div class="slds-grid slds-gutters slds-m-top_medium">
+                <lightning-input
+                    class="slds-col"
+                    type="time"
+                    label="Start Time"
+                    value={startTime}
+                    onchange={handleStartTimeChange}>
+                </lightning-input>
+                <lightning-input
+                    class="slds-col"
+                    type="time"
+                    label="End Time"
+                    value={endTime}
+                    onchange={handleEndTimeChange}>
+                </lightning-input>
+            </div>
+        </template>
+
+        <lightning-input-rich-text
+            class="slds-m-top_medium"
+            label="Description"
+            value={newDescription}
+            onchange={handleDescriptionChange}>
+        </lightning-input-rich-text>
+
+        <template if:true={errorMessage}>
+            <p class="slds-m-top_small slds-text-color_error">{errorMessage}</p>
+        </template>
+    </lightning-modal-body>
+
+    <lightning-modal-footer>
+        <template if:true={isSaving}>
+            <lightning-spinner alternative-text="Rescheduling..." size="small" class="slds-m-right_medium"></lightning-spinner>
+        </template>
+        <lightning-button label="Cancel" disabled={isSaving} onclick={handleCancel}></lightning-button>
+        <lightning-button
+            variant="brand"
+            label="Reschedule"
+            disabled={isSaving}
+            onclick={handleSave}>
+        </lightning-button>
+    </lightning-modal-footer>
+</template>
