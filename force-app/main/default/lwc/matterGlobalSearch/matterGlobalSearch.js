@@ -12,13 +12,17 @@ const COLUMNS = {
     'Involved_Persons__c':       [{ label: 'Relationship', field: 'subtitle' }],
     'Topfiling__c':              [{ label: 'Court Case #', field: 'subtitle' }, { label: 'Status',      field: 'preview' }],
     'JPA__c':                    [{ label: 'JPA Portion',  field: 'subtitle' }],
-    'Counsel_Junction__c':       [{ label: 'Type',         field: 'subtitle' }],
+    'Counsel_Junction__c':       [{ label: 'Type',          field: 'subtitle' }],
+    'Arbitration_Details__c':    [{ label: 'Arbitrator / Case Mgr', field: 'subtitle' }, { label: 'Venue', field: 'preview' }],
+    'NEOS_Expense__c':           [{ label: 'Date',          field: 'subtitle' }, { label: 'Amount', field: 'preview' }],
 };
 
 // Override the "Name" header label for objects where the title column isn't literally a name
 const TITLE_LABELS = {
-    'NEOS_Notes__c': 'Staff',
-    'Time_Entry__c': 'Staff',
+    'NEOS_Notes__c':          'Staff',
+    'Time_Entry__c':          'Staff',
+    'Arbitration_Details__c': 'Case #',
+    'NEOS_Expense__c':        'Provider',
 };
 
 const SEARCHABLE_OBJECTS = [
@@ -32,7 +36,7 @@ const SEARCHABLE_OBJECTS = [
     { type: 'JPA__c',                    label: 'JPAs',               tagClass: 'search-tag tag-jpa'         },
     { type: 'Counsel_Junction__c',       label: 'Counsel',            tagClass: 'search-tag tag-counsel'     },
     { type: 'Arbitration_Details__c',    label: 'Arbitration',        tagClass: 'search-tag tag-arbitration' },
-    { type: 'NEOS_Expense__c',           label: 'Expenses',           tagClass: 'search-tag tag-expense'     },
+    { type: 'NEOS_Expense__c',           label: 'Costs',              tagClass: 'search-tag tag-expense'     },
 ];
 
 export default class MatterGlobalSearch extends NavigationMixin(LightningElement) {

@@ -121,8 +121,8 @@ public with sharing class MatterGlobalSearchController {
             }
         } catch (Exception e) { System.debug('JPA__c skipped: ' + e.getMessage()); }
 
-        results.addAll(queryByName('Arbitration_Details__c', 'NEOS_Matter__c', 'Arbitration Details', 'standard:case',    matterId, term));
-        results.addAll(queryByName('NEOS_Expense__c',        'NEOS_Matter__c', 'Expenses',            'standard:expense', matterId, term));
+        results.addAll(queryArbitration(matterId, term));
+        results.addAll(queryExpense(matterId, term));
 
         return results;
     }
@@ -226,15 +226,10 @@ public with sharing class MatterGlobalSearchController {
             // queryByName objects
             if (objectType == 'Counsel_Junction__c') {
                 results.addAll(browseCounsel(matterId));
-            } else {
-                Map<String, String[]> cfg = new Map<String, String[]>{
-                    'Arbitration_Details__c' => new String[]{ 'NEOS_Matter__c', 'Arbitration Details', 'standard:case'    },
-                    'NEOS_Expense__c'        => new String[]{ 'NEOS_Matter__c', 'Expenses',            'standard:expense' }
-                };
-                if (cfg.containsKey(objectType)) {
-                    String[] c = cfg.get(objectType);
-                    results.addAll(browseByName(objectType, c[0], c[1], c[2], matterId));
-                }
+            } else if (objectType == 'Arbitration_Details__c') {
+                results.addAll(browseArbitration(matterId));
+            } else if (objectType == 'NEOS_Expense__c') {
+                results.addAll(browseExpense(matterId));
             }
         }
 
@@ -258,7 +253,7 @@ public with sharing class MatterGlobalSearchController {
         SearchResult r = new SearchResult();
         r.id = t.Id; r.objectType = 'Time_Entry__c'; r.objectLabel = 'Time Entries'; r.iconName = 'standard:timesheet';
         r.title    = t.Staff__r != null ? t.Staff__r.Name : null;
-        r.subtitle = t.Duration__c != null ? t.Duration__c.setScale(2).toPlainString() + ' hrs' : null;
+        r.subtitle = String.isNotBlank(t.Duration__c) ? t.Duration__c : null;
         return r;
     }
 
@@ -382,6 +377,100 @@ public with sharing class MatterGlobalSearchController {
             System.debug('Counsel_Junction__c browse skipped: ' + e.getMessage());
             return new List<SearchResult>();
         }
+    }
+
+    private static List<SearchResult> queryArbitration(Id matterId, String term) {
+        try {
+            List<SearchResult> out = new List<SearchResult>();
+            for (SObject s : Database.query(
+                'SELECT Id, Arbitration_Case_Number__c, Arbitrator__r.Name, Case_Manager__r.Name, Arbitration_Venue__c ' +
+                'FROM Arbitration_Details__c ' +
+                'WHERE NEOS_Matter__c = :matterId ' +
+                'AND (Arbitration_Case_Number__c LIKE :term OR Arbitration_Venue__c LIKE :term) LIMIT 10'
+            )) {
+                out.add(makeArbitration(s));
+            }
+            return out;
+        } catch (Exception e) {
+            System.debug('Arbitration_Details__c search skipped: ' + e.getMessage());
+            return new List<SearchResult>();
+        }
+    }
+
+    private static List<SearchResult> browseArbitration(Id matterId) {
+        try {
+            List<SearchResult> out = new List<SearchResult>();
+            for (SObject s : Database.query(
+                'SELECT Id, Arbitration_Case_Number__c, Arbitrator__r.Name, Case_Manager__r.Name, Arbitration_Venue__c ' +
+                'FROM Arbitration_Details__c ' +
+                'WHERE NEOS_Matter__c = :matterId ORDER BY CreatedDate DESC LIMIT 50'
+            )) {
+                out.add(makeArbitration(s));
+            }
+            return out;
+        } catch (Exception e) {
+            System.debug('Arbitration_Details__c browse skipped: ' + e.getMessage());
+            return new List<SearchResult>();
+        }
+    }
+
+    private static SearchResult makeArbitration(SObject s) {
+        SearchResult r = new SearchResult();
+        r.id = String.valueOf(s.get('Id'));
+        r.objectType = 'Arbitration_Details__c'; r.objectLabel = 'Arbitration Details'; r.iconName = 'standard:case';
+        r.title    = (String) s.get('Arbitration_Case_Number__c');
+        String arb = s.getSObject('Arbitrator__r') != null ? (String) s.getSObject('Arbitrator__r').get('Name') : null;
+        String mgr = s.getSObject('Case_Manager__r') != null ? (String) s.getSObject('Case_Manager__r').get('Name') : null;
+        r.subtitle = arb != null && mgr != null ? arb + ' · ' + mgr : (arb != null ? arb : mgr);
+        r.preview  = (String) s.get('Arbitration_Venue__c');
+        return r;
+    }
+
+    private static List<SearchResult> queryExpense(Id matterId, String term) {
+        try {
+            List<SearchResult> out = new List<SearchResult>();
+            for (SObject s : Database.query(
+                'SELECT Id, Name, Provider__r.Name, ExpenseDate__c, AmountPaid__c ' +
+                'FROM NEOS_Expense__c ' +
+                'WHERE NEOS_Matter__c = :matterId AND Name LIKE :term LIMIT 10'
+            )) {
+                out.add(makeExpense(s));
+            }
+            return out;
+        } catch (Exception e) {
+            System.debug('NEOS_Expense__c search skipped: ' + e.getMessage());
+            return new List<SearchResult>();
+        }
+    }
+
+    private static List<SearchResult> browseExpense(Id matterId) {
+        try {
+            List<SearchResult> out = new List<SearchResult>();
+            for (SObject s : Database.query(
+                'SELECT Id, Name, Provider__r.Name, ExpenseDate__c, AmountPaid__c ' +
+                'FROM NEOS_Expense__c ' +
+                'WHERE NEOS_Matter__c = :matterId ORDER BY ExpenseDate__c DESC NULLS LAST LIMIT 50'
+            )) {
+                out.add(makeExpense(s));
+            }
+            return out;
+        } catch (Exception e) {
+            System.debug('NEOS_Expense__c browse skipped: ' + e.getMessage());
+            return new List<SearchResult>();
+        }
+    }
+
+    private static SearchResult makeExpense(SObject s) {
+        SearchResult r = new SearchResult();
+        r.id = String.valueOf(s.get('Id'));
+        r.objectType = 'NEOS_Expense__c'; r.objectLabel = 'Costs'; r.iconName = 'standard:expense';
+        SObject prov = s.getSObject('Provider__r');
+        r.title    = prov != null ? (String) prov.get('Name') : (String) s.get('Name');
+        Object dt   = s.get('ExpenseDate__c');
+        r.subtitle  = dt != null ? String.valueOf(dt) : null;
+        Object amt  = s.get('AmountPaid__c');
+        r.preview   = amt != null ? '$' + String.valueOf(amt) : null;
+        return r;
     }
 
     private static List<SearchResult> browseByName(
