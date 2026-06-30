@@ -160,8 +160,7 @@ public with sharing class EventAttendeeUiController {
         String description,
         List<Id> selectedUserIds,
         List<Id> selectedGroupIds,
-        List<String> reminderOptions,
-        Id mediatorId
+        List<String> reminderOptions
     ) {
         try {
             Datetime startDt;
@@ -215,19 +214,6 @@ public with sharing class EventAttendeeUiController {
 
             if (isValidPicklistValue(Event.Type, typeValue)) {
                 ev.Type = typeValue;
-            }
-
-            if (mediatorId != null) {
-                SObject ce = new Calendar_Event__c(
-                    Subject__c        = normalizedSubject,
-                    Event_Type__c     = typeValue,
-                    Start_DateTime__c = startDt,
-                    End_DateTime__c   = endDt,
-                    Status__c         = 'Active',
-                    Matter__c         = caseId
-                );
-                ce.put('Mediator__c', mediatorId);
-                insert ce;
             }
 
             // Serialize event creation per matter to avoid concurrent duplicate inserts.

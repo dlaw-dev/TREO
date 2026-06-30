@@ -181,51 +181,6 @@
             onchange={handleType}>
         </lightning-combobox>
 
-        <!-- Mediator (Mediation events only) -->
-        <template if:true={isMediationType}>
-            <div class="slds-m-top_medium">
-
-                <!-- Search existing -->
-                <template if:false={isCreatingProvider}>
-                    <lightning-record-picker
-                        label="Mediator"
-                        required
-                        placeholder="Search providers..."
-                        object-api-name="Provider__c"
-                        value={mediatorId}
-                        onchange={handleMediatorChange}>
-                    </lightning-record-picker>
-                    <lightning-button
-                        label="+ New Provider"
-                        variant="base"
-                        onclick={handleNewProvider}
-                        class="slds-m-top_x-small">
-                    </lightning-button>
-                </template>
-
-                <!-- Create new provider inline -->
-                <template if:true={isCreatingProvider}>
-                    <div class="slds-box">
-                        <p class="slds-text-heading_small slds-m-bottom_medium">New Provider</p>
-                        <lightning-record-edit-form
-                            object-api-name="Provider__c"
-                            onsuccess={handleProviderCreated}>
-                            <lightning-input-field field-name="Name" required></lightning-input-field>
-                            <lightning-input-field field-name="Role__c" class="slds-m-top_small"></lightning-input-field>
-                            <lightning-input-field field-name="Law_Firm__c" class="slds-m-top_small"></lightning-input-field>
-                            <lightning-input-field field-name="Email__c" class="slds-m-top_small"></lightning-input-field>
-                            <lightning-input-field field-name="Phone__c" class="slds-m-top_small"></lightning-input-field>
-                            <div class="slds-m-top_small slds-grid slds-grid_align-end">
-                                <lightning-button label="Cancel" onclick={handleCancelNewProvider} class="slds-m-right_x-small"></lightning-button>
-                                <lightning-button type="submit" label="Create" variant="brand"></lightning-button>
-                            </div>
-                        </lightning-record-edit-form>
-                    </div>
-                </template>
-
-            </div>
-        </template>
-
         <!-- Reminder Checkbox -->
         <lightning-input
             class="slds-m-top_medium"
