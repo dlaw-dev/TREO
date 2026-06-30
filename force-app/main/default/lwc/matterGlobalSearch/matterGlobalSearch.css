@@ -46,10 +46,6 @@
     height: 1.25rem;
 }
 
-.search-input-wrap {
-    /* Let lightning-input fill the space cleanly */
-}
-
 /* ── Filter pills ─────────────────────────────────────────── */
 .filter-pills {
     display: flex;
@@ -61,9 +57,7 @@
     scrollbar-width: none;
 }
 
-.filter-pills::-webkit-scrollbar {
-    display: none;
-}
+.filter-pills::-webkit-scrollbar { display: none; }
 
 .filter-pill {
     display: inline-flex;
@@ -114,6 +108,49 @@
     height: 1rem;
 }
 
+/* ── Browse bar ───────────────────────────────────────────── */
+.browse-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.5rem 0.875rem;
+    background: #f8f9fb;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.25rem 0.625rem;
+    border: 1.5px solid #d0d5dd;
+    border-radius: 20px;
+    background: #fff;
+    color: #475467;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+    line-height: 1;
+}
+
+.back-btn:hover {
+    border-color: #4f6cf7;
+    color: #4f6cf7;
+    background: #f0f3ff;
+}
+
+.back-icon {
+    --lwc-colorTextIconDefault: currentColor;
+}
+
+.browse-label {
+    flex: 1;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #344054;
+}
+
 /* ── Results scroll area ──────────────────────────────────── */
 .results-scroll {
     max-height: 28rem;
@@ -121,13 +158,8 @@
 }
 
 /* ── Result groups ────────────────────────────────────────── */
-.result-group {
-    border-top: 1px solid #f1f3f5;
-}
-
-.result-group:first-child {
-    border-top: none;
-}
+.result-group { border-top: 1px solid #f1f3f5; }
+.result-group:first-child { border-top: none; }
 
 .group-header {
     display: flex;
@@ -162,14 +194,18 @@
 }
 
 /* Type-specific group header accent colors */
-.result-group[data-type="NEOS_Notes__c"] .group-header      { border-left-color: #0176d3; background: #f0f7ff; }
-.result-group[data-type="Time_Entry__c"] .group-header      { border-left-color: #2d9c48; background: #f0faf2; }
-.result-group[data-type="Calendar_Event__c"] .group-header  { border-left-color: #e8830a; background: #fff8f0; }
-.result-group[data-type="Task"] .group-header               { border-left-color: #8a2be2; background: #f8f0ff; }
-.result-group[data-type="Involved_Parties__c"] .group-header { border-left-color: #d92d20; background: #fff5f5; }
-.result-group[data-type="Involved_Persons__c"] .group-header { border-left-color: #d92d20; background: #fff5f5; }
-.result-group[data-type="Topfiling__c"] .group-header       { border-left-color: #b54708; background: #fffbf0; }
-.result-group[data-type="JPA__c"] .group-header             { border-left-color: #0e7490; background: #f0fbff; }
+.result-group[data-type="NEOS_Notes__c"]             .group-header { border-left-color: #0176d3; background: #f0f7ff; }
+.result-group[data-type="Time_Entry__c"]             .group-header { border-left-color: #2d9c48; background: #f0faf2; }
+.result-group[data-type="Calendar_Event__c"]         .group-header { border-left-color: #e8830a; background: #fff8f0; }
+.result-group[data-type="Task"]                      .group-header { border-left-color: #8a2be2; background: #f8f0ff; }
+.result-group[data-type="Involved_Parties__c"]       .group-header { border-left-color: #d92d20; background: #fff5f5; }
+.result-group[data-type="Involved_Persons__c"]       .group-header { border-left-color: #b45309; background: #fffbeb; }
+.result-group[data-type="Topfiling__c"]              .group-header { border-left-color: #b54708; background: #fffbf0; }
+.result-group[data-type="JPA__c"]                    .group-header { border-left-color: #0e7490; background: #f0fbff; }
+.result-group[data-type="Counsel_Party_Junction__c"] .group-header { border-left-color: #5b21b6; background: #f5f3ff; }
+.result-group[data-type="Counsel_Junction__c"]       .group-header { border-left-color: #5b21b6; background: #f5f3ff; }
+.result-group[data-type="Arbitration_Details__c"]    .group-header { border-left-color: #be123c; background: #fff1f2; }
+.result-group[data-type="NEOS_Expense__c"]           .group-header { border-left-color: #065f46; background: #ecfdf5; }
 
 /* ── Result rows ──────────────────────────────────────────── */
 .result-item {
@@ -186,9 +222,7 @@
     transform: translateX(2px);
 }
 
-.result-item:last-child {
-    border-bottom: none;
-}
+.result-item:last-child { border-bottom: none; }
 
 .result-title {
     font-size: 0.8125rem;
@@ -232,9 +266,7 @@
     letter-spacing: 0.05em;
 }
 
-.result-grid[role="button"] {
-    cursor: pointer;
-}
+.result-grid[role="button"] { cursor: pointer; }
 
 .result-grid[role="button"]:hover {
     background: #f5f8ff;
@@ -242,9 +274,7 @@
     transform: translateX(2px);
 }
 
-.result-grid:last-child {
-    border-bottom: none;
-}
+.result-grid:last-child { border-bottom: none; }
 
 .result-cell {
     font-size: 0.75rem;
@@ -277,7 +307,6 @@
     margin: 0;
 }
 
-/* ── Empty (no results) state ─────────────────────────────── */
 .empty-icon-wrap {
     width: 3rem;
     height: 3rem;
@@ -290,10 +319,8 @@
     --lwc-colorTextIconDefault: #98a2b3;
 }
 
-/* ── Prompt state ─────────────────────────────────────────── */
-.prompt-state {
-    padding: 2.25rem 1rem;
-}
+/* ── Prompt / idle state ──────────────────────────────────── */
+.prompt-state { padding: 2rem 1rem 1.75rem; }
 
 .prompt-icon-wrap {
     width: 4rem;
@@ -311,7 +338,13 @@
     font-size: 0.9375rem;
     font-weight: 700;
     color: #1a1f36;
-    margin: 0 0 0.625rem;
+    margin: 0 0 0.125rem;
+}
+
+.prompt-subtext {
+    font-size: 0.75rem;
+    color: #667085;
+    margin: 0 0 0.75rem;
 }
 
 .searchable-tags {
@@ -319,24 +352,39 @@
     flex-wrap: wrap;
     justify-content: center;
     gap: 0.375rem;
-    margin-bottom: 0.75rem;
-    max-width: 22rem;
+    margin-bottom: 0.875rem;
+    max-width: 24rem;
 }
 
 .search-tag {
     display: inline-flex;
     align-items: center;
-    padding: 0.2rem 0.6rem;
+    padding: 0.25rem 0.7rem;
     border-radius: 12px;
     font-size: 0.7rem;
     font-weight: 600;
     border: 1.5px solid;
+    cursor: pointer;
+    transition: opacity 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+    background: none;
+    line-height: 1.4;
 }
 
-.tag-notes   { background: #eff8ff; color: #0176d3; border-color: #b2d9f9; }
-.tag-time    { background: #f0faf2; color: #2d9c48; border-color: #a9ddb8; }
-.tag-event   { background: #fff8f0; color: #e8830a; border-color: #fad199; }
-.tag-task    { background: #f8f0ff; color: #8a2be2; border-color: #d7b8f7; }
-.tag-party   { background: #fff5f5; color: #d92d20; border-color: #fdb8b5; }
-.tag-filing  { background: #fffbf0; color: #b54708; border-color: #f9d99a; }
-.tag-jpa     { background: #f0fbff; color: #0e7490; border-color: #9ce1f3; }
+.search-tag:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,.12);
+}
+
+/* Tag colors */
+.tag-notes       { background: #eff8ff; color: #0176d3; border-color: #b2d9f9; }
+.tag-time        { background: #f0faf2; color: #2d9c48; border-color: #a9ddb8; }
+.tag-event       { background: #fff8f0; color: #e8830a; border-color: #fad199; }
+.tag-task        { background: #f8f0ff; color: #8a2be2; border-color: #d7b8f7; }
+.tag-party       { background: #fff5f5; color: #d92d20; border-color: #fdb8b5; }
+.tag-person      { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+.tag-filing      { background: #fffbf0; color: #b54708; border-color: #f9d99a; }
+.tag-jpa         { background: #f0fbff; color: #0e7490; border-color: #9ce1f3; }
+.tag-counsel     { background: #f5f3ff; color: #5b21b6; border-color: #c4b5fd; }
+.tag-arbitration { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+.tag-expense     { background: #ecfdf5; color: #065f46; border-color: #6ee7b7; }

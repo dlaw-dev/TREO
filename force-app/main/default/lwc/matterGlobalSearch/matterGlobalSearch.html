@@ -22,15 +22,15 @@
             </div>
         </div>
 
-        <!-- Loading -->
-        <template if:true={isLoading}>
+        <!-- Loading spinner (search or browse) -->
+        <template if:true={anyLoading}>
             <div class="state-center">
-                <lightning-spinner alternative-text="Searching..." size="small"></lightning-spinner>
-                <p class="state-subtext">Searching across all records...</p>
+                <lightning-spinner alternative-text="Loading..." size="small"></lightning-spinner>
+                <p class="state-subtext">{loadingText}</p>
             </div>
         </template>
 
-        <!-- Filter pills -->
+        <!-- Filter pills (search mode only) -->
         <template if:true={showTypeFilter}>
             <div class="filter-pills">
                 <template for:each={filterOptions} for:item="filter">
@@ -47,7 +47,21 @@
             </div>
         </template>
 
-        <!-- Results -->
+        <!-- Browse mode bar -->
+        <template if:true={isInBrowseMode}>
+            <div class="browse-bar">
+                <button class="back-btn" onclick={handleBackToSearch}>
+                    <lightning-icon icon-name="utility:chevronleft" size="x-small" class="back-icon"></lightning-icon>
+                    Back
+                </button>
+                <span class="browse-label">All {browseLabel}</span>
+                <template if:true={hasResults}>
+                    <span class="total-badge">{totalCount}</span>
+                </template>
+            </div>
+        </template>
+
+        <!-- Results (search + browse share this section) -->
         <template if:true={hasResults}>
             <div class="results-scroll">
                 <template for:each={groupedResults} for:item="group">
@@ -103,7 +117,18 @@
             </div>
         </template>
 
-        <!-- No results -->
+        <!-- Browse empty -->
+        <template if:true={showBrowseEmpty}>
+            <div class="state-center">
+                <div class="empty-icon-wrap">
+                    <lightning-icon icon-name="utility:layers" size="medium"></lightning-icon>
+                </div>
+                <p class="state-heading">No {browseLabel} on this matter</p>
+                <p class="state-subtext">Nothing has been added yet</p>
+            </div>
+        </template>
+
+        <!-- No results (search mode) -->
         <template if:true={noResults}>
             <div class="state-center">
                 <div class="empty-icon-wrap">
@@ -114,23 +139,26 @@
             </div>
         </template>
 
-        <!-- Prompt -->
+        <!-- Prompt / idle state -->
         <template if:true={showPrompt}>
             <div class="state-center prompt-state">
                 <div class="prompt-icon-wrap">
                     <lightning-icon icon-name="utility:search" size="large"></lightning-icon>
                 </div>
                 <p class="prompt-heading">Search anything related to this matter</p>
+                <p class="prompt-subtext">Or tap a category below to browse all records</p>
                 <div class="searchable-tags">
-                    <span class="search-tag tag-notes">Notes</span>
-                    <span class="search-tag tag-time">Time Entries</span>
-                    <span class="search-tag tag-event">Events</span>
-                    <span class="search-tag tag-task">Tasks</span>
-                    <span class="search-tag tag-party">Parties &amp; Persons</span>
-                    <span class="search-tag tag-filing">Top Filings</span>
-                    <span class="search-tag tag-jpa">JPAs</span>
+                    <template for:each={searchableObjects} for:item="obj">
+                        <button
+                            key={obj.type}
+                            class={obj.tagClass}
+                            data-type={obj.type}
+                            data-label={obj.label}
+                            onclick={handleTagClick}
+                        >{obj.label}</button>
+                    </template>
                 </div>
-                <p class="state-subtext">Type at least 3 characters to begin</p>
+                <p class="state-subtext">Type at least 3 characters to search</p>
             </div>
         </template>
 
