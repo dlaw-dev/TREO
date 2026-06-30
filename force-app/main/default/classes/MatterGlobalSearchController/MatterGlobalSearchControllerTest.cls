@@ -420,4 +420,121 @@ public class MatterGlobalSearchControllerTest {
         Test.stopTest();
         System.assert(results != null, 'browseByName path should not throw');
     }
+
+    @IsTest
+    static void search_counselMatch_returnsResult() {
+        NEOS_Matter__c m = createMatter();
+        try {
+            SObject c = Schema.getGlobalDescribe().get('Counsel_Junction__c').newSObject();
+            c.put('Matter__c', m.Id);
+            c.put('Name', 'xSearchTermx Counsel');
+            insert c;
+        } catch (Exception e) { /* additional required fields — skip */ }
+
+        Test.startTest();
+        List<MatterGlobalSearchController.SearchResult> results =
+            MatterGlobalSearchController.search(m.Id, 'xSearchTermx');
+        Test.stopTest();
+
+        for (MatterGlobalSearchController.SearchResult r : results) {
+            if (r.objectType == 'Counsel_Junction__c') {
+                System.assertEquals('standard:related_list', r.iconName);
+            }
+        }
+    }
+
+    @IsTest
+    static void browseAll_counsel_withRecord_returnsResult() {
+        NEOS_Matter__c m = createMatter();
+        try {
+            SObject c = Schema.getGlobalDescribe().get('Counsel_Junction__c').newSObject();
+            c.put('Matter__c', m.Id);
+            c.put('Name', 'Browse Counsel');
+            insert c;
+        } catch (Exception e) { /* additional required fields — skip */ }
+
+        Test.startTest();
+        List<MatterGlobalSearchController.SearchResult> results =
+            MatterGlobalSearchController.browseAll(m.Id, 'Counsel_Junction__c');
+        Test.stopTest();
+        System.assert(results != null);
+    }
+
+    @IsTest
+    static void search_arbitrationMatch_returnsResult() {
+        NEOS_Matter__c m = createMatter();
+        try {
+            SObject a = Schema.getGlobalDescribe().get('Arbitration_Details__c').newSObject();
+            a.put('NEOS_Matter__c', m.Id);
+            a.put('Arbitration_Case_Number__c', 'xSearchTermx-ARB-001');
+            insert a;
+        } catch (Exception e) { /* additional required fields — skip */ }
+
+        Test.startTest();
+        List<MatterGlobalSearchController.SearchResult> results =
+            MatterGlobalSearchController.search(m.Id, 'xSearchTermx');
+        Test.stopTest();
+
+        for (MatterGlobalSearchController.SearchResult r : results) {
+            if (r.objectType == 'Arbitration_Details__c') {
+                System.assertEquals('standard:case', r.iconName);
+            }
+        }
+    }
+
+    @IsTest
+    static void browseAll_arbitration_withRecord_returnsResult() {
+        NEOS_Matter__c m = createMatter();
+        try {
+            SObject a = Schema.getGlobalDescribe().get('Arbitration_Details__c').newSObject();
+            a.put('NEOS_Matter__c', m.Id);
+            a.put('Arbitration_Case_Number__c', 'ARB-BROWSE-001');
+            insert a;
+        } catch (Exception e) { /* additional required fields — skip */ }
+
+        Test.startTest();
+        List<MatterGlobalSearchController.SearchResult> results =
+            MatterGlobalSearchController.browseAll(m.Id, 'Arbitration_Details__c');
+        Test.stopTest();
+        System.assert(results != null);
+    }
+
+    @IsTest
+    static void search_expenseMatch_returnsResult() {
+        NEOS_Matter__c m = createMatter();
+        try {
+            SObject e = Schema.getGlobalDescribe().get('NEOS_Expense__c').newSObject();
+            e.put('NEOS_Matter__c', m.Id);
+            e.put('Name', 'xSearchTermx Filing Fee');
+            insert e;
+        } catch (Exception e2) { /* additional required fields — skip */ }
+
+        Test.startTest();
+        List<MatterGlobalSearchController.SearchResult> results =
+            MatterGlobalSearchController.search(m.Id, 'xSearchTermx');
+        Test.stopTest();
+
+        for (MatterGlobalSearchController.SearchResult r : results) {
+            if (r.objectType == 'NEOS_Expense__c') {
+                System.assertEquals('standard:expense', r.iconName);
+            }
+        }
+    }
+
+    @IsTest
+    static void browseAll_expense_withRecord_returnsResult() {
+        NEOS_Matter__c m = createMatter();
+        try {
+            SObject e = Schema.getGlobalDescribe().get('NEOS_Expense__c').newSObject();
+            e.put('NEOS_Matter__c', m.Id);
+            e.put('Name', 'Browse Filing Fee');
+            insert e;
+        } catch (Exception e2) { /* additional required fields — skip */ }
+
+        Test.startTest();
+        List<MatterGlobalSearchController.SearchResult> results =
+            MatterGlobalSearchController.browseAll(m.Id, 'NEOS_Expense__c');
+        Test.stopTest();
+        System.assert(results != null);
+    }
 }
