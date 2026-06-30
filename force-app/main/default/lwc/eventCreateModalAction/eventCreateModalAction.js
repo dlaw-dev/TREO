@@ -39,6 +39,7 @@ export default class EventCreateModalAction extends LightningModal {
     isReminderSet = false;
     location = '';
     description = '';
+    mediatorId = null;
 
     /* -------------------------
        Reminder Support
@@ -186,6 +187,10 @@ export default class EventCreateModalAction extends LightningModal {
         ];
     }
 
+    get isMediationType() {
+        return this.typeValue === 'Mediation';
+    }
+
     get isSaveDisabled() {
         return this.isSaving;
     }
@@ -239,7 +244,12 @@ export default class EventCreateModalAction extends LightningModal {
             this.isReminderSet = false;
             this.selectedReminderOptions = [];
         }
+
+        if (this.typeValue !== 'Mediation') {
+            this.mediatorId = null;
+        }
     };
+    handleMediatorChange = e => { this.mediatorId = e.detail.recordId; };
     handleReminderSet = e => this.isReminderSet = e.target.checked;
     handleLocation = e => this.location = e.target.value;
     handleDescription = e => this.description = e.target.value;
@@ -542,6 +552,10 @@ export default class EventCreateModalAction extends LightningModal {
                 throw new Error('Enter a valid start and end date/time.');
             }
 
+            if (this.typeValue === 'Mediation' && !this.mediatorId) {
+                throw new Error('Mediator is required for Mediation events.');
+            }
+
             if (
                 !this.isAllDay &&
                 new Date(endDateTimeIso).getTime() <= new Date(startDateTimeIso).getTime()
@@ -564,7 +578,8 @@ typeValue: this.typeValue,
                 description: this.description,
                 selectedUserIds: [...this.selectedUserIds],
                 selectedGroupIds: [...this.selectedGroupIds],
-                reminderOptions: this.selectedReminderOptions
+                reminderOptions: this.selectedReminderOptions,
+                mediatorId: this.mediatorId
             });
 
             this.dispatchEvent(

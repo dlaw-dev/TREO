@@ -70,7 +70,8 @@ public class EventAttendeeUiControllerTest {
             'Another Description',
             new List<Id>{ u.Id },
             new List<Id>(),
-            new List<String>{ '30 Days Before' }
+            new List<String>{ '30 Days Before' },
+            null
         );
 
         Test.stopTest();
@@ -118,7 +119,8 @@ public class EventAttendeeUiControllerTest {
             'Test Description',
             new List<Id>(),
             groupIds,
-            new List<String>{ '10 Days Before' }
+            new List<String>{ '10 Days Before' },
+            null
         );
 
         Test.stopTest();
@@ -154,7 +156,8 @@ public class EventAttendeeUiControllerTest {
             'Null Description',
             null,
             null,
-            new List<String>{ '1 Day Before' }
+            new List<String>{ '1 Day Before' },
+            null
         );
 
         Test.stopTest();
@@ -190,7 +193,8 @@ public class EventAttendeeUiControllerTest {
             'All day test',
             null,
             null,
-            new List<String>()
+            new List<String>(),
+            null
         );
 
         Test.stopTest();
@@ -239,7 +243,8 @@ public class EventAttendeeUiControllerTest {
             'Idempotency test',
             null,
             null,
-            new List<String>()
+            new List<String>(),
+            null
         );
 
         Id eventId2 = EventAttendeeUiController.saveEventWithAttendees(
@@ -256,7 +261,8 @@ public class EventAttendeeUiControllerTest {
             'Idempotency test',
             null,
             null,
-            new List<String>()
+            new List<String>(),
+            null
         );
 
         Test.stopTest();

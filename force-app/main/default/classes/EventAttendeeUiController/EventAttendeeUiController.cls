@@ -160,7 +160,8 @@ public with sharing class EventAttendeeUiController {
         String description,
         List<Id> selectedUserIds,
         List<Id> selectedGroupIds,
-        List<String> reminderOptions
+        List<String> reminderOptions,
+        Id mediatorId
     ) {
         try {
             Datetime startDt;
@@ -215,6 +216,8 @@ public with sharing class EventAttendeeUiController {
             if (isValidPicklistValue(Event.Type, typeValue)) {
                 ev.Type = typeValue;
             }
+
+            // TODO: set ev.Mediator__c = mediatorId once that field exists on Event
 
             // Serialize event creation per matter to avoid concurrent duplicate inserts.
             if (caseId != null) {

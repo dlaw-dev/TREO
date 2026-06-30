@@ -181,6 +181,19 @@
             onchange={handleType}>
         </lightning-combobox>
 
+        <!-- Mediator (Mediation events only) -->
+        <template if:true={isMediationType}>
+            <lightning-record-picker
+                class="slds-m-top_medium"
+                label="Mediator"
+                required
+                placeholder="Search mediators..."
+                object-api-name="Contact"
+                value={mediatorId}
+                onchange={handleMediatorChange}>
+            </lightning-record-picker>
+        </template>
+
         <!-- Reminder Checkbox -->
         <lightning-input
             class="slds-m-top_medium"
