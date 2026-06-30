@@ -23,7 +23,7 @@ public with sharing class MatterGlobalSearchController {
 
         // Notes — Note_Description__c is Long Text Area (no LIKE); search category only
         for (NEOS_Notes__c n : [
-            SELECT Id, Name, Note_Description__c, Note_Category__c
+            SELECT Id, Name, Note_Description__c, Note_Category__c, NEOS_Created_Date__c, Staff__r.Name
             FROM NEOS_Notes__c
             WHERE NEOS_Matter__c = :matterId
             AND Note_Category__c LIKE :term
@@ -34,7 +34,7 @@ public with sharing class MatterGlobalSearchController {
 
         // Time entries
         for (Time_Entry__c t : [
-            SELECT Id, Name, Notes__c, Entry_Date__c
+            SELECT Id, Name, Notes__c, Entry_Date__c, Staff__r.Name, Duration__c
             FROM Time_Entry__c
             WHERE NEOS_Matter__c = :matterId
             AND (Name LIKE :term OR Notes__c LIKE :term)
@@ -91,8 +91,7 @@ public with sharing class MatterGlobalSearchController {
             }
         } catch (Exception e) { System.debug('Involved_Persons__c skipped: ' + e.getMessage()); }
 
-        results.addAll(queryByName('Counsel_Party_Junction__c', 'Matter__c',      'Counsel Parties',     'standard:related_list', matterId, term));
-        results.addAll(queryByName('Counsel_Junction__c',       'Matter__c',      'Counsel',             'standard:related_list', matterId, term));
+        results.addAll(queryCounsel(matterId, term));
 
         // Top filings
         try {
@@ -137,7 +136,7 @@ public with sharing class MatterGlobalSearchController {
 
         if (objectType == 'NEOS_Notes__c') {
             for (NEOS_Notes__c n : [
-                SELECT Id, Name, Note_Description__c, Note_Category__c
+                SELECT Id, Name, Note_Description__c, Note_Category__c, NEOS_Created_Date__c, Staff__r.Name
                 FROM NEOS_Notes__c
                 WHERE NEOS_Matter__c = :matterId
                 ORDER BY CreatedDate DESC LIMIT 50
@@ -147,7 +146,7 @@ public with sharing class MatterGlobalSearchController {
 
         } else if (objectType == 'Time_Entry__c') {
             for (Time_Entry__c t : [
-                SELECT Id, Name, Notes__c, Entry_Date__c
+                SELECT Id, Name, Notes__c, Entry_Date__c, Staff__r.Name, Duration__c
                 FROM Time_Entry__c
                 WHERE NEOS_Matter__c = :matterId
                 ORDER BY Entry_Date__c DESC NULLS LAST LIMIT 50
@@ -225,15 +224,17 @@ public with sharing class MatterGlobalSearchController {
 
         } else {
             // queryByName objects
-            Map<String, String[]> cfg = new Map<String, String[]>{
-                'Counsel_Party_Junction__c' => new String[]{ 'Matter__c',      'Counsel Parties',     'standard:related_list' },
-                'Counsel_Junction__c'       => new String[]{ 'Matter__c',      'Counsel',             'standard:related_list' },
-                'Arbitration_Details__c'    => new String[]{ 'NEOS_Matter__c', 'Arbitration Details', 'standard:case'         },
-                'NEOS_Expense__c'           => new String[]{ 'NEOS_Matter__c', 'Expenses',            'standard:expense'      }
-            };
-            if (cfg.containsKey(objectType)) {
-                String[] c = cfg.get(objectType);
-                results.addAll(browseByName(objectType, c[0], c[1], c[2], matterId));
+            if (objectType == 'Counsel_Junction__c') {
+                results.addAll(browseCounsel(matterId));
+            } else {
+                Map<String, String[]> cfg = new Map<String, String[]>{
+                    'Arbitration_Details__c' => new String[]{ 'NEOS_Matter__c', 'Arbitration Details', 'standard:case'    },
+                    'NEOS_Expense__c'        => new String[]{ 'NEOS_Matter__c', 'Expenses',            'standard:expense' }
+                };
+                if (cfg.containsKey(objectType)) {
+                    String[] c = cfg.get(objectType);
+                    results.addAll(browseByName(objectType, c[0], c[1], c[2], matterId));
+                }
             }
         }
 
@@ -245,10 +246,10 @@ public with sharing class MatterGlobalSearchController {
     private static SearchResult makeNote(NEOS_Notes__c n) {
         SearchResult r = new SearchResult();
         r.id = n.Id; r.objectType = 'NEOS_Notes__c'; r.objectLabel = 'Notes'; r.iconName = 'standard:note';
-        r.title    = n.Name;
+        r.title    = n.Staff__r != null ? n.Staff__r.Name : null;
         r.subtitle = n.Note_Category__c;
-        r.preview  = n.Note_Description__c != null
-            ? n.Note_Description__c.stripHtmlTags().normalizeSpace().abbreviate(250)
+        r.preview  = n.NEOS_Created_Date__c != null
+            ? n.NEOS_Created_Date__c.format('MMM d, yyyy', UserInfo.getTimeZone().getId())
             : null;
         return r;
     }
@@ -256,9 +257,8 @@ public with sharing class MatterGlobalSearchController {
     private static SearchResult makeTimeEntry(Time_Entry__c t) {
         SearchResult r = new SearchResult();
         r.id = t.Id; r.objectType = 'Time_Entry__c'; r.objectLabel = 'Time Entries'; r.iconName = 'standard:timesheet';
-        r.title    = t.Name;
-        r.subtitle = t.Entry_Date__c != null ? String.valueOf(t.Entry_Date__c) : null;
-        r.preview  = String.isNotBlank(t.Notes__c) ? t.Notes__c.abbreviate(250) : null;
+        r.title    = t.Staff__r != null ? t.Staff__r.Name : null;
+        r.subtitle = t.Duration__c != null ? t.Duration__c.setScale(2).toPlainString() + ' hrs' : null;
         return r;
     }
 
@@ -338,6 +338,48 @@ public with sharing class MatterGlobalSearchController {
             return out;
         } catch (Exception e) {
             System.debug(objectName + ' search skipped: ' + e.getMessage());
+            return new List<SearchResult>();
+        }
+    }
+
+    private static List<SearchResult> queryCounsel(Id matterId, String term) {
+        try {
+            List<SearchResult> out = new List<SearchResult>();
+            for (SObject s : Database.query(
+                'SELECT Id, Name, Type__c FROM Counsel_Junction__c ' +
+                'WHERE Matter__c = :matterId AND Name LIKE :term LIMIT 10'
+            )) {
+                SearchResult r = new SearchResult();
+                r.id = String.valueOf(s.get('Id'));
+                r.objectType = 'Counsel_Junction__c'; r.objectLabel = 'Counsel'; r.iconName = 'standard:related_list';
+                r.title    = (String) s.get('Name');
+                r.subtitle = (String) s.get('Type__c');
+                out.add(r);
+            }
+            return out;
+        } catch (Exception e) {
+            System.debug('Counsel_Junction__c search skipped: ' + e.getMessage());
+            return new List<SearchResult>();
+        }
+    }
+
+    private static List<SearchResult> browseCounsel(Id matterId) {
+        try {
+            List<SearchResult> out = new List<SearchResult>();
+            for (SObject s : Database.query(
+                'SELECT Id, Name, Type__c FROM Counsel_Junction__c ' +
+                'WHERE Matter__c = :matterId ORDER BY Name LIMIT 50'
+            )) {
+                SearchResult r = new SearchResult();
+                r.id = String.valueOf(s.get('Id'));
+                r.objectType = 'Counsel_Junction__c'; r.objectLabel = 'Counsel'; r.iconName = 'standard:related_list';
+                r.title    = (String) s.get('Name');
+                r.subtitle = (String) s.get('Type__c');
+                out.add(r);
+            }
+            return out;
+        } catch (Exception e) {
+            System.debug('Counsel_Junction__c browse skipped: ' + e.getMessage());
             return new List<SearchResult>();
         }
     }

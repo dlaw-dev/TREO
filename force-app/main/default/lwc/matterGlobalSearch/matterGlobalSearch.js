@@ -4,14 +4,21 @@ import search from '@salesforce/apex/MatterGlobalSearchController.search';
 import browseAll from '@salesforce/apex/MatterGlobalSearchController.browseAll';
 
 const COLUMNS = {
-    'NEOS_Notes__c':             [{ label: 'Category',    field: 'subtitle' }, { label: 'Description', field: 'preview' }],
-    'Time_Entry__c':             [{ label: 'Date',         field: 'subtitle' }, { label: 'Notes',       field: 'preview' }],
+    'NEOS_Notes__c':             [{ label: 'Category',    field: 'subtitle' }, { label: 'Date',        field: 'preview' }],
+    'Time_Entry__c':             [{ label: 'Duration',     field: 'subtitle' }],
     'Calendar_Event__c':         [{ label: 'Type',         field: 'subtitle' }, { label: 'Start',       field: 'preview' }],
     'Task':                      [{ label: 'Status / Due', field: 'subtitle' }, { label: 'Description', field: 'preview' }],
     'Involved_Parties__c':       [{ label: 'Relationship', field: 'subtitle' }],
     'Involved_Persons__c':       [{ label: 'Relationship', field: 'subtitle' }],
     'Topfiling__c':              [{ label: 'Court Case #', field: 'subtitle' }, { label: 'Status',      field: 'preview' }],
     'JPA__c':                    [{ label: 'JPA Portion',  field: 'subtitle' }],
+    'Counsel_Junction__c':       [{ label: 'Type',         field: 'subtitle' }],
+};
+
+// Override the "Name" header label for objects where the title column isn't literally a name
+const TITLE_LABELS = {
+    'NEOS_Notes__c': 'Staff',
+    'Time_Entry__c': 'Staff',
 };
 
 const SEARCHABLE_OBJECTS = [
@@ -23,7 +30,6 @@ const SEARCHABLE_OBJECTS = [
     { type: 'Involved_Persons__c',       label: 'Persons',            tagClass: 'search-tag tag-person'      },
     { type: 'Topfiling__c',              label: 'Top Filings',        tagClass: 'search-tag tag-filing'      },
     { type: 'JPA__c',                    label: 'JPAs',               tagClass: 'search-tag tag-jpa'         },
-    { type: 'Counsel_Party_Junction__c', label: 'Counsel Parties',    tagClass: 'search-tag tag-counsel'     },
     { type: 'Counsel_Junction__c',       label: 'Counsel',            tagClass: 'search-tag tag-counsel'     },
     { type: 'Arbitration_Details__c',    label: 'Arbitration',        tagClass: 'search-tag tag-arbitration' },
     { type: 'NEOS_Expense__c',           label: 'Expenses',           tagClass: 'search-tag tag-expense'     },
@@ -193,6 +199,7 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
             const cols = COLUMNS[g.type] || [];
             const hasColumns = cols.length > 0;
             const colSuffix = cols.length === 1 ? 'cols-2' : 'cols-3';
+            const titleLabel = TITLE_LABELS[g.type] || 'Name';
             const processedResults = g.results.map(r => ({
                 ...r,
                 cells: cols.map(c => ({ label: c.label, value: r[c.field] || '' })),
@@ -202,6 +209,7 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
                 ...g,
                 count: g.results.length,
                 columns: cols,
+                titleLabel,
                 hasColumns,
                 hasNoColumns: !hasColumns,
                 headerClass: `result-grid col-hdr-row ${colSuffix}`,

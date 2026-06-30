@@ -202,7 +202,6 @@
 .result-group[data-type="Involved_Persons__c"]       .group-header { border-left-color: #b45309; background: #fffbeb; }
 .result-group[data-type="Topfiling__c"]              .group-header { border-left-color: #b54708; background: #fffbf0; }
 .result-group[data-type="JPA__c"]                    .group-header { border-left-color: #0e7490; background: #f0fbff; }
-.result-group[data-type="Counsel_Party_Junction__c"] .group-header { border-left-color: #5b21b6; background: #f5f3ff; }
 .result-group[data-type="Counsel_Junction__c"]       .group-header { border-left-color: #5b21b6; background: #f5f3ff; }
 .result-group[data-type="Arbitration_Details__c"]    .group-header { border-left-color: #be123c; background: #fff1f2; }
 .result-group[data-type="NEOS_Expense__c"]           .group-header { border-left-color: #065f46; background: #ecfdf5; }
