@@ -54,14 +54,30 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
             });
     }
 
+    get totalCount() {
+        return this.results.length;
+    }
+
     get filterOptions() {
-        const seen = new Map();
+        const counts = new Map();
+        const labels = new Map();
         this.results.forEach(r => {
-            if (!seen.has(r.objectType)) seen.set(r.objectType, r.objectLabel);
+            counts.set(r.objectType, (counts.get(r.objectType) || 0) + 1);
+            if (!labels.has(r.objectType)) labels.set(r.objectType, r.objectLabel);
         });
         return [
-            { label: 'All Types', value: 'all' },
-            ...[...seen.entries()].map(([value, label]) => ({ label, value }))
+            {
+                label: 'All',
+                value: 'all',
+                count: this.results.length,
+                pillClass: `filter-pill${this.selectedType === 'all' ? ' active' : ''}`
+            },
+            ...[...labels.entries()].map(([value, label]) => ({
+                label,
+                value,
+                count: counts.get(value) || 0,
+                pillClass: `filter-pill${this.selectedType === value ? ' active' : ''}`
+            }))
         ];
     }
 
@@ -70,7 +86,7 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
     }
 
     handleTypeFilter(event) {
-        this.selectedType = event.detail.value;
+        this.selectedType = event.currentTarget.dataset.value;
     }
 
     get groupedResults() {

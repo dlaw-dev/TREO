@@ -1,45 +1,63 @@
 <template>
-    <lightning-card title="Matter Search" icon-name="utility:search">
-        <div class="slds-p-horizontal_medium slds-p-bottom_x-small">
-            <lightning-input
-                type="search"
-                label="Search"
-                variant="label-hidden"
-                placeholder="Search notes, time entries, events, parties..."
-                value={searchTerm}
-                onchange={handleSearch}
-            ></lightning-input>
+    <div class="search-card">
+
+        <!-- Header -->
+        <div class="search-header">
+            <div class="search-header-top">
+                <lightning-icon icon-name="utility:search" size="x-small" class="header-icon"></lightning-icon>
+                <span class="search-title">Matter Search</span>
+                <template if:true={hasResults}>
+                    <span class="total-badge">{totalCount}</span>
+                </template>
+            </div>
+            <div class="search-input-wrap">
+                <lightning-input
+                    type="search"
+                    label="Search"
+                    variant="label-hidden"
+                    placeholder="Search anything related to this matter..."
+                    value={searchTerm}
+                    onchange={handleSearch}
+                ></lightning-input>
+            </div>
         </div>
 
+        <!-- Loading -->
         <template if:true={isLoading}>
-            <div class="slds-align_absolute-center slds-p-around_medium">
+            <div class="state-center">
                 <lightning-spinner alternative-text="Searching..." size="small"></lightning-spinner>
+                <p class="state-subtext">Searching across all records...</p>
             </div>
         </template>
 
+        <!-- Filter pills -->
         <template if:true={showTypeFilter}>
-            <div class="filter-bar slds-p-horizontal_medium slds-p-bottom_x-small">
-                <lightning-combobox
-                    label="Filter by type"
-                    variant="label-hidden"
-                    value={selectedType}
-                    options={filterOptions}
-                    onchange={handleTypeFilter}
-                    dropdown-alignment="left"
-                ></lightning-combobox>
+            <div class="filter-pills">
+                <template for:each={filterOptions} for:item="filter">
+                    <button
+                        key={filter.value}
+                        class={filter.pillClass}
+                        data-value={filter.value}
+                        onclick={handleTypeFilter}
+                    >
+                        {filter.label}
+                        <span class="pill-count">{filter.count}</span>
+                    </button>
+                </template>
             </div>
         </template>
 
+        <!-- Results -->
         <template if:true={hasResults}>
-            <div class="results-scroll slds-p-horizontal_medium slds-p-bottom_medium">
+            <div class="results-scroll">
                 <template for:each={groupedResults} for:item="group">
-                    <div key={group.type} class="result-group">
+                    <div key={group.type} class="result-group" data-type={group.type}>
                         <div class="group-header">
                             <lightning-icon icon-name={group.iconName} size="x-small"></lightning-icon>
-                            <span class="slds-m-left_x-small slds-text-title_caps">{group.label}</span>
-                            <span class="result-count slds-m-left_x-small">{group.count}</span>
+                            <span class="group-label">{group.label}</span>
+                            <span class="result-count">{group.count}</span>
                         </div>
-                        <!-- Columnar layout for objects with defined column config -->
+
                         <template if:true={group.hasColumns}>
                             <div class={group.headerClass} aria-hidden="true">
                                 <span class="col-hdr">Name</span>
@@ -65,7 +83,6 @@
                             </template>
                         </template>
 
-                        <!-- Simple stacked layout for generic objects -->
                         <template if:true={group.hasNoColumns}>
                             <template for:each={group.results} for:item="result">
                                 <div
@@ -86,16 +103,36 @@
             </div>
         </template>
 
+        <!-- No results -->
         <template if:true={noResults}>
-            <div class="slds-align_absolute-center slds-p-around_medium">
-                <p class="slds-text-color_weak">No results found for &ldquo;{searchTerm}&rdquo;</p>
+            <div class="state-center">
+                <div class="empty-icon-wrap">
+                    <lightning-icon icon-name="utility:search" size="medium"></lightning-icon>
+                </div>
+                <p class="state-heading">No results for &ldquo;{searchTerm}&rdquo;</p>
+                <p class="state-subtext">Try different keywords or check spelling</p>
             </div>
         </template>
 
+        <!-- Prompt -->
         <template if:true={showPrompt}>
-            <div class="slds-align_absolute-center slds-p-around_medium">
-                <p class="slds-text-color_weak">Type at least 3 characters to search</p>
+            <div class="state-center prompt-state">
+                <div class="prompt-icon-wrap">
+                    <lightning-icon icon-name="utility:search" size="large"></lightning-icon>
+                </div>
+                <p class="prompt-heading">Search anything related to this matter</p>
+                <div class="searchable-tags">
+                    <span class="search-tag tag-notes">Notes</span>
+                    <span class="search-tag tag-time">Time Entries</span>
+                    <span class="search-tag tag-event">Events</span>
+                    <span class="search-tag tag-task">Tasks</span>
+                    <span class="search-tag tag-party">Parties &amp; Persons</span>
+                    <span class="search-tag tag-filing">Top Filings</span>
+                    <span class="search-tag tag-jpa">JPAs</span>
+                </div>
+                <p class="state-subtext">Type at least 3 characters to begin</p>
             </div>
         </template>
-    </lightning-card>
+
+    </div>
 </template>
