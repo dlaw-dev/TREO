@@ -255,11 +255,20 @@ public class MatterGlobalSearchControllerTest {
     }
 
     @IsTest
+    static void browseAll_nullMatterId_returnsEmpty() {
+        Test.startTest();
+        List<MatterGlobalSearchController.SearchResult> results =
+            MatterGlobalSearchController.browseAll(null, 'NEOS_Notes__c');
+        Test.stopTest();
+        System.assertEquals(0, results.size(), 'Null matterId should return empty');
+    }
+
+    @IsTest
     static void browseAll_notes_returnsResults() {
         NEOS_Matter__c m = createMatter();
         insert new NEOS_Notes__c(
             NEOS_Matter__c      = m.Id,
-            Note_Category__c    = 'Hearing',
+            Note_Category__c    = 'Arbitration',
             Note_Description__c = 'Browse test note'
         );
         Test.startTest();
