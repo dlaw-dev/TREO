@@ -473,24 +473,4 @@ public with sharing class MatterGlobalSearchController {
         return r;
     }
 
-    private static List<SearchResult> browseByName(
-        String objectName, String lookupField, String label, String iconName, Id matterId
-    ) {
-        try {
-            String q = 'SELECT Id, Name FROM ' + objectName +
-                ' WHERE ' + lookupField + ' = :matterId ORDER BY Name LIMIT 50';
-            List<SearchResult> out = new List<SearchResult>();
-            for (SObject s : Database.query(q)) {
-                SearchResult r = new SearchResult();
-                r.id = String.valueOf(s.get('Id')); r.objectType = objectName;
-                r.objectLabel = label; r.iconName = iconName;
-                r.title = (String) s.get('Name');
-                out.add(r);
-            }
-            return out;
-        } catch (Exception e) {
-            System.debug(objectName + ' browse skipped: ' + e.getMessage());
-            return new List<SearchResult>();
-        }
-    }
 }

@@ -446,18 +446,16 @@ public class MatterGlobalSearchControllerTest {
     @IsTest
     static void browseAll_counsel_withRecord_returnsResult() {
         NEOS_Matter__c m = createMatter();
-        try {
-            SObject c = Schema.getGlobalDescribe().get('Counsel_Junction__c').newSObject();
-            c.put('Matter__c', m.Id);
-            c.put('Name', 'Browse Counsel');
-            insert c;
-        } catch (Exception e) { /* additional required fields — skip */ }
+        SObject c = Schema.getGlobalDescribe().get('Counsel_Junction__c').newSObject();
+        c.put('Matter__c', m.Id);
+        insert c;
 
         Test.startTest();
         List<MatterGlobalSearchController.SearchResult> results =
             MatterGlobalSearchController.browseAll(m.Id, 'Counsel_Junction__c');
         Test.stopTest();
-        System.assert(results != null);
+        System.assert(results.size() >= 1);
+        System.assertEquals('Counsel_Junction__c', results[0].objectType);
     }
 
     @IsTest
@@ -485,18 +483,17 @@ public class MatterGlobalSearchControllerTest {
     @IsTest
     static void browseAll_arbitration_withRecord_returnsResult() {
         NEOS_Matter__c m = createMatter();
-        try {
-            SObject a = Schema.getGlobalDescribe().get('Arbitration_Details__c').newSObject();
-            a.put('NEOS_Matter__c', m.Id);
-            a.put('Arbitration_Case_Number__c', 'ARB-BROWSE-001');
-            insert a;
-        } catch (Exception e) { /* additional required fields — skip */ }
+        SObject a = Schema.getGlobalDescribe().get('Arbitration_Details__c').newSObject();
+        a.put('NEOS_Matter__c', m.Id);
+        a.put('Arbitration_Case_Number__c', 'ARB-BROWSE-001');
+        insert a;
 
         Test.startTest();
         List<MatterGlobalSearchController.SearchResult> results =
             MatterGlobalSearchController.browseAll(m.Id, 'Arbitration_Details__c');
         Test.stopTest();
-        System.assert(results != null);
+        System.assert(results.size() >= 1);
+        System.assertEquals('Arbitration_Details__c', results[0].objectType);
     }
 
     @IsTest
@@ -524,17 +521,15 @@ public class MatterGlobalSearchControllerTest {
     @IsTest
     static void browseAll_expense_withRecord_returnsResult() {
         NEOS_Matter__c m = createMatter();
-        try {
-            SObject e = Schema.getGlobalDescribe().get('NEOS_Expense__c').newSObject();
-            e.put('NEOS_Matter__c', m.Id);
-            e.put('Name', 'Browse Filing Fee');
-            insert e;
-        } catch (Exception e2) { /* additional required fields — skip */ }
+        SObject e = Schema.getGlobalDescribe().get('NEOS_Expense__c').newSObject();
+        e.put('NEOS_Matter__c', m.Id);
+        insert e;
 
         Test.startTest();
         List<MatterGlobalSearchController.SearchResult> results =
             MatterGlobalSearchController.browseAll(m.Id, 'NEOS_Expense__c');
         Test.stopTest();
-        System.assert(results != null);
+        System.assert(results.size() >= 1);
+        System.assertEquals('NEOS_Expense__c', results[0].objectType);
     }
 }
