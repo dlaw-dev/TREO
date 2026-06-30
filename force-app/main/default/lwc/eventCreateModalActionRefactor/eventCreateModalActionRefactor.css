@@ -1,0 +1,252 @@
+.reminder-grid {
+    column-count: 2;
+    column-gap: 1rem;
+}
+
+.reminder-grid > div {
+    break-inside: avoid;
+}
+
+/* ── Recurrence section header ── */
+.recurrence-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid #dddbda;
+    padding-bottom: 0.35rem;
+}
+
+.recurrence-header__label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #3e3e3c;
+    white-space: nowrap;
+}
+
+.recurrence-preview {
+    font-size: 0.75rem;
+    color: #0176d3;
+    font-weight: 600;
+}
+
+.recurrence-footer {
+    border-bottom: 1px solid #dddbda;
+}
+
+/* ── Floating search dropdown ── */
+.search-container {
+    position: relative;
+}
+
+.search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 9000;
+    background: var(--slds-g-color-neutral-base-100, #fff);
+    color: var(--slds-g-color-neutral-base-10, #181818);
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--lwc-colorBorder, #dddbda);
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--slds-g-color-neutral-base-10, #181818);
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus,
+.dropdown-item--active {
+    background: var(--lwc-colorBackgroundRowHover, #f3f3f3);
+    outline: none;
+}
+
+/* ── Group result rows (inside dropdown) ── */
+.result-row {
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid var(--lwc-colorBorder, #dddbda);
+    background: var(--slds-g-color-neutral-base-100, #fff);
+    color: var(--slds-g-color-neutral-base-10, #181818);
+    cursor: pointer;
+    text-align: left;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.result-row:last-of-type {
+    border-bottom: none;
+}
+
+.result-row:hover,
+.result-row:focus,
+.result-row--active {
+    background: var(--lwc-colorBackgroundRowHover, #f3f3f3);
+    outline: none;
+}
+
+.result-row__label {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--slds-g-color-neutral-base-10, #181818);
+}
+
+.result-row__action {
+    color: var(--lwc-brandAccessible, #0176d3);
+    font-weight: 600;
+    font-size: 12px;
+}
+
+/* ── Group expand toggle ── */
+.group-users-toggle {
+    color: var(--lwc-brandAccessible, #0176d3);
+    font-size: 0.8125rem;
+    padding: 2px 12px;
+}
+
+/* ── Group member list ── */
+.group-members {
+    border-left: 2px solid var(--lwc-colorBorder, #d8dde6);
+    padding-left: 0.75rem;
+    padding: 4px 4px 4px 12px;
+}
+
+.member-row {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--slds-g-color-neutral-base-10, #181818);
+    cursor: pointer;
+    text-align: left;
+    padding: 4px 8px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+}
+
+.member-row + .member-row {
+    margin-top: 0.25rem;
+}
+
+.member-row:hover:not(:disabled),
+.member-row:focus:not(:disabled) {
+    background: var(--lwc-colorBackgroundRowHover, #f3f3f3);
+    outline: none;
+}
+
+.member-row:disabled {
+    cursor: default;
+    opacity: 0.7;
+}
+
+/* ── Attachment drop zone ── */
+.drop-zone {
+    border: 2px dashed #c9c7c5;
+    border-radius: 6px;
+    padding: 24px 16px;
+    text-align: center;
+    cursor: pointer;
+    background: #fafaf9;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+}
+
+.drop-zone:hover,
+.drop-zone--active {
+    border-color: #0176d3;
+    background: #f0f7ff;
+}
+
+.drop-zone__icon {
+    display: block;
+    margin: 0 auto 8px;
+}
+
+.drop-zone__text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #3e3e3c;
+    margin: 0 0 4px;
+}
+
+.drop-zone__sub {
+    font-size: 12px;
+    color: #706e6b;
+    margin: 0;
+}
+
+.drop-zone__browse {
+    color: #0176d3;
+    text-decoration: underline;
+}
+
+/* ── Attachment success banner ── */
+.attach-banner {
+    background: #eaf5ea;
+    border: 1px solid #2e844a;
+    border-radius: 4px;
+    padding: 8px 12px;
+}
+
+.attach-banner__header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    color: #2e844a;
+}
+
+.attach-banner__list {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+}
+
+.attach-banner__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 0;
+    font-size: 12px;
+    color: #1d4620;
+}
+
+.attach-banner__remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #2e844a;
+    font-size: 12px;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.attach-banner__remove:hover {
+    color: #c23934;
+}
+/* ── Flatpickr integration ── */
+/* Hide the original machine-format input; flatpickr creates an altInput */
+.fp-input {
+    display: none;
+}

@@ -1,0 +1,100 @@
+<template>
+  <lightning-card>
+    <div slot="title" class="slds-grid slds-grid_align-spread slds-p-horizontal_medium slds-p-vertical_xx-small">
+      <span class="slds-align-middle" style="display: flex; align-items: center;">
+        <lightning-icon icon-name="standard:event" size="small" class="slds-m-right_small"></lightning-icon>
+        <span>Events</span>
+      </span>
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: 1.5rem;">
+        <lightning-button
+          variant="brand"
+          label="New Event"
+          title="New Event"
+          onclick={handleNewEvent}
+          size="small"
+        ></lightning-button>
+        <lightning-button-icon
+          icon-name="utility:refresh"
+          alternative-text="Refresh"
+          title="Refresh"
+          onclick={handleRefresh}
+        ></lightning-button-icon>
+      </div>
+    </div>
+
+    <lightning-tabset variant="scoped">
+      <lightning-tab label={upcomingTabLabel}>
+        <template if:true={upcomingEvents}>
+          <c-events-calendar-datatable-refactor
+            key-field="Id"
+            data={upcomingEvents}
+            columns={columns}
+            hide-checkbox-column
+            onrowaction={handleRowAction}
+          ></c-events-calendar-datatable-refactor>
+        </template>
+        <template if:true={isLoadingAll}>
+          <lightning-spinner alternative-text="Loading upcoming events"></lightning-spinner>
+        </template>
+      </lightning-tab>
+
+      <lightning-tab label={pastTabLabel}>
+        <template if:true={pastEvents}>
+          <c-events-calendar-datatable-refactor
+            key-field="Id"
+            data={pastEvents}
+            columns={columns}
+            hide-checkbox-column
+            onrowaction={handleRowAction}
+          ></c-events-calendar-datatable-refactor>
+        </template>
+        <template if:true={isLoadingAll}>
+          <lightning-spinner alternative-text="Loading past events"></lightning-spinner>
+        </template>
+      </lightning-tab>
+
+      <lightning-tab label={cancelledTabLabel}>
+        <template if:true={cancelledEvents}>
+          <c-events-calendar-datatable-refactor
+            key-field="Id"
+            data={cancelledEvents}
+            columns={cancelledColumns}
+            hide-checkbox-column
+          ></c-events-calendar-datatable-refactor>
+        </template>
+        <template if:true={isLoadingAll}>
+          <lightning-spinner alternative-text="Loading cancelled events"></lightning-spinner>
+        </template>
+      </lightning-tab>
+
+      <lightning-tab label={rescheduledTabLabel}>
+        <template if:true={rescheduledEvents}>
+          <c-events-calendar-datatable-refactor
+            key-field="Id"
+            data={rescheduledEvents}
+            columns={rescheduledColumns}
+            hide-checkbox-column
+          ></c-events-calendar-datatable-refactor>
+        </template>
+        <template if:true={isLoadingAll}>
+          <lightning-spinner alternative-text="Loading rescheduled events"></lightning-spinner>
+        </template>
+      </lightning-tab>
+
+      <lightning-tab label={allTabLabel}>
+        <template if:true={allEvents}>
+          <c-events-calendar-datatable-refactor
+            key-field="Id"
+            data={allEvents}
+            columns={highlightedColumns}
+            hide-checkbox-column
+            onrowaction={handleRowAction}
+          ></c-events-calendar-datatable-refactor>
+        </template>
+        <template if:true={isLoadingAll}>
+          <lightning-spinner alternative-text="Loading all events"></lightning-spinner>
+        </template>
+      </lightning-tab>
+    </lightning-tabset>
+  </lightning-card>
+</template>

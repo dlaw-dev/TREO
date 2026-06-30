@@ -1,0 +1,377 @@
+<template>
+    <lightning-modal-header label={modalTitle}></lightning-modal-header>
+
+    <lightning-modal-body onclick={handleModalOutsideSearchClick}>
+
+        <!-- Subject -->
+        <lightning-input
+            label="Subject"
+            required
+            value={subject}
+            onchange={handleSubject}>
+        </lightning-input>
+
+        <!-- Selected Attendees -->
+        <template if:true={hasSelectedAttendees}>
+            <div class="slds-box slds-m-top_medium">
+                <div class="slds-text-title_caps slds-m-bottom_x-small">
+                    Attendees
+                </div>
+
+                <template for:each={selectedUsers} for:item="u">
+                    <lightning-pill
+                        key={u.id}
+                        label={u.name}
+                        data-id={u.id}
+                        onremove={removeUser}>
+                    </lightning-pill>
+                </template>
+
+                <template for:each={selectedGroups} for:item="g">
+                    <lightning-pill
+                        key={g.id}
+                        label={g.name}
+                        data-id={g.id}
+                        onremove={removeGroup}>
+                    </lightning-pill>
+                </template>
+            </div>
+        </template>
+
+        <!-- Attendee Search -->
+        <div class="slds-m-top_large">
+            <lightning-tabset>
+
+                <lightning-tab label="People">
+                    <div class="search-container" onclick={handleSearchAreaClick}>
+                        <lightning-input
+                            data-id="user-search-input"
+                            type="search"
+                            label="Search Users"
+                            value={userSearchKeyword}
+                            onfocus={handleUserFocus}
+                            onclick={handleUserClick}
+                            onblur={handleUserBlur}
+                            onkeyup={handleUserSearch}
+                            onkeydown={handleUserKeydown}>
+                        </lightning-input>
+
+                        <template if:true={hasUserResults}>
+                            <div class="search-dropdown" onmousedown={handleSearchDropdownMouseDown}>
+                                <template for:each={userResults} for:item="u">
+                                    <button
+                                        key={u.Id}
+                                        type="button"
+                                        class={u.itemClass}
+                                        data-id={u.Id}
+                                        onclick={addUser}>
+                                        {u.Name}
+                                    </button>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-tab>
+
+                <lightning-tab label="Groups">
+                    <div class="search-container" onclick={handleSearchAreaClick}>
+                        <lightning-input
+                            data-id="group-search-input"
+                            type="search"
+                            label="Search Groups"
+                            value={groupSearchKeyword}
+                            onfocus={handleGroupFocus}
+                            onclick={handleGroupClick}
+                            onblur={handleGroupBlur}
+                            onkeyup={handleGroupSearch}
+                            onkeydown={handleGroupKeydown}>
+                        </lightning-input>
+
+                        <template if:true={hasGroupResults}>
+                            <div class="search-dropdown" onmousedown={handleSearchDropdownMouseDown}>
+                                <template for:each={groupResults} for:item="g">
+                                    <div key={g.Id} class="slds-m-top_small">
+                                        <button
+                                            type="button"
+                                            class={g.resultRowClass}
+                                            data-id={g.Id}
+                                            onclick={addGroup}>
+                                            <span class="result-row__label">{g.Name}</span>
+                                            <span class="result-row__action">Add</span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            class="group-users-toggle slds-button slds-button_reset slds-m-top_x-small"
+                                            data-id={g.Id}
+                                            onclick={toggleGroupMembers}>
+                                            {g.memberToggleLabel}
+                                        </button>
+
+                                        <template if:true={g.isExpanded}>
+                                            <div class="group-members slds-m-top_x-small slds-m-left_medium">
+                                                <template if:true={g.isLoadingMembers}>
+                                                    <lightning-spinner
+                                                        size="small"
+                                                        alternative-text="Loading group users">
+                                                    </lightning-spinner>
+                                                </template>
+
+                                                <template for:each={g.members} for:item="member">
+                                                    <button
+                                                        key={member.Id}
+                                                        type="button"
+                                                        class="member-row slds-grid slds-grid_align-spread slds-p-around_x-small"
+                                                        data-id={member.Id}
+                                                        onclick={addUserFromGroup}
+                                                        disabled={member.isSelected}>
+                                                        <span>{member.Name}</span>
+                                                        <span class="result-row__action">{member.actionLabel}</span>
+                                                    </button>
+                                                </template>
+
+                                                <template if:true={g.showNoMembers}>
+                                                    <div class="slds-text-body_small slds-text-color_weak slds-p-vertical_x-small">
+                                                        No users found in this group.
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div><!-- search-container -->
+                </lightning-tab>
+
+            </lightning-tabset>
+        </div>
+
+        <!-- Start / End -->
+        <div class="slds-grid slds-gutters slds-m-top_large">
+
+            <div class="slds-col">
+                <div class="slds-form-element">
+                    <label class="slds-form-element__label">Start</label>
+                    <div class="slds-form-element__control">
+                        <input
+                            type="text"
+                            class="slds-input fp-input"
+                            data-id="start-input"
+                            placeholder="MM/DD/YYYY HH:MM" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="slds-col">
+                <div class="slds-form-element">
+                    <label class="slds-form-element__label">End</label>
+                    <div class="slds-form-element__control">
+                        <input
+                            type="text"
+                            class="slds-input fp-input"
+                            data-id="end-input"
+                            placeholder="MM/DD/YYYY HH:MM" />
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- All Day -->
+        <lightning-input
+            class="slds-m-top_medium"
+            type="checkbox"
+            label="All-Day Event"
+            checked={isAllDay}
+            onchange={handleAllDay}>
+        </lightning-input>
+
+        <!-- Show As -->
+        <lightning-combobox
+            class="slds-m-top_medium"
+            label="Show Time As"
+            value={showAs}
+            options={showAsOptions}
+            onchange={handleShowAs}>
+        </lightning-combobox>
+
+        <!-- Type -->
+        <lightning-combobox
+            class="slds-m-top_medium"
+            label="Type"
+            value={typeValue}
+            options={typeOptions}
+            onchange={handleType}>
+        </lightning-combobox>
+
+        <!-- Mediator (Mediation events only) -->
+        <template if:true={isMediationType}>
+            <div class="slds-m-top_medium">
+                <template if:false={isCreatingProvider}>
+                    <lightning-record-picker
+                        label="Mediator"
+                        required
+                        placeholder="Search providers..."
+                        object-api-name="Provider__c"
+                        value={mediatorId}
+                        onchange={handleMediatorChange}>
+                    </lightning-record-picker>
+                    <lightning-button
+                        label="+ New Provider"
+                        variant="base"
+                        onclick={handleNewProvider}
+                        class="slds-m-top_x-small">
+                    </lightning-button>
+                </template>
+                <template if:true={isCreatingProvider}>
+                    <div class="slds-box">
+                        <p class="slds-text-heading_small slds-m-bottom_medium">New Provider</p>
+                        <lightning-record-edit-form
+                            object-api-name="Provider__c"
+                            onsuccess={handleProviderCreated}>
+                            <lightning-input-field field-name="Name" required></lightning-input-field>
+                            <lightning-input-field field-name="Role__c" class="slds-m-top_small"></lightning-input-field>
+                            <lightning-input-field field-name="Law_Firm__c" class="slds-m-top_small"></lightning-input-field>
+                            <lightning-input-field field-name="Email__c" class="slds-m-top_small"></lightning-input-field>
+                            <lightning-input-field field-name="Phone__c" class="slds-m-top_small"></lightning-input-field>
+                            <div class="slds-m-top_small slds-grid slds-grid_align-end">
+                                <lightning-button label="Cancel" onclick={handleCancelNewProvider} class="slds-m-right_x-small"></lightning-button>
+                                <lightning-button type="submit" label="Create" variant="brand"></lightning-button>
+                            </div>
+                        </lightning-record-edit-form>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <template if:true={autoRemindersAdded}>
+            <div class="slds-m-top_x-small slds-text-body_small slds-text-color_success">
+                <lightning-icon icon-name="utility:check" alternative-text="Reminders added" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                Reminders auto-added for {typeValue}.
+            </div>
+        </template>
+
+        <!-- Reminder Checkbox -->
+        <lightning-input
+            class="slds-m-top_medium"
+            type="checkbox"
+            label="Reminder Set"
+            checked={isReminderSet}
+            onchange={handleReminderSet}>
+        </lightning-input>
+
+        <!-- Reminder Picker -->
+        <template if:true={isReminderSet}>
+            <fieldset class="slds-form-element slds-m-top_medium">
+                <legend class="slds-form-element__legend slds-form-element__label">Reminder Schedule</legend>
+                <div class="reminder-grid">
+                    <template for:each={reminderOptionsWithState} for:item="opt">
+                        <div key={opt.value}>
+                            <lightning-input
+                                type="checkbox"
+                                label={opt.label}
+                                checked={opt.checked}
+                                data-value={opt.value}
+                                onchange={handleReminderOptionChange}>
+                            </lightning-input>
+                        </div>
+                    </template>
+                </div>
+            </fieldset>
+        </template>
+
+        <!-- Location -->
+        <lightning-input
+            class="slds-m-top_medium"
+            label="Location"
+            value={location}
+            onchange={handleLocation}>
+        </lightning-input>
+
+        <!-- Description -->
+        <lightning-textarea
+            class="slds-m-top_medium"
+            label="Description"
+            value={description}
+            onchange={handleDescription}>
+        </lightning-textarea>
+
+        <!-- Attachments -->
+        <div class="slds-form-element slds-m-top_medium">
+            <label class="slds-form-element__label">Attachments</label>
+            <div class="slds-form-element__control">
+                <div class={dropZoneClass}
+                     onclick={handleDropZoneClick}
+                     ondragover={handleDragOver}
+                     ondragleave={handleDragLeave}
+                     ondrop={handleDrop}>
+                    <lightning-icon icon-name="utility:upload" size="small" class="drop-zone__icon"></lightning-icon>
+                    <p class="drop-zone__text">Drag &amp; drop files here</p>
+                    <p class="drop-zone__sub">or <span class="drop-zone__browse">click to browse</span> &nbsp;·&nbsp; max 5 MB per file</p>
+                </div>
+                <input
+                    type="file"
+                    multiple
+                    data-id="file-input"
+                    class="slds-assistive-text"
+                    onchange={handleFileChange}>
+            </div>
+
+            <template if:true={hasSelectedFiles}>
+                <div class="attach-banner slds-m-top_small">
+                    <div class="attach-banner__header">
+                        <lightning-icon icon-name="utility:check" size="xx-small"></lightning-icon>
+                        <span>{attachBannerText}</span>
+                    </div>
+                    <ul class="attach-banner__list">
+                        <template for:each={selectedFiles} for:item="f">
+                            <li key={f.name} class="attach-banner__item">
+                                <span>{f.name}</span>
+                                <button class="attach-banner__remove" data-name={f.name} onclick={handleRemoveFile} title="Remove file">✕</button>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </template>
+
+            <template if:true={fileWarning}>
+                <p class="slds-m-top_x-small slds-text-body_small slds-text-color_error">{fileWarning}</p>
+            </template>
+        </div>
+
+        <!-- Related Record -->
+        <lightning-input
+            class="slds-m-top_medium"
+            label="Related To"
+            value={relatedToName}
+            disabled>
+        </lightning-input>
+
+    </lightning-modal-body>
+
+    <lightning-modal-footer onclick={handleModalOutsideSearchClick}>
+
+        <lightning-button
+            label="Cancel"
+            onclick={handleCancel}>
+        </lightning-button>
+
+        <template if:false={isEditMode}>
+            <lightning-button
+                label="Save &amp; New"
+                disabled={isSaveDisabled}
+                onclick={saveAndNew}>
+            </lightning-button>
+        </template>
+
+        <lightning-button
+            variant="brand"
+            label="Save"
+            disabled={isSaveDisabled}
+            onclick={save}>
+        </lightning-button>
+
+    </lightning-modal-footer>
+
+</template>
