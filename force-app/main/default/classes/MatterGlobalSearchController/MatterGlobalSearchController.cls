@@ -21,12 +21,12 @@ public with sharing class MatterGlobalSearchController {
         String term = '%' + searchTerm.trim().replace('\'', '').replace('\\', '') + '%';
         List<SearchResult> results = new List<SearchResult>();
 
-        // Notes — search category + body (Name is autonumber, not useful)
+        // Notes — Note_Description__c is Long Text Area (no LIKE); search category only
         for (NEOS_Notes__c n : [
             SELECT Id, Name, Note_Description__c, Note_Category__c
             FROM NEOS_Notes__c
             WHERE NEOS_Matter__c = :matterId
-            AND (Note_Category__c LIKE :term OR Note_Description__c LIKE :term)
+            AND Note_Category__c LIKE :term
             LIMIT 10
         ]) {
             results.add(makeNote(n));
@@ -54,12 +54,12 @@ public with sharing class MatterGlobalSearchController {
             results.add(makeEvent(c));
         }
 
-        // Tasks — search subject + description
+        // Tasks — Description is Long Text Area (no LIKE); search subject only
         for (Task t : [
             SELECT Id, Subject, Description, Status, ActivityDate
             FROM Task
             WHERE WhatId = :matterId
-            AND (Subject LIKE :term OR Description LIKE :term)
+            AND Subject LIKE :term
             LIMIT 10
         ]) {
             results.add(makeTask(t));
