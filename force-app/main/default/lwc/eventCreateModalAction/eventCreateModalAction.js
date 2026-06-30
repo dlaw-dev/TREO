@@ -40,6 +40,7 @@ export default class EventCreateModalAction extends LightningModal {
     location = '';
     description = '';
     mediatorId = null;
+    isCreatingProvider = false;
 
     /* -------------------------
        Reminder Support
@@ -250,6 +251,12 @@ export default class EventCreateModalAction extends LightningModal {
         }
     };
     handleMediatorChange = e => { this.mediatorId = e.detail.recordId; };
+    handleNewProvider() { this.isCreatingProvider = true; }
+    handleCancelNewProvider() { this.isCreatingProvider = false; }
+    handleProviderCreated(event) {
+        this.mediatorId = event.detail.id;
+        this.isCreatingProvider = false;
+    }
     handleReminderSet = e => this.isReminderSet = e.target.checked;
     handleLocation = e => this.location = e.target.value;
     handleDescription = e => this.description = e.target.value;
