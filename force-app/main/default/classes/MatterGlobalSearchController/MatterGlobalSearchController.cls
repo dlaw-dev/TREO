@@ -254,6 +254,7 @@ public with sharing class MatterGlobalSearchController {
         r.id = t.Id; r.objectType = 'Time_Entry__c'; r.objectLabel = 'Time Entries'; r.iconName = 'standard:timesheet';
         r.title    = t.Staff__r != null ? t.Staff__r.Name : null;
         r.subtitle = String.isNotBlank(t.Duration__c) ? t.Duration__c : null;
+        r.preview  = t.Entry_Date__c != null ? t.Entry_Date__c.format() : null;
         return r;
     }
 
