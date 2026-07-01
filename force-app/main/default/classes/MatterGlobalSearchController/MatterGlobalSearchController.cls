@@ -7,6 +7,7 @@ public with sharing class MatterGlobalSearchController {
         @AuraEnabled public String title;
         @AuraEnabled public String subtitle;
         @AuraEnabled public String preview;
+        @AuraEnabled public String extra;
         @AuraEnabled public String iconName;
     }
 
@@ -255,6 +256,7 @@ public with sharing class MatterGlobalSearchController {
         r.title    = t.Staff__r != null ? t.Staff__r.Name : null;
         r.subtitle = String.isNotBlank(t.Duration__c) ? t.Duration__c : null;
         r.preview  = t.Entry_Date__c != null ? t.Entry_Date__c.format() : null;
+        r.extra    = String.isNotBlank(t.Notes__c) ? t.Notes__c.abbreviate(80) : null;
         return r;
     }
 

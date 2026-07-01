@@ -256,6 +256,7 @@
 
 .cols-2 { grid-template-columns: 1fr 1fr; }
 .cols-3 { grid-template-columns: 2fr 1fr 2fr; }
+.cols-4 { grid-template-columns: 1.5fr 1fr 1fr 2fr; }
 
 .result-grid.col-hdr-row {
     padding: 0.25rem 0.875rem;

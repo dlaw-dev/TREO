@@ -5,7 +5,7 @@ import browseAll from '@salesforce/apex/MatterGlobalSearchController.browseAll';
 
 const COLUMNS = {
     'NEOS_Notes__c':             [{ label: 'Category',    field: 'subtitle' }, { label: 'Date',        field: 'preview' }],
-    'Time_Entry__c':             [{ label: 'Duration',     field: 'subtitle' }, { label: 'Date', field: 'preview' }],
+    'Time_Entry__c':             [{ label: 'Duration', field: 'subtitle' }, { label: 'Date', field: 'preview' }, { label: 'Notes', field: 'extra' }],
     'Calendar_Event__c':         [{ label: 'Type',         field: 'subtitle' }, { label: 'Start',       field: 'preview' }],
     'Task':                      [{ label: 'Status / Due', field: 'subtitle' }, { label: 'Description', field: 'preview' }],
     'Involved_Parties__c':       [{ label: 'Relationship', field: 'subtitle' }],
@@ -202,7 +202,7 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
         return [...groupMap.values()].map(g => {
             const cols = COLUMNS[g.type] || [];
             const hasColumns = cols.length > 0;
-            const colSuffix = cols.length === 1 ? 'cols-2' : 'cols-3';
+            const colSuffix = cols.length === 1 ? 'cols-2' : cols.length >= 3 ? 'cols-4' : 'cols-3';
             const titleLabel = TITLE_LABELS[g.type] || 'Name';
             const processedResults = g.results.map(r => ({
                 ...r,
