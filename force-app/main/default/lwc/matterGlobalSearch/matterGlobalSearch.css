@@ -22,6 +22,13 @@
 
 .header-icon {
     --lwc-colorTextIconDefault: #4f6cf7;
+    filter: drop-shadow(0 0 4px rgba(79, 108, 247, 0.6));
+    animation: icon-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes icon-pulse {
+    0%, 100% { filter: drop-shadow(0 0 3px rgba(79, 108, 247, 0.5)); }
+    50%       { filter: drop-shadow(0 0 8px rgba(79, 108, 247, 0.9)) drop-shadow(0 0 14px rgba(79, 108, 247, 0.4)); }
 }
 
 .search-title {
