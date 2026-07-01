@@ -144,9 +144,11 @@
         <!-- Prompt / idle state -->
         <template if:true={showPrompt}>
             <div class="state-center prompt-state">
-                <div class="prompt-icon-wrap">
-                    <lightning-icon icon-name="utility:search" size="large"></lightning-icon>
-                </div>
+                <span class="prompt-icon-glow">
+                    <div class="prompt-icon-wrap">
+                        <lightning-icon icon-name="utility:search" size="large"></lightning-icon>
+                    </div>
+                </span>
                 <p class="prompt-heading">Search anything related to this matter</p>
                 <p class="prompt-subtext">Or tap a category below to browse all records</p>
                 <div class="searchable-tags">
@@ -160,7 +162,6 @@
                         >{obj.label}</button>
                     </template>
                 </div>
-                <p class="state-subtext">Type at least 3 characters to search</p>
             </div>
         </template>
 
