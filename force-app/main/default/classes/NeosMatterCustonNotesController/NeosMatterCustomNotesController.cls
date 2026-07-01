@@ -33,7 +33,7 @@ public with sharing class NeosMatterCustomNotesController {
                    Staff__r.Name,
                    Pinned_Note__c
             FROM NEOS_Notes__c
-            WHERE NEOS_Matter__c IN :targetIds
+            WHERE (NEOS_Matter__c IN :targetIds OR Provider__c IN :targetIds)
             ORDER BY NEOS_Created_Date__c DESC
         ];
     }
@@ -50,7 +50,7 @@ public with sharing class NeosMatterCustomNotesController {
                    Staff__r.Name
             FROM NEOS_Notes__c
             WHERE Pinned_Note__c = TRUE
-              AND NEOS_Matter__c IN :targetIds
+              AND (NEOS_Matter__c IN :targetIds OR Provider__c IN :targetIds)
             ORDER BY NEOS_Created_Date__c DESC
         ];
     }
