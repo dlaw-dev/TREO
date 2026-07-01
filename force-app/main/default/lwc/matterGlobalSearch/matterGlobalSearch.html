@@ -72,10 +72,10 @@
                         </div>
 
                         <template if:true={group.hasColumns}>
-                            <div class={group.headerClass} aria-hidden="true">
-                                <span class="col-hdr">{group.titleLabel}</span>
-                                <template for:each={group.columns} for:item="col">
-                                    <span key={col.label} class="col-hdr">{col.label}</span>
+                            <div class={group.headerClass}>
+                                <button class={group.titleSortClass} data-field="title" data-type={group.type} onclick={handleSort}>{group.titleLabel}</button>
+                                <template for:each={group.sortColumns} for:item="col">
+                                    <button key={col.label} class={col.sortClass} data-field={col.field} data-type={group.type} onclick={handleSort}>{col.label}</button>
                                 </template>
                             </div>
                             <template for:each={group.results} for:item="result">

@@ -49,6 +49,7 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
 
     @track browseType = null;
     @track browseLabel = '';
+    @track sortConfig = { objectType: null, field: null, dir: 'asc' };
     @track browseResults = [];
     @track isBrowseLoading = false;
 
@@ -142,6 +143,18 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
         this.selectedType = event.currentTarget.dataset.value;
     }
 
+    handleSort(event) {
+        event.stopPropagation();
+        const field = event.currentTarget.dataset.field;
+        const type  = event.currentTarget.dataset.type;
+        const same  = this.sortConfig.objectType === type && this.sortConfig.field === field;
+        this.sortConfig = {
+            objectType: type,
+            field,
+            dir: same && this.sortConfig.dir === 'asc' ? 'desc' : 'asc'
+        };
+    }
+
     // ── Computed state ────────────────────────────────────────
 
     get isInBrowseMode() {
@@ -199,12 +212,28 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
             }
             groupMap.get(r.objectType).results.push(r);
         });
+        const sc = this.sortConfig;
         return [...groupMap.values()].map(g => {
             const cols = COLUMNS[g.type] || [];
             const hasColumns = cols.length > 0;
             const colSuffix = cols.length === 1 ? 'cols-2' : cols.length >= 3 ? 'cols-4' : 'cols-3';
             const titleLabel = TITLE_LABELS[g.type] || 'Name';
-            const processedResults = g.results.map(r => ({
+
+            const isThisType = sc.objectType === g.type;
+            const colClass = (field) => 'col-hdr' +
+                (isThisType && sc.field === field ? ` col-hdr-sorted col-hdr-${sc.dir}` : '');
+
+            let rows = [...g.results];
+            if (isThisType && sc.field) {
+                const { field, dir } = sc;
+                rows.sort((a, b) => {
+                    const av = (a[field] || '').toLowerCase();
+                    const bv = (b[field] || '').toLowerCase();
+                    return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+                });
+            }
+
+            const processedResults = rows.map(r => ({
                 ...r,
                 cells: cols.map(c => ({ label: c.label, value: r[c.field] || '' })),
                 rowClass: hasColumns ? `result-grid ${colSuffix}` : 'result-item'
@@ -212,7 +241,8 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
             return {
                 ...g,
                 count: g.results.length,
-                columns: cols,
+                sortColumns: cols.map(c => ({ ...c, sortClass: colClass(c.field) })),
+                titleSortClass: colClass('title'),
                 titleLabel,
                 hasColumns,
                 hasNoColumns: !hasColumns,

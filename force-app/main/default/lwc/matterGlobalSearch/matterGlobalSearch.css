@@ -278,7 +278,23 @@
     color: #98a2b3;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    text-align: left;
+    transition: color 0.12s ease;
 }
+
+.col-hdr:hover { color: #475467; }
+
+.col-hdr-sorted { color: #344054; }
+
+.col-hdr-asc::after  { content: ' ↑'; font-size: 0.6rem; }
+.col-hdr-desc::after { content: ' ↓'; font-size: 0.6rem; }
 
 .result-grid[role="button"] { cursor: pointer; }
 
