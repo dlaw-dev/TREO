@@ -257,6 +257,7 @@ public with sharing class MatterGlobalSearchController {
         return r;
     }
 
+    @TestVisible
     private static SearchResult makeEvent(Calendar_Event__c c) {
         SearchResult r = new SearchResult();
         r.id = c.Id; r.objectType = 'Calendar_Event__c'; r.objectLabel = 'Calendar Events'; r.iconName = 'standard:event';
@@ -277,6 +278,7 @@ public with sharing class MatterGlobalSearchController {
         return r;
     }
 
+    @TestVisible
     private static SearchResult makeParty(Involved_Parties__c p) {
         SearchResult r = new SearchResult();
         r.id = p.Id; r.objectType = 'Involved_Parties__c'; r.objectLabel = 'Involved Parties'; r.iconName = 'standard:contact';
@@ -414,6 +416,7 @@ public with sharing class MatterGlobalSearchController {
         }
     }
 
+    @TestVisible
     private static SearchResult makeArbitration(SObject s) {
         SearchResult r = new SearchResult();
         r.id = String.valueOf(s.get('Id'));
