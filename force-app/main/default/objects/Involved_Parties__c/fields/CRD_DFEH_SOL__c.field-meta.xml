@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>CRD_DFEH_SOL__c</fullName>
+    <formula>IF(Exclude_CRD_DFEH_SOL__c, NULL, IF(ISBLANK(CRD_DFEH__c), NULL, DATE(YEAR(CRD_DFEH__c)+1, MONTH(CRD_DFEH__c), DAY(CRD_DFEH__c))))</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>CRD/DFEH SOL</label>
+    <required>false</required>
+    <type>Date</type>
+</CustomField>

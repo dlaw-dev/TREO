@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Exclude_EEOC_RTS_SOL__c</fullName>
+    <defaultValue>false</defaultValue>
+    <inlineHelpText>Allows Admin to bypass SOL coming up due to (EEOC/RTS 90 days ago)</inlineHelpText>
+    <label>Exclude EEOC/RTS SOL</label>
+    <type>Checkbox</type>
+</CustomField>

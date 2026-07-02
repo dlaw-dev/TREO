@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>LDW4__c</fullName>
+    <formula>IF(Exclude_LDW4__c, NULL, IF(ISBLANK(LDW__c), NULL, DATE(YEAR(LDW__c)+4, MONTH(LDW__c), DAY(LDW__c))))</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>LDW4</label>
+    <required>false</required>
+    <type>Date</type>
+</CustomField>

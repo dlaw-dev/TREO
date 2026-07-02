@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Court_Jurisdiction_Status__c</fullName>
+    <externalId>false</externalId>
+    <formula>IF(
+    ISPICKVAL(CourtJurisdiction__c, &quot;Federal&quot;),
+    IMAGE(&quot;/resource/1746557478000/GraphicsPackNew/silk/16/silk/building.png&quot;, &quot;Federal Court&quot;),
+    IMAGE(&quot;/resource/1746557478000/GraphicsPackNew/tangodesktopproject/16/theme/go-home.png&quot;, &quot;State Court&quot;)
+)</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>Court Jurisdiction Status</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

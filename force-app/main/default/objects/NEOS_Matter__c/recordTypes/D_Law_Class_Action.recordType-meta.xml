@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RecordType xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>D_Law_Class_Action</fullName>
+    <active>true</active>
+    <label>D.Law Class Action</label>
+    <picklistValues>
+        <picklist>Case_Rating__c</picklist>
+        <values>
+            <fullName>%28A%29 Best</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>%28B%29 Neutral</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>%28C%29 Worst</fullName>
+            <default>false</default>
+        </values>
+    </picklistValues>
+    <picklistValues>
+        <picklist>CourtJurisdiction__c</picklist>
+        <values>
+            <fullName>Arbitration</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Federal</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>State</fullName>
+            <default>false</default>
+        </values>
+    </picklistValues>
+    <picklistValues>
+        <picklist>DelCase_Type__c</picklist>
+        <values>
+            <fullName>DLaw Class Action</fullName>
+            <default>false</default>
+        </values>
+    </picklistValues>
+    <picklistValues>
+        <picklist>DelClass__c</picklist>
+        <values>
+            <fullName>Arbitration</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Bl Settled %7C Pending PD</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Client MIA</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Co-Counsel</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Collecting B%26R</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Coverage Inves</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Demand In Process</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Demand Negotiation</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Distribution</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Dropped</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>In Suit</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Investigation</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Pending copy of file - SOA</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Pre-Filing Stage</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Settled</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Sub%27d Out</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>TCR Pending</fullName>
+            <default>false</default>
+        </values>
+    </picklistValues>
+    <picklistValues>
+        <picklist>DelHow_did_you_hear_about_us__c</picklist>
+        <values>
+            <fullName>Jonathan P%2E LaCour</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Manukyan Law Firm</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Other</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Ruben Limonyan</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>SK Law Firm</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Sahag Majarian</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Soren Leads</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Toby Rosen - Marketing</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Walter Haines</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>West LA Migration</fullName>
+            <default>false</default>
+        </values>
+    </picklistValues>
+    <picklistValues>
+        <picklist>Settlement_Status__c</picklist>
+        <values>
+            <fullName>Case Closed</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Compliance Hearing Completed%C2%A0</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Distribution Done %26 Pending Compliance Hearing</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Distribution Scheduled by Admin</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Drafting MFA</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Drafting MOU</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Drafting MPA</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Drafting SA</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>FA Order %26 Judgment Signed</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Fees%2FCosts Rec%E2%80%99d by D%2ELaw</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Funded to Admin</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>MFA Filed %2F Pending Hearing</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>MFA Granted %2F Pending Signed Order</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>MOU Fully Signed</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>MOU Signatures Pending</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>MPA Filed %2F Pending Hearing</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>MPA Granted%C2%A0</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Mediator%27s Proposal Accepted</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>PA Order Signed</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>SA Fully Signed</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>SA Signatures Pending</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>SA Signatures Pending %26 Drafting MPA</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Sent Order %26 Judgment to Admin</fullName>
+            <default>false</default>
+        </values>
+    </picklistValues>
+    <picklistValues>
+        <picklist>Stage__c</picklist>
+        <values>
+            <fullName>Administrative Remedies</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>At Issue</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Client Signed</fullName>
+            <default>true</default>
+        </values>
+        <values>
+            <fullName>Closed</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Complaint Filed</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Discovery</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Mediation</fullName>
+            <default>false</default>
+        </values>
+        <values>
+            <fullName>Settlement</fullName>
+            <default>false</default>
+        </values>
+    </picklistValues>
+</RecordType>

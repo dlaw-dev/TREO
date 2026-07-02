@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>D_Law_Class_Actions</fullName>
+    <columns>RECORDTYPE</columns>
+    <columns>Senior_Attorney__c</columns>
+    <columns>Associate_Attorney__c</columns>
+    <columns>CourtJurisdiction__c</columns>
+    <columns>Stage__c</columns>
+    <columns>SOL_Date__c</columns>
+    <columns>LAST_UPDATE</columns>
+    <filterScope>Everything</filterScope>
+    <filters>
+        <field>RECORDTYPE</field>
+        <operation>equals</operation>
+        <value>NEOS_Matter__c.D_Law_Class_Action</value>
+    </filters>
+    <label>D.Law Class Action</label>
+</ListView>

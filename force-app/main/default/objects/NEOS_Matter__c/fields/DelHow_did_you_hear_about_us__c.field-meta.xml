@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>DelHow_did_you_hear_about_us__c</fullName>
+    <label>Del How did you hear about us?</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>West LA Migration</fullName>
+                <default>false</default>
+                <label>West LA Migration</label>
+            </value>
+            <value>
+                <fullName>Walter Haines</fullName>
+                <default>false</default>
+                <label>Walter Haines</label>
+            </value>
+            <value>
+                <fullName>Toby Rosen - Marketing</fullName>
+                <default>false</default>
+                <label>Toby Rosen - Marketing</label>
+            </value>
+            <value>
+                <fullName>Soren Leads</fullName>
+                <default>false</default>
+                <label>Soren Leads</label>
+            </value>
+            <value>
+                <fullName>SK Law Firm</fullName>
+                <default>false</default>
+                <label>SK Law Firm</label>
+            </value>
+            <value>
+                <fullName>Sahag Majarian</fullName>
+                <default>false</default>
+                <label>Sahag Majarian</label>
+            </value>
+            <value>
+                <fullName>Ruben Limonyan</fullName>
+                <default>false</default>
+                <label>Ruben Limonyan</label>
+            </value>
+            <value>
+                <fullName>Other</fullName>
+                <default>false</default>
+                <label>Other</label>
+            </value>
+            <value>
+                <fullName>Manukyan Law Firm</fullName>
+                <default>false</default>
+                <label>Manukyan Law Firm</label>
+            </value>
+            <value>
+                <fullName>Jonathan P. LaCour</fullName>
+                <default>false</default>
+                <label>Jonathan P. LaCour</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Settlement_Status__c</fullName>
+    <label>Settlement Status</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Mediator&apos;s Proposal Accepted</fullName>
+                <default>false</default>
+                <label>Mediator&apos;s Proposal Accepted</label>
+            </value>
+            <value>
+                <fullName>Drafting MOU</fullName>
+                <default>false</default>
+                <label>Drafting MOU</label>
+            </value>
+            <value>
+                <fullName>MOU Signatures Pending</fullName>
+                <default>false</default>
+                <label>MOU Signatures Pending</label>
+            </value>
+            <value>
+                <fullName>MOU Fully Signed</fullName>
+                <default>false</default>
+                <label>MOU Fully Signed</label>
+            </value>
+            <value>
+                <fullName>Drafting SA</fullName>
+                <default>false</default>
+                <label>Drafting SA</label>
+            </value>
+            <value>
+                <fullName>SA Signatures Pending</fullName>
+                <default>false</default>
+                <label>SA Signatures Pending</label>
+            </value>
+            <value>
+                <fullName>SA Signatures Pending &amp; Drafting MPA</fullName>
+                <default>false</default>
+                <label>SA Signatures Pending &amp; Drafting MPA</label>
+            </value>
+            <value>
+                <fullName>SA Fully Signed</fullName>
+                <default>false</default>
+                <label>SA Fully Signed</label>
+            </value>
+            <value>
+                <fullName>Drafting MPA</fullName>
+                <default>false</default>
+                <label>Drafting MPA</label>
+            </value>
+            <value>
+                <fullName>MPA Filed / Pending Hearing</fullName>
+                <default>false</default>
+                <label>MPA Filed / Pending Hearing</label>
+            </value>
+            <value>
+                <fullName>MPA Granted</fullName>
+                <default>false</default>
+                <label>MPA Granted</label>
+            </value>
+            <value>
+                <fullName>PA Order Signed</fullName>
+                <default>false</default>
+                <label>PA Order Signed</label>
+            </value>
+            <value>
+                <fullName>Drafting MFA</fullName>
+                <default>false</default>
+                <label>Drafting MFA</label>
+            </value>
+            <value>
+                <fullName>MFA Filed / Pending Hearing</fullName>
+                <default>false</default>
+                <label>MFA Filed / Pending Hearing</label>
+            </value>
+            <value>
+                <fullName>MFA Granted / Pending Signed Order</fullName>
+                <default>false</default>
+                <label>MFA Granted / Pending Signed Order</label>
+            </value>
+            <value>
+                <fullName>FA Order &amp; Judgment Signed</fullName>
+                <default>false</default>
+                <label>FA Order &amp; Judgment Signed</label>
+            </value>
+            <value>
+                <fullName>Sent Order &amp; Judgment to Admin</fullName>
+                <default>false</default>
+                <label>Sent Order &amp; Judgment to Admin</label>
+            </value>
+            <value>
+                <fullName>Distribution Scheduled by Admin</fullName>
+                <default>false</default>
+                <label>Distribution Scheduled by Admin</label>
+            </value>
+            <value>
+                <fullName>Funded to Admin</fullName>
+                <default>false</default>
+                <label>Funded to Admin</label>
+            </value>
+            <value>
+                <fullName>Fees/Costs Rec’d by D.Law</fullName>
+                <default>false</default>
+                <label>Fees/Costs Rec’d by D.Law</label>
+            </value>
+            <value>
+                <fullName>Distribution Done &amp; Pending Compliance Hearing</fullName>
+                <default>false</default>
+                <label>Distribution Done &amp; Pending Compliance Hearing</label>
+            </value>
+            <value>
+                <fullName>Compliance Hearing Completed</fullName>
+                <default>false</default>
+                <label>Compliance Hearing Completed</label>
+            </value>
+            <value>
+                <fullName>Case Closed</fullName>
+                <default>false</default>
+                <label>Case Closed</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Closed_Date_Validation</fullName>
+    <active>true</active>
+    <description>Raise an Error Message when user is trying to save a matter record with a Closed Date earlier than Opened Date</description>
+    <errorConditionFormula>ClosedDate__c &lt;  Opened__c</errorConditionFormula>
+    <errorDisplayField>ClosedDate__c</errorDisplayField>
+    <errorMessage>Closed Date can not be earlier than Opened Date</errorMessage>
+</ValidationRule>

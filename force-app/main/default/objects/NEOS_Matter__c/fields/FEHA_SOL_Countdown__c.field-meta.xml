@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>FEHA_SOL_Countdown__c</fullName>
+    <externalId>false</externalId>
+    <formula>IF( ( FEHA_SOL_Date__c - TODAY()) = 1
+
+, &quot;1 Day Until FEHA/WT SOL Expires&quot;
+
+, TEXT( FEHA_SOL_Date__c - TODAY() ) &amp; &quot; Days until FEHA/WT SOL Expires&quot;)</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>FEHA/WT SOL Countdown</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

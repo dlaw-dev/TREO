@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>All_Open_Matters</fullName>
+    <columns>RECORDTYPE</columns>
+    <columns>Senior_Attorney__c</columns>
+    <columns>Associate_Attorney__c</columns>
+    <columns>CourtJurisdiction__c</columns>
+    <columns>Stage__c</columns>
+    <columns>LAST_UPDATE</columns>
+    <filterScope>Mine</filterScope>
+    <label>All Open Matters</label>
+</ListView>

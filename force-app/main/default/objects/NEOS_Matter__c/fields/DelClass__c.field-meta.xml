@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>DelClass__c</fullName>
+    <label>Del Class</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Arbitration</fullName>
+                <default>false</default>
+                <label>Arbitration</label>
+            </value>
+            <value>
+                <fullName>Bl Settled | Pending PD</fullName>
+                <default>false</default>
+                <label>Bl Settled | Pending PD</label>
+            </value>
+            <value>
+                <fullName>Client MIA</fullName>
+                <default>false</default>
+                <label>Client MIA</label>
+            </value>
+            <value>
+                <fullName>Co-Counsel</fullName>
+                <default>false</default>
+                <label>Co-Counsel</label>
+            </value>
+            <value>
+                <fullName>Collecting B&amp;R</fullName>
+                <default>false</default>
+                <label>Collecting B&amp;R</label>
+            </value>
+            <value>
+                <fullName>Coverage Inves</fullName>
+                <default>false</default>
+                <label>Coverage Inves</label>
+            </value>
+            <value>
+                <fullName>Demand In Process</fullName>
+                <default>false</default>
+                <label>Demand In Process</label>
+            </value>
+            <value>
+                <fullName>Demand Negotiation</fullName>
+                <default>false</default>
+                <label>Demand Negotiation</label>
+            </value>
+            <value>
+                <fullName>Distribution</fullName>
+                <default>false</default>
+                <label>Distribution</label>
+            </value>
+            <value>
+                <fullName>Dropped</fullName>
+                <default>false</default>
+                <label>Dropped</label>
+            </value>
+            <value>
+                <fullName>In Suit</fullName>
+                <default>false</default>
+                <label>In Suit</label>
+            </value>
+            <value>
+                <fullName>Investigation</fullName>
+                <default>false</default>
+                <label>Investigation</label>
+            </value>
+            <value>
+                <fullName>Pending copy of file - SOA</fullName>
+                <default>false</default>
+                <label>Pending copy of file - SOA</label>
+            </value>
+            <value>
+                <fullName>Pre-Filing Stage</fullName>
+                <default>false</default>
+                <label>Pre-Filing Stage</label>
+            </value>
+            <value>
+                <fullName>Settled</fullName>
+                <default>false</default>
+                <label>Settled</label>
+            </value>
+            <value>
+                <fullName>Sub&apos;d Out</fullName>
+                <default>false</default>
+                <label>Sub&apos;d Out</label>
+            </value>
+            <value>
+                <fullName>TCR Pending</fullName>
+                <default>false</default>
+                <label>TCR Pending</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

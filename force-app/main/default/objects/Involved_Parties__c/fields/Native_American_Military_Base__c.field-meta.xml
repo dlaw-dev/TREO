@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Native_American_Military_Base__c</fullName>
+    <defaultValue>false</defaultValue>
+    <label>Native American/Military Base</label>
+    <type>Checkbox</type>
+</CustomField>

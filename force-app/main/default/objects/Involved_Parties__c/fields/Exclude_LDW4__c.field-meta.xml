@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Exclude_LDW4__c</fullName>
+    <defaultValue>false</defaultValue>
+    <inlineHelpText>Allows Admin to bypass SOL coming up due to (LDW 4 years ago)</inlineHelpText>
+    <label>Exclude LDW4</label>
+    <type>Checkbox</type>
+</CustomField>

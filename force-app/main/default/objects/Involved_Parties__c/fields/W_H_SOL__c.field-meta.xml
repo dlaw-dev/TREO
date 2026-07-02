@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>W_H_SOL__c</fullName>
+    <formula>IF(Exclude_W_H_SOL__c, NULL, IF(ISBLANK(LDW__c), NULL, IF(Government__c, ADDMONTHS(LDW__c, 6) - 1, DATE(YEAR(LDW__c)+1, MONTH(LDW__c), DAY(LDW__c)) - 1)))</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>W&amp;H SOL</label>
+    <required>false</required>
+    <type>Date</type>
+</CustomField>

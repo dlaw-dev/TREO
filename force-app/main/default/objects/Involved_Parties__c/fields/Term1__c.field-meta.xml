@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Term1__c</fullName>
+    <formula>IF(Exclude_Term1__c, NULL, IF(AND(Government__c, NOT(ISBLANK(Term_Date__c))), DATE(YEAR(Term_Date__c)+1, MONTH(Term_Date__c), DAY(Term_Date__c)), NULL))</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>Term1</label>
+    <required>false</required>
+    <type>Date</type>
+</CustomField>

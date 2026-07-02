@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>D_Law_FEHA_Stand_Alone</fullName>
+    <columns>RECORDTYPE</columns>
+    <columns>Senior_Attorney__c</columns>
+    <columns>Associate_Attorney__c</columns>
+    <columns>CourtJurisdiction__c</columns>
+    <columns>Stage__c</columns>
+    <columns>SOL_Date__c</columns>
+    <columns>LAST_UPDATE</columns>
+    <columns>ApprovedAttorneyFees__c</columns>
+    <filterScope>Everything</filterScope>
+    <filters>
+        <field>RECORDTYPE</field>
+        <operation>equals</operation>
+        <value>NEOS_Matter__c.D_Law_FEHA_StandAlone</value>
+    </filters>
+    <label>D.Law FEHA Stand-Alone</label>
+</ListView>

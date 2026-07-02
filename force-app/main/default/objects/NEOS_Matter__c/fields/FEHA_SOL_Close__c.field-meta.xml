@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>FEHA_SOL_Close__c</fullName>
+    <formula>AND(
+FEHA_SOL_Date__c  &gt;= TODAY(),
+FEHA_SOL_Date__c &lt;= TODAY() + 90
+)</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>FEHA/WT SOL Close</label>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>
