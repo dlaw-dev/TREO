@@ -4,7 +4,7 @@ import search from '@salesforce/apex/MatterGlobalSearchController.search';
 import browseAll from '@salesforce/apex/MatterGlobalSearchController.browseAll';
 
 const COLUMNS = {
-    'NEOS_Notes__c':             [{ label: 'Category',    field: 'subtitle' }, { label: 'Date',        field: 'preview' }],
+    'NEOS_Notes__c':             [{ label: 'Category',    field: 'subtitle' }, { label: 'Date',        field: 'preview' }, { label: 'Description', field: 'extra' }],
     'Time_Entry__c':             [{ label: 'Duration', field: 'subtitle' }, { label: 'Date', field: 'preview' }, { label: 'Notes', field: 'extra' }],
     'Calendar_Event__c':         [{ label: 'Type',         field: 'subtitle' }, { label: 'Start',       field: 'preview' }],
     'Task':                      [{ label: 'Status / Due', field: 'subtitle' }, { label: 'Description', field: 'preview' }],

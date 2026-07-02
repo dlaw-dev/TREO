@@ -19,18 +19,27 @@ public with sharing class MatterGlobalSearchController {
             return new List<SearchResult>();
         }
 
-        String term = '%' + searchTerm.trim().replace('\'', '').replace('\\', '') + '%';
+        String rawTerm = searchTerm.trim();
+        String term = '%' + rawTerm.replace('\'', '').replace('\\', '') + '%';
         List<SearchResult> results = new List<SearchResult>();
 
-        // Notes — Note_Description__c is Long Text Area (no LIKE); search category only
+        // Notes — Note_Description__c is Long Text Area (SOQL can't filter/LIKE on it),
+        // so pull recent notes for the matter and match category/description in Apex.
+        Integer noteMatches = 0;
         for (NEOS_Notes__c n : [
             SELECT Id, Name, Note_Description__c, Note_Category__c, NEOS_Created_Date__c, Staff__r.Name
             FROM NEOS_Notes__c
             WHERE NEOS_Matter__c = :matterId
-            AND Note_Category__c LIKE :term
-            LIMIT 10
+            ORDER BY NEOS_Created_Date__c DESC NULLS LAST
+            LIMIT 500
         ]) {
-            results.add(makeNote(n));
+            if (noteMatches >= 10) break;
+            Boolean categoryHit    = String.isNotBlank(n.Note_Category__c) && n.Note_Category__c.containsIgnoreCase(rawTerm);
+            Boolean descriptionHit = String.isNotBlank(n.Note_Description__c) && n.Note_Description__c.containsIgnoreCase(rawTerm);
+            if (categoryHit || descriptionHit) {
+                results.add(makeNote(n));
+                noteMatches++;
+            }
         }
 
         // Time entries
@@ -247,6 +256,7 @@ public with sharing class MatterGlobalSearchController {
         r.preview  = n.NEOS_Created_Date__c != null
             ? n.NEOS_Created_Date__c.format('MMM d, yyyy', UserInfo.getTimeZone().getId())
             : null;
+        r.extra    = String.isNotBlank(n.Note_Description__c) ? n.Note_Description__c.abbreviate(80) : null;
         return r;
     }
 
