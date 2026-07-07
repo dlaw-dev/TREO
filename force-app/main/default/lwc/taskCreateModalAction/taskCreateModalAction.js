@@ -94,9 +94,6 @@ export default class TaskCreateModalAction extends LightningModal {
     @wire(getRecord, { recordId: '$recordId', fields: [MATTER_NAME] })
     wiredMatter(result) {
         this.matter = result;
-        if (result.data && this._initialSubject == null && !this.subject) {
-            this.subject = result.data.fields?.Name?.value || '';
-        }
     }
 
     get recordName() {
