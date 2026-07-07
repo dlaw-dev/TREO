@@ -467,8 +467,28 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
-                <fieldItem>Record.Exclude_CRD_DFEH_SOL__c</fieldItem>
-                <identifier>RecordExclude_CRD_DFEH_SOL_cField</identifier>
+                <fieldItem>Record.Exclude_CRD_RTS_SOL__c</fieldItem>
+                <identifier>RecordExclude_CRD_RTS_SOL_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Exclude_WT_FEHA_SOL__c</fieldItem>
+                <identifier>RecordExclude_WT_FEHA_SOL_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Exclude_W_H_SOL__c</fieldItem>
+                <identifier>RecordExclude_W_H_SOL_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
