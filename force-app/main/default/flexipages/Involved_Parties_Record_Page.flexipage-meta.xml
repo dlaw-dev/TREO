@@ -213,8 +213,8 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
-                <fieldItem>Record.CRD_DFEH__c</fieldItem>
-                <identifier>RecordCRD_DFEH_cField</identifier>
+                <fieldItem>Record.CRD_RTS__c</fieldItem>
+                <identifier>RecordCRD_RTS_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
@@ -313,8 +313,8 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
-                <fieldItem>Record.FEHA_SOL__c</fieldItem>
-                <identifier>RecordFEHA_SOL_cField</identifier>
+                <fieldItem>Record.WT_FEHA_SOL__c</fieldItem>
+                <identifier>RecordWT_FEHA_SOL_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
@@ -333,8 +333,8 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
-                <fieldItem>Record.CRD_DFEH_SOL__c</fieldItem>
-                <identifier>RecordCRD_DFEH_SOL_cField</identifier>
+                <fieldItem>Record.CRD_RTS_SOL__c</fieldItem>
+                <identifier>RecordCRD_RTS_SOL_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
@@ -447,8 +447,8 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
-                <fieldItem>Record.FEHA_SOL_Satisfied__c</fieldItem>
-                <identifier>RecordFEHA_SOL_Satisfied_cField</identifier>
+                <fieldItem>Record.WT_FEHA_SOL_Satisfied__c</fieldItem>
+                <identifier>RecordWT_FEHA_SOL_Satisfied_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
