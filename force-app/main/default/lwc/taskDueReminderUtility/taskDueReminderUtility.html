@@ -1,6 +1,9 @@
 <template>
     <div class="reminder-container">
         <template if:true={hasTasks}>
+            <div class="panel-toolbar">
+                <button type="button" class="toggle-all-button" onclick={handleToggleAll}>{collapseAllLabel}</button>
+            </div>
             <template for:each={groups} for:item="group">
                 <div key={group.key} class="reminder-section">
                     <div class={group.headerClass} data-key={group.key} onclick={toggleSection}>
@@ -19,6 +22,9 @@
                                 <li key={task.Id} class="reminder-item" data-id={task.Id} onclick={handleOpenTask}>
                                     <div class="reminder-item-main">
                                         <div class="reminder-item-top">
+                                            <template if:true={task.Priority}>
+                                                <span class={task.priorityClass}>{task.Priority}</span>
+                                            </template>
                                             <span class="reminder-subject">{task.Subject}</span>
                                             <template if:true={task.TaskSubtype}>
                                                 <span class={task.subtypeColorClass}>{task.TaskSubtype}</span>
@@ -33,7 +39,9 @@
                                                     onclick={handleOpenMatter}
                                                 >{task.MatterName}</button>
                                             </template>
-                                            <span class="reminder-due">{task.dueLabel}</span>
+                                            <template if:true={task.dueLabel}>
+                                                <span class="reminder-due">{task.dueLabel}</span>
+                                            </template>
                                         </div>
                                     </div>
                                     <div class="reminder-item-side">

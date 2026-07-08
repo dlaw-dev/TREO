@@ -37,7 +37,20 @@ function colorClassForSubtype(subtype) {
     return PILL_COLOR_CLASSES[Math.abs(hash) % PILL_COLOR_CLASSES.length];
 }
 
+function priorityClassFor(priority) {
+    if (priority === 'High') {
+        return 'priority-high';
+    }
+    if (priority === 'Low') {
+        return 'priority-low';
+    }
+    return 'priority-normal';
+}
+
 function dueLabelFor(daysUntil) {
+    if (daysUntil == null) {
+        return null;
+    }
     if (daysUntil < 0) {
         const n = Math.abs(daysUntil);
         return `${n} day${n === 1 ? '' : 's'} overdue`;
@@ -95,7 +108,8 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         overdue: true,
         today: true,
         tomorrow: true,
-        thisWeek: true
+        thisWeek: true,
+        noDueDate: false
     };
 
     connectedCallback() {
@@ -143,7 +157,8 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         this.tasks = results.map((t) => ({
             ...t,
             dueLabel: dueLabelFor(t.DaysUntil),
-            subtypeColorClass: colorClassForSubtype(t.TaskSubtype)
+            subtypeColorClass: colorClassForSubtype(t.TaskSubtype),
+            priorityClass: priorityClassFor(t.Priority)
         }));
 
         if (this.urgentTasks.length > 0) {
@@ -187,8 +202,12 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         return this.tasks.filter((t) => t.DaysUntil > 1);
     }
 
+    get noDueDateTasks() {
+        return this.tasks.filter((t) => t.DaysUntil == null);
+    }
+
     get urgentTasks() {
-        return this.tasks.filter((t) => t.DaysUntil <= 0);
+        return this.tasks.filter((t) => t.DaysUntil != null && t.DaysUntil <= 0);
     }
 
     withMenuState(list) {
@@ -236,6 +255,15 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 headerClass: 'reminder-header reminder-header_week',
                 tasks: this.withMenuState(this.thisWeekTasks),
                 expanded: this.expanded.thisWeek
+            },
+            {
+                key: 'noDueDate',
+                label: 'No Due Date',
+                icon: 'utility:dash',
+                iconVariant: 'neutral',
+                headerClass: 'reminder-header reminder-header_none',
+                tasks: this.withMenuState(this.noDueDateTasks),
+                expanded: this.expanded.noDueDate
             }
         ]
             .filter((group) => group.tasks.length > 0)
@@ -250,6 +278,14 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         return this.tasks.length > 0;
     }
 
+    get isAllExpanded() {
+        return this.groups.every((g) => g.expanded);
+    }
+
+    get collapseAllLabel() {
+        return this.isAllExpanded ? 'Collapse All' : 'Expand All';
+    }
+
     get hasCompletedToday() {
         return this.completedToday > 0;
     }
@@ -262,6 +298,17 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     toggleSection(event) {
         const key = event.currentTarget.dataset.key;
         this.expanded = { ...this.expanded, [key]: !this.expanded[key] };
+    }
+
+    handleToggleAll() {
+        const target = !this.isAllExpanded;
+        this.expanded = {
+            overdue: target,
+            today: target,
+            tomorrow: target,
+            thisWeek: target,
+            noDueDate: target
+        };
     }
 
     removeTask(taskId) {

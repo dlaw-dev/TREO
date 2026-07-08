@@ -2,6 +2,26 @@
     padding: 0.5rem;
 }
 
+.panel-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 0.25rem 0.25rem;
+}
+
+.toggle-all-button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: #0b5cab;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.toggle-all-button:hover {
+    text-decoration: underline;
+}
+
 .reminder-section + .reminder-section {
     margin-top: 0.75rem;
 }
@@ -38,6 +58,14 @@
 
 .reminder-header_week .reminder-title {
     color: #444444;
+}
+
+.reminder-header_none {
+    opacity: 0.7;
+}
+
+.reminder-header_none .reminder-title {
+    color: #706e6b;
 }
 
 .reminder-title {
@@ -276,4 +304,34 @@
 .pill-color-default {
     background-color: #f3f2f2;
     color: #514f4d;
+}
+
+.priority-high,
+.priority-normal,
+.priority-low {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.02rem 0.35rem;
+    border-radius: 0.65rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.priority-high {
+    background-color: #fde8e8;
+    color: #ba0517;
+}
+
+.priority-normal {
+    background-color: #f3f2f2;
+    color: #706e6b;
+}
+
+.priority-low {
+    background-color: #eef4ff;
+    color: #3a5dae;
 }

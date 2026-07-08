@@ -32,6 +32,28 @@ public with sharing class TaskDueReminderController {
             results.add(new DueTask(t, todayDate));
         }
 
+        for (Task t : [
+            SELECT Id,
+                   Subject,
+                   ActivityDate,
+                   Priority,
+                   Status,
+                   Task_Subtype__c,
+                   NEOS_Matter__c,
+                   NEOS_Matter__r.Name,
+                   WhatId,
+                   What.Name
+            FROM Task
+            WHERE OwnerId = :UserInfo.getUserId()
+              AND Status != 'Completed'
+              AND ActivityDate = null
+              AND (Snoozed_Until__c = null OR Snoozed_Until__c <= :nowDt)
+            ORDER BY CreatedDate DESC
+            LIMIT 20
+        ]) {
+            results.add(new DueTask(t, todayDate));
+        }
+
         return results;
     }
 
@@ -70,8 +92,14 @@ public with sharing class TaskDueReminderController {
             ActivityDate = t.ActivityDate;
             Priority     = t.Priority;
             TaskSubtype  = t.Task_Subtype__c;
-            DaysUntil    = todayDate.daysBetween(t.ActivityDate);
-            IsOverdue    = DaysUntil < 0;
+
+            if (t.ActivityDate != null) {
+                DaysUntil = todayDate.daysBetween(t.ActivityDate);
+                IsOverdue = DaysUntil < 0;
+            } else {
+                DaysUntil = null;
+                IsOverdue = false;
+            }
 
             Id matterCandidateId = (t.NEOS_Matter__c != null) ? t.NEOS_Matter__c : t.WhatId;
             String matterCandidateName = (t.NEOS_Matter__r != null)
