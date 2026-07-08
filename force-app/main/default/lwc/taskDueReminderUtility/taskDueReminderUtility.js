@@ -25,6 +25,7 @@ const SNOOZE_OPTIONS = [
     { duration: 'ONE_HOUR', label: '1 Hour' },
     { duration: 'THREE_HOURS', label: '3 Hours' },
     { duration: 'TOMORROW', label: 'Tomorrow' },
+    { duration: 'THREE_DAYS', label: '3 Days' },
     { duration: 'NEXT_WEEK', label: 'Next Week' }
 ];
 
@@ -79,6 +80,13 @@ function computeSnoozeUntil(duration) {
                 now.getFullYear(),
                 now.getMonth(),
                 now.getDate() + 1,
+                8, 0, 0
+            ).getTime();
+        case 'THREE_DAYS':
+            return new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate() + 3,
                 8, 0, 0
             ).getTime();
         case 'NEXT_WEEK':
@@ -254,14 +262,18 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     withMenuState(list) {
-        return list.map((t) => ({
-            ...t,
-            isSnoozeMenuOpen: this.openSnoozeMenuId === t.Id,
-            snoozeOptions: this.snoozeOptions,
-            itemClass: this.removingIds.has(t.Id)
-                ? 'reminder-item reminder-item-removing'
-                : 'reminder-item'
-        }));
+        return list.map((t) => {
+            const isOpen = this.openSnoozeMenuId === t.Id;
+            return {
+                ...t,
+                isSnoozeMenuOpen: isOpen,
+                snoozeCaret: isOpen ? '▴' : '▾',
+                snoozeOptions: this.snoozeOptions,
+                itemClass: this.removingIds.has(t.Id)
+                    ? 'reminder-item reminder-item-removing'
+                    : 'reminder-item'
+            };
+        });
     }
 
     get groups() {

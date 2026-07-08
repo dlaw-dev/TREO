@@ -30,63 +30,65 @@
                         <ul class="reminder-list">
                             <template for:each={group.tasks} for:item="task">
                                 <li key={task.Id} class={task.itemClass} data-id={task.Id} onclick={handleOpenTask}>
-                                    <div class="reminder-item-main">
-                                        <div class="reminder-item-top">
-                                            <template if:true={task.Priority}>
-                                                <span class={task.priorityClass}>{task.Priority}</span>
-                                            </template>
-                                            <span class="reminder-subject">{task.Subject}</span>
-                                            <template if:true={task.TaskSubtype}>
-                                                <span class={task.subtypeColorClass}>{task.TaskSubtype}</span>
-                                            </template>
+                                    <div class="reminder-item-row">
+                                        <div class="reminder-item-main">
+                                            <div class="reminder-item-top">
+                                                <template if:true={task.Priority}>
+                                                    <span class={task.priorityClass}>{task.Priority}</span>
+                                                </template>
+                                                <span class="reminder-subject">{task.Subject}</span>
+                                                <template if:true={task.TaskSubtype}>
+                                                    <span class={task.subtypeColorClass}>{task.TaskSubtype}</span>
+                                                </template>
+                                            </div>
+                                            <div class="reminder-item-meta">
+                                                <template if:true={task.MatterName}>
+                                                    <button
+                                                        type="button"
+                                                        class="reminder-matter-link"
+                                                        data-matter-id={task.MatterId}
+                                                        onclick={handleOpenMatter}
+                                                    >{task.MatterName}</button>
+                                                </template>
+                                                <template if:true={task.dueLabel}>
+                                                    <span class="reminder-due">{task.dueLabel}</span>
+                                                </template>
+                                            </div>
                                         </div>
-                                        <div class="reminder-item-meta">
-                                            <template if:true={task.MatterName}>
-                                                <button
-                                                    type="button"
-                                                    class="reminder-matter-link"
-                                                    data-matter-id={task.MatterId}
-                                                    onclick={handleOpenMatter}
-                                                >{task.MatterName}</button>
-                                            </template>
-                                            <template if:true={task.dueLabel}>
-                                                <span class="reminder-due">{task.dueLabel}</span>
-                                            </template>
-                                        </div>
-                                    </div>
-                                    <div class="reminder-item-side">
-                                        <lightning-button-icon
-                                            icon-name="utility:check"
-                                            variant="success"
-                                            size="small"
-                                            alternative-text="Complete task"
-                                            title="Mark complete"
-                                            data-id={task.Id}
-                                            onclick={handleComplete}
-                                        ></lightning-button-icon>
-                                        <div class="snooze-wrapper">
+                                        <div class="reminder-item-side">
+                                            <lightning-button-icon
+                                                icon-name="utility:check"
+                                                variant="success"
+                                                size="small"
+                                                alternative-text="Complete task"
+                                                title="Mark complete"
+                                                data-id={task.Id}
+                                                onclick={handleComplete}
+                                            ></lightning-button-icon>
                                             <button
                                                 type="button"
                                                 class="snooze-pill"
                                                 title="Snooze (remind me again later)"
                                                 data-id={task.Id}
                                                 onclick={toggleSnoozeMenu}
-                                            >Snooze <span class="snooze-caret">&#9662;</span></button>
-                                            <template if:true={task.isSnoozeMenuOpen}>
-                                                <ul class="snooze-menu">
-                                                    <template for:each={task.snoozeOptions} for:item="option">
-                                                        <li
-                                                            key={option.duration}
-                                                            data-id={task.Id}
-                                                            data-duration={option.duration}
-                                                            data-label={option.label}
-                                                            onclick={handleSnooze}
-                                                        >{option.label}</li>
-                                                    </template>
-                                                </ul>
-                                            </template>
+                                            >Snooze <span class="snooze-caret">{task.snoozeCaret}</span></button>
                                         </div>
                                     </div>
+                                    <template if:true={task.isSnoozeMenuOpen}>
+                                        <div class="snooze-options">
+                                            <template for:each={task.snoozeOptions} for:item="option">
+                                                <button
+                                                    type="button"
+                                                    key={option.duration}
+                                                    class="snooze-option-pill"
+                                                    data-id={task.Id}
+                                                    data-duration={option.duration}
+                                                    data-label={option.label}
+                                                    onclick={handleSnooze}
+                                                >{option.label}</button>
+                                            </template>
+                                        </div>
+                                    </template>
                                 </li>
                             </template>
                         </ul>

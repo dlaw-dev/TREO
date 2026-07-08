@@ -145,13 +145,12 @@
 
 .reminder-item {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
     gap: 0.5rem;
     padding: 0.6rem 0.25rem;
     border-bottom: 1px solid #e0e0e0;
     cursor: pointer;
-    max-height: 100px;
+    max-height: 220px;
     overflow: hidden;
     opacity: 1;
     transition: background-color 0.15s ease-in-out,
@@ -171,6 +170,14 @@
     padding-bottom: 0;
     border-bottom-color: transparent;
     pointer-events: none;
+}
+
+.reminder-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-width: 0;
 }
 
 .reminder-item-main {
@@ -238,10 +245,6 @@
     flex-shrink: 0;
 }
 
-.snooze-wrapper {
-    position: relative;
-}
-
 .snooze-pill {
     display: inline-flex;
     align-items: center;
@@ -256,6 +259,7 @@
     font-weight: 600;
     line-height: 1;
     cursor: pointer;
+    flex-shrink: 0;
     transition: background-color 0.15s ease-in-out;
 }
 
@@ -271,31 +275,32 @@
     font-size: 0.65rem;
 }
 
-.snooze-menu {
-    position: absolute;
-    top: calc(100% + 0.25rem);
-    right: 0;
-    z-index: 10;
-    min-width: 8rem;
-    margin: 0;
-    padding: 0.25rem 0;
-    list-style: none;
-    background-color: #ffffff;
-    border: 1px solid #dddbda;
-    border-radius: 0.5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+.snooze-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.15rem 0 0 0.25rem;
 }
 
-.snooze-menu li {
-    padding: 0.4rem 0.85rem;
-    font-size: 0.8rem;
-    color: #2b2826;
+.snooze-option-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 1.5rem;
+    padding: 0 0.6rem;
+    border-radius: 1rem;
+    border: 1px solid #c9c7c5;
+    background-color: #f8f8f8;
+    color: #444444;
+    font-size: 0.7rem;
+    font-weight: 600;
     cursor: pointer;
-    white-space: nowrap;
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, color 0.15s ease-in-out;
 }
 
-.snooze-menu li:hover {
-    background-color: #f3f3f3;
+.snooze-option-pill:hover {
+    background-color: #eef4ff;
+    border-color: #0b5cab;
+    color: #0b5cab;
 }
 
 .reminder-empty {
