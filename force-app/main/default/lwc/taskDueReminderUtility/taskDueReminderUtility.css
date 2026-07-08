@@ -108,12 +108,22 @@
     text-overflow: ellipsis;
 }
 
-.reminder-matter {
+.reminder-matter-link {
+    padding: 0;
+    border: none;
+    background: none;
     font-size: 0.75rem;
-    color: #706e6b;
+    font-weight: 600;
+    color: #0b5cab;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.reminder-matter-link:hover {
+    text-decoration: underline;
 }
 
 .reminder-due {
@@ -122,7 +132,7 @@
     flex-shrink: 0;
 }
 
-.reminder-matter + .reminder-due::before {
+.reminder-matter-link + .reminder-due::before {
     content: '\2022';
     margin-right: 0.4rem;
     color: #c9c7c5;
@@ -135,9 +145,14 @@
     flex-shrink: 0;
 }
 
-.dismiss-pill {
+.snooze-wrapper {
+    position: relative;
+}
+
+.snooze-pill {
     display: inline-flex;
     align-items: center;
+    gap: 0.25rem;
     height: 1.75rem;
     padding: 0 0.75rem;
     border-radius: 1rem;
@@ -151,12 +166,43 @@
     transition: background-color 0.15s ease-in-out;
 }
 
-.dismiss-pill:hover {
+.snooze-pill:hover {
     background-color: #f3f3f3;
 }
 
-.dismiss-pill:active {
+.snooze-pill:active {
     background-color: #ecebea;
+}
+
+.snooze-caret {
+    font-size: 0.65rem;
+}
+
+.snooze-menu {
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    right: 0;
+    z-index: 10;
+    min-width: 8rem;
+    margin: 0;
+    padding: 0.25rem 0;
+    list-style: none;
+    background-color: #ffffff;
+    border: 1px solid #dddbda;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.snooze-menu li {
+    padding: 0.4rem 0.85rem;
+    font-size: 0.8rem;
+    color: #2b2826;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.snooze-menu li:hover {
+    background-color: #f3f3f3;
 }
 
 .reminder-empty {

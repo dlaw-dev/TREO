@@ -5,6 +5,7 @@ public with sharing class TaskDueReminderController {
 
         Date todayDate = Date.today();
         Date upperBound = todayDate.addDays(7);
+        Datetime nowDt = Datetime.now();
 
         List<DueTask> results = new List<DueTask>();
 
@@ -16,12 +17,15 @@ public with sharing class TaskDueReminderController {
                    Status,
                    Task_Subtype__c,
                    NEOS_Matter__c,
-                   NEOS_Matter__r.Name
+                   NEOS_Matter__r.Name,
+                   WhatId,
+                   What.Name
             FROM Task
             WHERE OwnerId = :UserInfo.getUserId()
               AND Status != 'Completed'
               AND ActivityDate != null
               AND ActivityDate <= :upperBound
+              AND (Snoozed_Until__c = null OR Snoozed_Until__c <= :nowDt)
             ORDER BY ActivityDate ASC
             LIMIT 100
         ]) {
@@ -29,6 +33,24 @@ public with sharing class TaskDueReminderController {
         }
 
         return results;
+    }
+
+    @AuraEnabled
+    public static void snoozeTask(Id taskId, Datetime snoozeUntil) {
+        try {
+            Task t = [
+                SELECT Id
+                FROM Task
+                WHERE Id = :taskId
+                  AND OwnerId = :UserInfo.getUserId()
+                LIMIT 1
+            ];
+
+            t.Snoozed_Until__c = snoozeUntil;
+            update t;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error snoozing task: ' + e.getMessage());
+        }
     }
 
     public class DueTask {
@@ -47,11 +69,20 @@ public with sharing class TaskDueReminderController {
             Subject      = t.Subject;
             ActivityDate = t.ActivityDate;
             Priority     = t.Priority;
-            MatterId     = t.NEOS_Matter__c;
-            MatterName   = (t.NEOS_Matter__r != null) ? t.NEOS_Matter__r.Name : null;
             TaskSubtype  = t.Task_Subtype__c;
             DaysUntil    = todayDate.daysBetween(t.ActivityDate);
             IsOverdue    = DaysUntil < 0;
+
+            Id matterCandidateId = (t.NEOS_Matter__c != null) ? t.NEOS_Matter__c : t.WhatId;
+            String matterCandidateName = (t.NEOS_Matter__r != null)
+                ? t.NEOS_Matter__r.Name
+                : (t.What != null ? t.What.Name : null);
+
+            Boolean isMatter = matterCandidateId != null
+                && matterCandidateId.getSobjectType() == NEOS_Matter__c.SObjectType;
+
+            MatterId   = isMatter ? matterCandidateId : null;
+            MatterName = isMatter ? matterCandidateName : null;
         }
     }
 }

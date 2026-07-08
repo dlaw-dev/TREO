@@ -5,6 +5,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { EnclosingUtilityId, open, updateUtility } from 'lightning/platformUtilityBarApi';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 import getMyDueTasks from '@salesforce/apex/TaskDueReminderController.getMyDueTasks';
+import snoozeTask from '@salesforce/apex/TaskDueReminderController.snoozeTask';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
@@ -16,6 +17,13 @@ const PILL_COLOR_CLASSES = [
     'pill-color-4',
     'pill-color-5',
     'pill-color-6'
+];
+
+const SNOOZE_OPTIONS = [
+    { duration: 'ONE_HOUR', label: '1 Hour' },
+    { duration: 'THREE_HOURS', label: '3 Hours' },
+    { duration: 'TOMORROW', label: 'Tomorrow' },
+    { duration: 'NEXT_WEEK', label: 'Next Week' }
 ];
 
 function colorClassForSubtype(subtype) {
@@ -43,17 +51,45 @@ function dueLabelFor(daysUntil) {
     return `${daysUntil} days`;
 }
 
+function computeSnoozeUntil(duration) {
+    const now = new Date();
+
+    switch (duration) {
+        case 'ONE_HOUR':
+            return now.getTime() + 60 * 60 * 1000;
+        case 'THREE_HOURS':
+            return now.getTime() + 3 * 60 * 60 * 1000;
+        case 'TOMORROW':
+            return new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate() + 1,
+                8, 0, 0
+            ).getTime();
+        case 'NEXT_WEEK':
+            return new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate() + 7,
+                8, 0, 0
+            ).getTime();
+        default:
+            return now.getTime();
+    }
+}
+
 export default class TaskDueReminderUtility extends NavigationMixin(LightningElement) {
 
     @wire(MessageContext) messageContext;
     @wire(EnclosingUtilityId) utilityId;
 
     tasks = [];
-    dismissedIds = new Set();
+    openSnoozeMenuId;
     completedToday = 0;
     pollIntervalId;
     subscription;
     hasShownLoadError = false;
+    snoozeOptions = SNOOZE_OPTIONS;
 
     expanded = {
         overdue: true,
@@ -104,13 +140,11 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             return;
         }
 
-        this.tasks = results
-            .filter((t) => !this.dismissedIds.has(t.Id))
-            .map((t) => ({
-                ...t,
-                dueLabel: dueLabelFor(t.DaysUntil),
-                subtypeColorClass: colorClassForSubtype(t.TaskSubtype)
-            }));
+        this.tasks = results.map((t) => ({
+            ...t,
+            dueLabel: dueLabelFor(t.DaysUntil),
+            subtypeColorClass: colorClassForSubtype(t.TaskSubtype)
+        }));
 
         if (this.urgentTasks.length > 0) {
             this.popUp();
@@ -157,6 +191,14 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         return this.tasks.filter((t) => t.DaysUntil <= 0);
     }
 
+    withMenuState(list) {
+        return list.map((t) => ({
+            ...t,
+            isSnoozeMenuOpen: this.openSnoozeMenuId === t.Id,
+            snoozeOptions: this.snoozeOptions
+        }));
+    }
+
     get groups() {
         return [
             {
@@ -165,7 +207,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 icon: 'utility:warning',
                 iconVariant: 'error',
                 headerClass: 'reminder-header reminder-header_overdue',
-                tasks: this.overdueTasks,
+                tasks: this.withMenuState(this.overdueTasks),
                 expanded: this.expanded.overdue
             },
             {
@@ -174,7 +216,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 icon: 'utility:notification',
                 iconVariant: 'warning',
                 headerClass: 'reminder-header reminder-header_today',
-                tasks: this.todayTasks,
+                tasks: this.withMenuState(this.todayTasks),
                 expanded: this.expanded.today
             },
             {
@@ -183,7 +225,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 icon: 'utility:event',
                 iconVariant: 'brand',
                 headerClass: 'reminder-header reminder-header_tomorrow',
-                tasks: this.tomorrowTasks,
+                tasks: this.withMenuState(this.tomorrowTasks),
                 expanded: this.expanded.tomorrow
             },
             {
@@ -192,7 +234,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 icon: 'utility:event',
                 iconVariant: 'neutral',
                 headerClass: 'reminder-header reminder-header_week',
-                tasks: this.thisWeekTasks,
+                tasks: this.withMenuState(this.thisWeekTasks),
                 expanded: this.expanded.thisWeek
             }
         ]
@@ -230,12 +272,42 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         }
     }
 
-    handleDismiss(event) {
+    toggleSnoozeMenu(event) {
         event.stopPropagation();
         const taskId = event.currentTarget.dataset.id;
+        this.openSnoozeMenuId = this.openSnoozeMenuId === taskId ? null : taskId;
+    }
 
-        this.dismissedIds.add(taskId);
-        this.removeTask(taskId);
+    async handleSnooze(event) {
+        event.stopPropagation();
+        const taskId = event.currentTarget.dataset.id;
+        const duration = event.currentTarget.dataset.duration;
+        const label = event.currentTarget.dataset.label;
+
+        this.openSnoozeMenuId = null;
+
+        try {
+            const snoozeUntil = new Date(computeSnoozeUntil(duration)).toISOString();
+            await snoozeTask({ taskId, snoozeUntil });
+
+            this.removeTask(taskId);
+
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Reminder snoozed',
+                    message: `We'll remind you again in ${label.toLowerCase()}.`,
+                    variant: 'success'
+                })
+            );
+        } catch (error) {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Could not snooze task',
+                    message: error?.body?.message || 'Please try again.',
+                    variant: 'error'
+                })
+            );
+        }
     }
 
     async handleComplete(event) {
@@ -275,6 +347,20 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             attributes: {
                 recordId: taskId,
                 objectApiName: 'Task',
+                actionName: 'view'
+            }
+        });
+    }
+
+    handleOpenMatter(event) {
+        event.stopPropagation();
+        const matterId = event.currentTarget.dataset.matterId;
+
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: {
+                recordId: matterId,
+                objectApiName: 'NEOS_Matter__c',
                 actionName: 'view'
             }
         });

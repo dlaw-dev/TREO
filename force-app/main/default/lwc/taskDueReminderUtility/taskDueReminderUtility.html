@@ -26,7 +26,12 @@
                                         </div>
                                         <div class="reminder-item-meta">
                                             <template if:true={task.MatterName}>
-                                                <span class="reminder-matter">{task.MatterName}</span>
+                                                <button
+                                                    type="button"
+                                                    class="reminder-matter-link"
+                                                    data-matter-id={task.MatterId}
+                                                    onclick={handleOpenMatter}
+                                                >{task.MatterName}</button>
                                             </template>
                                             <span class="reminder-due">{task.dueLabel}</span>
                                         </div>
@@ -41,13 +46,28 @@
                                             data-id={task.Id}
                                             onclick={handleComplete}
                                         ></lightning-button-icon>
-                                        <button
-                                            type="button"
-                                            class="dismiss-pill"
-                                            title="Dismiss (hides for now, task stays open)"
-                                            data-id={task.Id}
-                                            onclick={handleDismiss}
-                                        >Dismiss</button>
+                                        <div class="snooze-wrapper">
+                                            <button
+                                                type="button"
+                                                class="snooze-pill"
+                                                title="Snooze (remind me again later)"
+                                                data-id={task.Id}
+                                                onclick={toggleSnoozeMenu}
+                                            >Snooze <span class="snooze-caret">&#9662;</span></button>
+                                            <template if:true={task.isSnoozeMenuOpen}>
+                                                <ul class="snooze-menu">
+                                                    <template for:each={task.snoozeOptions} for:item="option">
+                                                        <li
+                                                            key={option.duration}
+                                                            data-id={task.Id}
+                                                            data-duration={option.duration}
+                                                            data-label={option.label}
+                                                            onclick={handleSnooze}
+                                                        >{option.label}</li>
+                                                    </template>
+                                                </ul>
+                                            </template>
+                                        </div>
                                     </div>
                                 </li>
                             </template>
