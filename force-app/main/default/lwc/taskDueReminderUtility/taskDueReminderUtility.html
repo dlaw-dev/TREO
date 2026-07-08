@@ -2,6 +2,16 @@
     <div class="reminder-container">
         <template if:true={hasTasks}>
             <div class="panel-toolbar">
+                <template if:true={hasTodayProgress}>
+                    <div class="progress-summary">
+                        <div class="progress-ring" style={progressRingStyle}>
+                            <div class="progress-ring-inner">
+                                <span class="progress-ring-text">{todayProgressPercent}%</span>
+                            </div>
+                        </div>
+                        <span class="progress-label">{todayProgressLabel} done today</span>
+                    </div>
+                </template>
                 <button type="button" class="toggle-all-button" onclick={handleToggleAll}>{collapseAllLabel}</button>
             </div>
             <template for:each={groups} for:item="group">
@@ -19,7 +29,7 @@
                     <template if:true={group.expanded}>
                         <ul class="reminder-list">
                             <template for:each={group.tasks} for:item="task">
-                                <li key={task.Id} class="reminder-item" data-id={task.Id} onclick={handleOpenTask}>
+                                <li key={task.Id} class={task.itemClass} data-id={task.Id} onclick={handleOpenTask}>
                                     <div class="reminder-item-main">
                                         <div class="reminder-item-top">
                                             <template if:true={task.Priority}>

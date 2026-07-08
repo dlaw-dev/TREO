@@ -4,8 +4,50 @@
 
 .panel-toolbar {
     display: flex;
-    justify-content: flex-end;
-    padding: 0 0.25rem 0.25rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0 0.25rem 0.5rem;
+}
+
+.progress-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.progress-ring {
+    --progress: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: conic-gradient(#2e844a calc(var(--progress) * 1%), #e0e0e0 0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.3s ease-in-out;
+}
+
+.progress-ring-inner {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-ring-text {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #2b2826;
+}
+
+.progress-label {
+    font-size: 0.75rem;
+    color: #706e6b;
 }
 
 .toggle-all-button {
@@ -60,6 +102,14 @@
     color: #444444;
 }
 
+.reminder-header_month {
+    opacity: 0.85;
+}
+
+.reminder-header_month .reminder-title {
+    color: #444444;
+}
+
 .reminder-header_none {
     opacity: 0.7;
 }
@@ -101,11 +151,26 @@
     padding: 0.6rem 0.25rem;
     border-bottom: 1px solid #e0e0e0;
     cursor: pointer;
-    transition: background-color 0.15s ease-in-out;
+    max-height: 100px;
+    overflow: hidden;
+    opacity: 1;
+    transition: background-color 0.15s ease-in-out,
+        opacity 0.2s ease-in-out,
+        max-height 0.2s ease-in-out,
+        padding 0.2s ease-in-out;
 }
 
 .reminder-item:hover {
     background-color: #f3f3f3;
+}
+
+.reminder-item-removing {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-bottom-color: transparent;
+    pointer-events: none;
 }
 
 .reminder-item-main {

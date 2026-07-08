@@ -2,13 +2,15 @@ import { LightningElement, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { subscribe, publish, MessageContext } from 'lightning/messageService';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import { EnclosingUtilityId, open, updateUtility } from 'lightning/platformUtilityBarApi';
+import { EnclosingUtilityId, open, updateUtility, getInfo } from 'lightning/platformUtilityBarApi';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 import getMyDueTasks from '@salesforce/apex/TaskDueReminderController.getMyDueTasks';
 import snoozeTask from '@salesforce/apex/TaskDueReminderController.snoozeTask';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
+const REMOVE_ANIMATION_MS = 220;
+const DEFAULT_UTILITY_LABEL = 'Task Hub';
 
 const PILL_COLOR_CLASSES = [
     'pill-color-1',
@@ -97,35 +99,57 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     @wire(EnclosingUtilityId) utilityId;
 
     tasks = [];
+    removingIds = new Set();
     openSnoozeMenuId;
     completedToday = 0;
     pollIntervalId;
     subscription;
     hasShownLoadError = false;
     snoozeOptions = SNOOZE_OPTIONS;
+    baseUtilityLabel;
+    suppressNextTaskChangedEcho = false;
 
     expanded = {
         overdue: true,
         today: true,
         tomorrow: true,
         thisWeek: true,
+        thisMonth: false,
         noDueDate: false
     };
 
     connectedCallback() {
+        this.ensureBaseUtilityLabel();
         this.refreshTasks();
         this.pollIntervalId = setInterval(() => this.refreshTasks(), POLL_INTERVAL_MS);
 
         if (!this.subscription) {
-            this.subscription = subscribe(this.messageContext, TASK_CHANGED, () =>
-                this.refreshTasks()
-            );
+            this.subscription = subscribe(this.messageContext, TASK_CHANGED, () => {
+                if (this.suppressNextTaskChangedEcho) {
+                    this.suppressNextTaskChangedEcho = false;
+                    return;
+                }
+                this.refreshTasks();
+            });
         }
     }
 
     disconnectedCallback() {
         if (this.pollIntervalId) {
             clearInterval(this.pollIntervalId);
+        }
+    }
+
+    async ensureBaseUtilityLabel() {
+        if (this.baseUtilityLabel || !this.utilityId) {
+            return;
+        }
+
+        try {
+            const info = await getInfo(this.utilityId);
+            this.baseUtilityLabel = info?.label || DEFAULT_UTILITY_LABEL;
+        } catch (error) {
+            this.baseUtilityLabel = DEFAULT_UTILITY_LABEL;
         }
     }
 
@@ -161,12 +185,14 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             priorityClass: priorityClassFor(t.Priority)
         }));
 
+        this.syncUtilityChrome();
+
         if (this.urgentTasks.length > 0) {
-            this.popUp();
+            this.openPanel();
         }
     }
 
-    popUp() {
+    openPanel() {
         if (!this.utilityId) {
             return;
         }
@@ -176,14 +202,25 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 // eslint-disable-next-line no-console
                 console.error('Could not auto-open utility panel', error);
             });
-            updateUtility(this.utilityId, { highlighted: true }).catch((error) => {
-                // eslint-disable-next-line no-console
-                console.error('Could not highlight utility icon', error);
-            });
         } catch (error) {
             // eslint-disable-next-line no-console
             console.error('Utility bar API call failed', error);
         }
+    }
+
+    syncUtilityChrome() {
+        if (!this.utilityId) {
+            return;
+        }
+
+        const count = this.urgentTasks.length;
+        const base = this.baseUtilityLabel || DEFAULT_UTILITY_LABEL;
+        const label = count > 0 ? `${base} (${count})` : base;
+
+        updateUtility(this.utilityId, { label, highlighted: count > 0 }).catch((error) => {
+            // eslint-disable-next-line no-console
+            console.error('Could not update utility chrome', error);
+        });
     }
 
     get overdueTasks() {
@@ -199,7 +236,11 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     get thisWeekTasks() {
-        return this.tasks.filter((t) => t.DaysUntil > 1);
+        return this.tasks.filter((t) => t.DaysUntil > 1 && t.DaysUntil <= 7);
+    }
+
+    get thisMonthTasks() {
+        return this.tasks.filter((t) => t.DaysUntil > 7);
     }
 
     get noDueDateTasks() {
@@ -207,14 +248,19 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     get urgentTasks() {
-        return this.tasks.filter((t) => t.DaysUntil != null && t.DaysUntil <= 0);
+        return this.tasks.filter(
+            (t) => t.DaysUntil != null && t.DaysUntil <= 0 && !this.removingIds.has(t.Id)
+        );
     }
 
     withMenuState(list) {
         return list.map((t) => ({
             ...t,
             isSnoozeMenuOpen: this.openSnoozeMenuId === t.Id,
-            snoozeOptions: this.snoozeOptions
+            snoozeOptions: this.snoozeOptions,
+            itemClass: this.removingIds.has(t.Id)
+                ? 'reminder-item reminder-item-removing'
+                : 'reminder-item'
         }));
     }
 
@@ -257,6 +303,15 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 expanded: this.expanded.thisWeek
             },
             {
+                key: 'thisMonth',
+                label: 'This Month',
+                icon: 'utility:event',
+                iconVariant: 'neutral',
+                headerClass: 'reminder-header reminder-header_month',
+                tasks: this.withMenuState(this.thisMonthTasks),
+                expanded: this.expanded.thisMonth
+            },
+            {
                 key: 'noDueDate',
                 label: 'No Due Date',
                 icon: 'utility:dash',
@@ -295,6 +350,27 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         return `You've completed ${count} task${count === 1 ? '' : 's'} today. Nice work!`;
     }
 
+    get todayProgressTotal() {
+        return this.urgentTasks.length + this.completedToday;
+    }
+
+    get hasTodayProgress() {
+        return this.todayProgressTotal > 0;
+    }
+
+    get todayProgressPercent() {
+        const total = this.todayProgressTotal;
+        return total === 0 ? 0 : Math.round((this.completedToday / total) * 100);
+    }
+
+    get todayProgressLabel() {
+        return `${this.completedToday}/${this.todayProgressTotal}`;
+    }
+
+    get progressRingStyle() {
+        return `--progress: ${this.todayProgressPercent}`;
+    }
+
     toggleSection(event) {
         const key = event.currentTarget.dataset.key;
         this.expanded = { ...this.expanded, [key]: !this.expanded[key] };
@@ -307,16 +383,28 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             today: target,
             tomorrow: target,
             thisWeek: target,
+            thisMonth: target,
             noDueDate: target
         };
     }
 
     removeTask(taskId) {
         this.tasks = this.tasks.filter((t) => t.Id !== taskId);
+        this.syncUtilityChrome();
+    }
 
-        if (this.urgentTasks.length === 0 && this.utilityId) {
-            updateUtility(this.utilityId, { highlighted: false }).catch(() => {});
-        }
+    scheduleRemoval(taskId) {
+        const removing = new Set(this.removingIds);
+        removing.add(taskId);
+        this.removingIds = removing;
+        this.syncUtilityChrome();
+
+        setTimeout(() => {
+            const after = new Set(this.removingIds);
+            after.delete(taskId);
+            this.removingIds = after;
+            this.removeTask(taskId);
+        }, REMOVE_ANIMATION_MS);
     }
 
     toggleSnoozeMenu(event) {
@@ -337,7 +425,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             const snoozeUntil = new Date(computeSnoozeUntil(duration)).toISOString();
             await snoozeTask({ taskId, snoozeUntil });
 
-            this.removeTask(taskId);
+            this.scheduleRemoval(taskId);
 
             this.dispatchEvent(
                 new ShowToastEvent({
@@ -364,8 +452,9 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         try {
             await completeTask({ taskId });
 
-            this.removeTask(taskId);
             this.completedToday += 1;
+            this.scheduleRemoval(taskId);
+            this.suppressNextTaskChangedEcho = true;
             publish(this.messageContext, TASK_CHANGED, {});
 
             this.dispatchEvent(

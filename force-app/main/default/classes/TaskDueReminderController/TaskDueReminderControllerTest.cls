@@ -32,10 +32,17 @@ private class TaskDueReminderControllerTest {
             OwnerId      = UserInfo.getUserId()
         );
 
+        Task dueThisMonthTask = new Task(
+            Subject      = 'Due This Month Task',
+            Status       = 'Not Started',
+            ActivityDate = Date.today().addDays(20),
+            OwnerId      = UserInfo.getUserId()
+        );
+
         Task dueBeyondWindowTask = new Task(
             Subject      = 'Due Beyond Window Task',
             Status       = 'Not Started',
-            ActivityDate = Date.today().addDays(10),
+            ActivityDate = Date.today().addDays(35),
             OwnerId      = UserInfo.getUserId()
         );
 
@@ -53,7 +60,7 @@ private class TaskDueReminderControllerTest {
         );
 
         insert new List<Task>{
-            overdueTask, dueTodayTask, dueTomorrowTask, dueThisWeekTask,
+            overdueTask, dueTodayTask, dueTomorrowTask, dueThisWeekTask, dueThisMonthTask,
             dueBeyondWindowTask, completedOverdueTask, noDueDateTask
         };
 
@@ -61,7 +68,7 @@ private class TaskDueReminderControllerTest {
         List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getMyDueTasks();
         Test.stopTest();
 
-        System.assertEquals(5, results.size());
+        System.assertEquals(6, results.size());
 
         Map<Id, TaskDueReminderController.DueTask> byId =
             new Map<Id, TaskDueReminderController.DueTask>();
@@ -73,6 +80,7 @@ private class TaskDueReminderControllerTest {
         System.assert(byId.containsKey(dueTodayTask.Id));
         System.assert(byId.containsKey(dueTomorrowTask.Id));
         System.assert(byId.containsKey(dueThisWeekTask.Id));
+        System.assert(byId.containsKey(dueThisMonthTask.Id));
         System.assert(byId.containsKey(noDueDateTask.Id));
         System.assert(!byId.containsKey(dueBeyondWindowTask.Id));
         System.assert(!byId.containsKey(completedOverdueTask.Id));
@@ -85,6 +93,7 @@ private class TaskDueReminderControllerTest {
 
         System.assertEquals(1, byId.get(dueTomorrowTask.Id).DaysUntil);
         System.assertEquals(5, byId.get(dueThisWeekTask.Id).DaysUntil);
+        System.assertEquals(20, byId.get(dueThisMonthTask.Id).DaysUntil);
 
         System.assertEquals(null, byId.get(noDueDateTask.Id).DaysUntil);
         System.assertEquals(false, byId.get(noDueDateTask.Id).IsOverdue);
@@ -96,7 +105,7 @@ private class TaskDueReminderControllerTest {
         Task farFutureTask = new Task(
             Subject      = 'Far Future Task',
             Status       = 'Not Started',
-            ActivityDate = Date.today().addDays(30),
+            ActivityDate = Date.today().addDays(60),
             OwnerId      = UserInfo.getUserId()
         );
         insert farFutureTask;

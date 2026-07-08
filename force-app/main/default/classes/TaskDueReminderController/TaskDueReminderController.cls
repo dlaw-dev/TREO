@@ -4,7 +4,7 @@ public with sharing class TaskDueReminderController {
     public static List<DueTask> getMyDueTasks() {
 
         Date todayDate = Date.today();
-        Date upperBound = todayDate.addDays(7);
+        Date upperBound = todayDate.addDays(30);
         Datetime nowDt = Datetime.now();
 
         List<DueTask> results = new List<DueTask>();
@@ -27,7 +27,7 @@ public with sharing class TaskDueReminderController {
               AND ActivityDate <= :upperBound
               AND (Snoozed_Until__c = null OR Snoozed_Until__c <= :nowDt)
             ORDER BY ActivityDate ASC
-            LIMIT 100
+            LIMIT 150
         ]) {
             results.add(new DueTask(t, todayDate));
         }
