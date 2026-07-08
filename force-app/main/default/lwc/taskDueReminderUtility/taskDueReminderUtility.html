@@ -1,0 +1,70 @@
+<template>
+    <div class="reminder-container">
+        <template if:true={hasTasks}>
+            <template for:each={groups} for:item="group">
+                <div key={group.key} class="reminder-section">
+                    <div class={group.headerClass} data-key={group.key} onclick={toggleSection}>
+                        <lightning-icon
+                            icon-name={group.chevron}
+                            size="xx-small"
+                            class="reminder-chevron"
+                        ></lightning-icon>
+                        <lightning-icon icon-name={group.icon} size="x-small" variant={group.iconVariant}></lightning-icon>
+                        <span class="reminder-title">{group.label}</span>
+                        <span class="reminder-count">{group.count}</span>
+                    </div>
+                    <template if:true={group.expanded}>
+                        <ul class="reminder-list">
+                            <template for:each={group.tasks} for:item="task">
+                                <li key={task.Id} class="reminder-item" data-id={task.Id} onclick={handleOpenTask}>
+                                    <div class="reminder-item-main">
+                                        <div class="reminder-item-top">
+                                            <span class="reminder-subject">{task.Subject}</span>
+                                            <template if:true={task.TaskSubtype}>
+                                                <span class={task.subtypeColorClass}>{task.TaskSubtype}</span>
+                                            </template>
+                                        </div>
+                                        <div class="reminder-item-meta">
+                                            <template if:true={task.MatterName}>
+                                                <span class="reminder-matter">{task.MatterName}</span>
+                                            </template>
+                                            <span class="reminder-due">{task.dueLabel}</span>
+                                        </div>
+                                    </div>
+                                    <div class="reminder-item-side">
+                                        <lightning-button-icon
+                                            icon-name="utility:check"
+                                            variant="success"
+                                            size="small"
+                                            alternative-text="Complete task"
+                                            title="Mark complete"
+                                            data-id={task.Id}
+                                            onclick={handleComplete}
+                                        ></lightning-button-icon>
+                                        <button
+                                            type="button"
+                                            class="dismiss-pill"
+                                            title="Dismiss (hides for now, task stays open)"
+                                            data-id={task.Id}
+                                            onclick={handleDismiss}
+                                        >Dismiss</button>
+                                    </div>
+                                </li>
+                            </template>
+                        </ul>
+                    </template>
+                </div>
+            </template>
+        </template>
+
+        <template if:false={hasTasks}>
+            <div class="reminder-empty">
+                <lightning-icon icon-name="utility:success" size="small" variant="success"></lightning-icon>
+                <span class="reminder-empty-title">You're all caught up!</span>
+                <template if:true={hasCompletedToday}>
+                    <span class="reminder-empty-subtitle">{completedTodayMessage}</span>
+                </template>
+            </div>
+        </template>
+    </div>
+</template>

@@ -1,0 +1,233 @@
+.reminder-container {
+    padding: 0.5rem;
+}
+
+.reminder-section + .reminder-section {
+    margin-top: 0.75rem;
+}
+
+.reminder-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.25rem;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 0.25rem;
+}
+
+.reminder-header:hover {
+    background-color: #f3f3f3;
+}
+
+.reminder-chevron {
+    flex-shrink: 0;
+}
+
+.reminder-header_overdue .reminder-title {
+    color: #ba0517;
+}
+
+.reminder-header_today .reminder-title {
+    color: #b35c00;
+}
+
+.reminder-header_tomorrow .reminder-title {
+    color: #0b5cab;
+}
+
+.reminder-header_week .reminder-title {
+    color: #444444;
+}
+
+.reminder-title {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.reminder-count {
+    margin-left: auto;
+    min-width: 1.25rem;
+    padding: 0 0.35rem;
+    border-radius: 1rem;
+    background-color: #e0e0e0;
+    color: #444444;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-align: center;
+    text-transform: none;
+}
+
+.reminder-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.reminder-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.6rem 0.25rem;
+    border-bottom: 1px solid #e0e0e0;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.reminder-item:hover {
+    background-color: #f3f3f3;
+}
+
+.reminder-item-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.reminder-item-top {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.reminder-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.reminder-subject {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.reminder-matter {
+    font-size: 0.75rem;
+    color: #706e6b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.reminder-due {
+    font-size: 0.75rem;
+    color: #706e6b;
+    flex-shrink: 0;
+}
+
+.reminder-matter + .reminder-due::before {
+    content: '\2022';
+    margin-right: 0.4rem;
+    color: #c9c7c5;
+}
+
+.reminder-item-side {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.dismiss-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 1.75rem;
+    padding: 0 0.75rem;
+    border-radius: 1rem;
+    border: 1px solid #c9c7c5;
+    background-color: #ffffff;
+    color: #444444;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.dismiss-pill:hover {
+    background-color: #f3f3f3;
+}
+
+.dismiss-pill:active {
+    background-color: #ecebea;
+}
+
+.reminder-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem;
+    text-align: center;
+    color: #706e6b;
+}
+
+.reminder-empty-title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #2e844a;
+}
+
+.reminder-empty-subtitle {
+    font-size: 0.8rem;
+}
+
+.pill-color-1,
+.pill-color-2,
+.pill-color-3,
+.pill-color-4,
+.pill-color-5,
+.pill-color-6,
+.pill-color-default {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.05rem 0.5rem;
+    border-radius: 1rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.pill-color-1 {
+    background-color: #eef4ff;
+    color: #3a5dae;
+}
+
+.pill-color-2 {
+    background-color: #f5eeff;
+    color: #7c4dbd;
+}
+
+.pill-color-3 {
+    background-color: #eafbf0;
+    color: #2f855a;
+}
+
+.pill-color-4 {
+    background-color: #fff4e5;
+    color: #b35c00;
+}
+
+.pill-color-5 {
+    background-color: #ffeef3;
+    color: #b3396b;
+}
+
+.pill-color-6 {
+    background-color: #e6fbfa;
+    color: #17795e;
+}
+
+.pill-color-default {
+    background-color: #f3f2f2;
+    color: #514f4d;
+}
