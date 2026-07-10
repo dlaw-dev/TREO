@@ -8,8 +8,6 @@ import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 
 import saveTask from '@salesforce/apex/TaskUiController.saveTask';
 import searchUsers from '@salesforce/apex/EventAttendeeUiController.searchUsers';
-import searchGroups from '@salesforce/apex/EventAttendeeUiController.searchGroups';
-import getGroupUsers from '@salesforce/apex/EventAttendeeUiController.getGroupUsers';
 
 import MATTER_NAME from '@salesforce/schema/NEOS_Matter__c.Name';
 import TASK_OBJECT from '@salesforce/schema/Task';
@@ -60,13 +58,11 @@ export default class TaskCreateModalAction extends LightningModal {
     @api get initialAssignees() { return this._initialAssignees; }
     set initialAssignees(val) {
         this._initialAssignees = val || [];
-        if (Array.isArray(this._initialAssignees)) {
-            for (const a of this._initialAssignees) {
-                if (a.id && !this.selectedUserIds.has(a.id)) {
-                    this.selectedUserIds.add(a.id);
-                    this.selectedUsers = [...this.selectedUsers, { id: a.id, name: a.name }];
-                }
-            }
+        const first = Array.isArray(this._initialAssignees) ? this._initialAssignees[0] : null;
+
+        if (first?.id) {
+            this.selectedUserIds = new Set([first.id]);
+            this.selectedUsers = [{ id: first.id, name: first.name }];
         }
     }
 
@@ -229,31 +225,20 @@ export default class TaskCreateModalAction extends LightningModal {
     -------------------------- */
 
     @track userResults = [];
-    @track groupResults = [];
     @track selectedUsers = [];
 
     selectedUserIds = new Set();
-    isSavingSearch = false;
 
     userSearchTimeout;
-    groupSearchTimeout;
     userSearchKeyword = '';
-    groupSearchKeyword = '';
 
     isUserSearchOpen = false;
-    isGroupSearchOpen = false;
     userSearchRequestId = 0;
-    groupSearchRequestId = 0;
     userBlurTimeout;
-    groupBlurTimeout;
     searchDropdownInteractionTimeout;
 
     get hasUserResults() {
         return this.userResults.length > 0;
-    }
-
-    get hasGroupResults() {
-        return this.groupResults.length > 0;
     }
 
     /* -------------------------
@@ -294,40 +279,6 @@ export default class TaskCreateModalAction extends LightningModal {
         }, SEARCH_BLUR_CLOSE_DELAY_MS);
     }
 
-    handleGroupFocus() {
-        if (this._skipNextGroupFocus) {
-            this._skipNextGroupFocus = false;
-            return;
-        }
-        clearTimeout(this.groupBlurTimeout);
-        this._lastGroupFocusSearchAt = Date.now();
-        this.searchGroupsInternal(this.groupSearchKeyword || '');
-    }
-
-    handleGroupClick() {
-        clearTimeout(this.groupBlurTimeout);
-        this._skipNextGroupFocus = false;
-
-        if (
-            this.isGroupSearchOpen &&
-            this.groupResults.length > 0 &&
-            Date.now() - (this._lastGroupFocusSearchAt || 0) < SEARCH_FOCUS_CLICK_WINDOW_MS
-        ) {
-            return;
-        }
-
-        this.searchGroupsInternal(this.groupSearchKeyword || '');
-    }
-
-    handleGroupBlur() {
-        if (this._isInteractingWithSearchDropdown) return;
-
-        clearTimeout(this.groupBlurTimeout);
-        this.groupBlurTimeout = setTimeout(() => {
-            this.closeGroupSearch();
-        }, SEARCH_BLUR_CLOSE_DELAY_MS);
-    }
-
     handleSearchDropdownMouseDown() {
         this._isInteractingWithSearchDropdown = true;
         clearTimeout(this.searchDropdownInteractionTimeout);
@@ -342,7 +293,6 @@ export default class TaskCreateModalAction extends LightningModal {
 
     handleModalOutsideSearchClick() {
         this.closeUserSearch();
-        this.closeGroupSearch();
     }
 
     handleUserSearch(e) {
@@ -356,32 +306,12 @@ export default class TaskCreateModalAction extends LightningModal {
         }, 300);
     }
 
-    handleGroupSearch(e) {
-        clearTimeout(this.groupSearchTimeout);
-
-        const val = e.target.value;
-        this.groupSearchKeyword = val || '';
-
-        this.groupSearchTimeout = setTimeout(() => {
-            this.searchGroupsInternal(val || '');
-        }, 300);
-    }
-
     handleUserKeydown(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
             const keyword = e.target.value || '';
             this.userSearchKeyword = keyword;
             this.searchUsersInternal(keyword);
-        }
-    }
-
-    handleGroupKeydown(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            const keyword = e.target.value || '';
-            this.groupSearchKeyword = keyword;
-            this.searchGroupsInternal(keyword);
         }
     }
 
@@ -410,49 +340,11 @@ export default class TaskCreateModalAction extends LightningModal {
         }
     }
 
-    async searchGroupsInternal(keyword) {
-        this.isGroupSearchOpen = true;
-        const requestId = (this.groupSearchRequestId || 0) + 1;
-        this.groupSearchRequestId = requestId;
-
-        const existingGroupsById = new Map(
-            this.groupResults.map(group => [group.Id, group])
-        );
-
-        try {
-            const results = await searchGroups({ keyword });
-
-            if (!this.isGroupSearchOpen || requestId !== this.groupSearchRequestId) return;
-
-            this.groupResults = results.map(group =>
-                this.buildGroupResult(group, existingGroupsById.get(group.Id))
-            );
-
-            this.syncGroupMembersSelection();
-        } catch (err) {
-            if (this.isGroupSearchOpen && requestId === this.groupSearchRequestId) {
-                this.dispatchEvent(new ShowToastEvent({
-                    title: 'Could not load groups',
-                    message: err?.body?.message || 'An error occurred while searching groups.',
-                    variant: 'error'
-                }));
-                this.groupResults = [];
-            }
-        }
-    }
-
     closeUserSearch() {
         this.isUserSearchOpen = false;
         this.userSearchRequestId = (this.userSearchRequestId || 0) + 1;
         this.userResults = [];
         clearTimeout(this.userSearchTimeout);
-    }
-
-    closeGroupSearch() {
-        this.isGroupSearchOpen = false;
-        this.groupSearchRequestId = (this.groupSearchRequestId || 0) + 1;
-        this.groupResults = [];
-        clearTimeout(this.groupSearchTimeout);
     }
 
     /* -------------------------
@@ -461,46 +353,19 @@ export default class TaskCreateModalAction extends LightningModal {
 
     addUser(e) {
         const id = e.currentTarget.dataset.id;
-
-        if (this.selectedUserIds.has(id)) return;
-
         const u = this.userResults.find(x => x.Id === id);
 
         if (!u) return;
 
-        this.addSelectedUser(u, true);
+        this.addSelectedUser(u);
     }
 
-    addUserFromGroup(e) {
-        const userId = e.currentTarget.dataset.id;
+    addSelectedUser(user) {
+        this.selectedUserIds = new Set([user.Id]);
+        this.selectedUsers = [{ id: user.Id, name: user.Name }];
 
-        if (this.selectedUserIds.has(userId)) return;
-
-        let user;
-
-        for (const group of this.groupResults) {
-            user = (group.members || []).find(member => member.Id === userId);
-            if (user) break;
-        }
-
-        if (!user) return;
-
-        this.addSelectedUser(user);
-    }
-
-    addSelectedUser(user, keepUserSearchOpen = false) {
-        this.selectedUserIds.add(user.Id);
-
-        this.selectedUsers = [...this.selectedUsers, { id: user.Id, name: user.Name }];
-
-        this.syncGroupMembersSelection();
-
-        if (keepUserSearchOpen) {
-            this.userSearchKeyword = '';
-            this.closeUserSearch();
-        } else {
-            this.closeUserSearch();
-        }
+        this.userSearchKeyword = '';
+        this.closeUserSearch();
     }
 
     removeUser(e) {
@@ -508,88 +373,6 @@ export default class TaskCreateModalAction extends LightningModal {
 
         this.selectedUserIds.delete(id);
         this.selectedUsers = this.selectedUsers.filter(u => u.id !== id);
-
-        this.syncGroupMembersSelection();
-    }
-
-    async toggleGroupMembers(e) {
-        const id = e.currentTarget.dataset.id;
-        const group = this.groupResults.find(item => item.Id === id);
-
-        if (!group) return;
-
-        if (group.membersLoaded) {
-            this.updateGroupResult(id, {
-                isExpanded: !group.isExpanded,
-                memberToggleLabel: group.isExpanded ? 'Show users' : 'Hide users'
-            });
-            return;
-        }
-
-        this.updateGroupResult(id, {
-            isExpanded: true,
-            isLoadingMembers: true,
-            memberToggleLabel: 'Hide users'
-        });
-
-        try {
-            const members = await getGroupUsers({ groupId: id });
-
-            this.updateGroupResult(id, {
-                members: members.map(member => this.buildGroupMember(member)),
-                membersLoaded: true,
-                isLoadingMembers: false,
-                showNoMembers: members.length === 0
-            });
-        } catch (error) {
-            this.updateGroupResult(id, {
-                isExpanded: false,
-                isLoadingMembers: false,
-                memberToggleLabel: 'Show users'
-            });
-
-            this.dispatchEvent(new ShowToastEvent({
-                title: 'Error',
-                message: error?.body?.message || error.message,
-                variant: 'error'
-            }));
-        }
-    }
-
-    buildGroupResult(group, existingGroup) {
-        return {
-            ...group,
-            isExpanded: existingGroup?.isExpanded || false,
-            isLoadingMembers: false,
-            membersLoaded: existingGroup?.membersLoaded || false,
-            members: (existingGroup?.members || []).map(member => this.buildGroupMember(member)),
-            memberToggleLabel: existingGroup?.isExpanded ? 'Hide users' : 'Show users',
-            showNoMembers: existingGroup?.showNoMembers || false
-        };
-    }
-
-    buildGroupMember(member) {
-        const isSelected = this.selectedUserIds.has(member.Id);
-
-        return {
-            ...member,
-            isSelected,
-            actionLabel: isSelected ? 'Selected' : 'Add'
-        };
-    }
-
-    updateGroupResult(id, changes) {
-        this.groupResults = this.groupResults.map(group =>
-            group.Id === id ? { ...group, ...changes } : group
-        );
-    }
-
-    syncGroupMembersSelection() {
-        this.groupResults = this.groupResults.map(group => ({
-            ...group,
-            members: (group.members || []).map(member => this.buildGroupMember(member)),
-            showNoMembers: group.membersLoaded && (group.members || []).length === 0
-        }));
     }
 
     /* -------------------------
@@ -690,18 +473,13 @@ export default class TaskCreateModalAction extends LightningModal {
         this.selectedUsers          = [];
         this.selectedUserIds        = new Set();
         this.userResults            = [];
-        this.groupResults           = [];
         this.userSearchKeyword      = '';
-        this.groupSearchKeyword     = '';
         this.closeUserSearch();
-        this.closeGroupSearch();
     }
 
     disconnectedCallback() {
         clearTimeout(this.userSearchTimeout);
-        clearTimeout(this.groupSearchTimeout);
         clearTimeout(this.userBlurTimeout);
-        clearTimeout(this.groupBlurTimeout);
         clearTimeout(this.searchDropdownInteractionTimeout);
     }
 

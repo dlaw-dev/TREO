@@ -38,105 +38,36 @@
         </template>
 
         <!-- Assignee Search -->
-        <div class="slds-m-top_large">
-            <lightning-tabset>
+        <template if:false={hasSelectedAssignee}>
+            <div class="search-container slds-m-top_large" onclick={handleSearchAreaClick}>
+                <lightning-input
+                    data-id="user-search-input"
+                    type="search"
+                    label="Search Assignee"
+                    value={userSearchKeyword}
+                    onfocus={handleUserFocus}
+                    onclick={handleUserClick}
+                    onblur={handleUserBlur}
+                    onkeyup={handleUserSearch}
+                    onkeydown={handleUserKeydown}>
+                </lightning-input>
 
-                <lightning-tab label="People">
-                    <div class="search-container" onclick={handleSearchAreaClick}>
-                        <lightning-input
-                            data-id="user-search-input"
-                            type="search"
-                            label="Search Users"
-                            value={userSearchKeyword}
-                            onfocus={handleUserFocus}
-                            onclick={handleUserClick}
-                            onblur={handleUserBlur}
-                            onkeyup={handleUserSearch}
-                            onkeydown={handleUserKeydown}>
-                        </lightning-input>
-
-                        <template if:true={hasUserResults}>
-                            <div class="search-dropdown" onmousedown={handleSearchDropdownMouseDown}>
-                                <template for:each={userResults} for:item="u">
-                                    <button
-                                        key={u.Id}
-                                        type="button"
-                                        class="dropdown-item"
-                                        data-id={u.Id}
-                                        onclick={addUser}>
-                                        {u.Name}
-                                    </button>
-                                </template>
-                            </div>
+                <template if:true={hasUserResults}>
+                    <div class="search-dropdown" onmousedown={handleSearchDropdownMouseDown}>
+                        <template for:each={userResults} for:item="u">
+                            <button
+                                key={u.Id}
+                                type="button"
+                                class="dropdown-item"
+                                data-id={u.Id}
+                                onclick={addUser}>
+                                {u.Name}
+                            </button>
                         </template>
                     </div>
-                </lightning-tab>
-
-                <lightning-tab label="Groups">
-                    <div class="search-container" onclick={handleSearchAreaClick}>
-                        <lightning-input
-                            data-id="group-search-input"
-                            type="search"
-                            label="Search Groups"
-                            value={groupSearchKeyword}
-                            onfocus={handleGroupFocus}
-                            onclick={handleGroupClick}
-                            onblur={handleGroupBlur}
-                            onkeyup={handleGroupSearch}
-                            onkeydown={handleGroupKeydown}>
-                        </lightning-input>
-
-                        <template if:true={hasGroupResults}>
-                            <div class="search-dropdown" onmousedown={handleSearchDropdownMouseDown}>
-                                <template for:each={groupResults} for:item="g">
-                                    <div key={g.Id} class="slds-m-top_small">
-                                        <button
-                                            type="button"
-                                            class="result-row slds-grid slds-grid_align-spread slds-p-around_small"
-                                            data-id={g.Id}
-                                            onclick={toggleGroupMembers}>
-                                            <span class="result-row__label">{g.Name}</span>
-                                            <span class="result-row__action">{g.memberToggleLabel}</span>
-                                        </button>
-
-                                        <template if:true={g.isExpanded}>
-                                            <div class="group-members slds-m-top_x-small slds-m-left_medium">
-                                                <template if:true={g.isLoadingMembers}>
-                                                    <lightning-spinner
-                                                        size="small"
-                                                        alternative-text="Loading group users">
-                                                    </lightning-spinner>
-                                                </template>
-
-                                                <template for:each={g.members} for:item="member">
-                                                    <button
-                                                        key={member.Id}
-                                                        type="button"
-                                                        class="member-row slds-grid slds-grid_align-spread slds-p-around_x-small"
-                                                        data-id={member.Id}
-                                                        onclick={addUserFromGroup}
-                                                        disabled={member.isSelected}>
-                                                        <span>{member.Name}</span>
-                                                        <span class="result-row__action">{member.actionLabel}</span>
-                                                    </button>
-                                                </template>
-
-                                                <template if:true={g.showNoMembers}>
-                                                    <div class="slds-text-body_small slds-text-color_weak slds-p-vertical_x-small">
-                                                        No users found in this group.
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-                    </div>
-                </lightning-tab>
-
-            </lightning-tabset>
-        </div>
+                </template>
+            </div>
+        </template>
 
         <!-- Priority -->
         <lightning-combobox
