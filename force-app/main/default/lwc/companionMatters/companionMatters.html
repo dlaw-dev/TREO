@@ -1,0 +1,28 @@
+<template>
+    <lightning-card title={title} icon-name="standard:case">
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+        </template>
+
+        <template if:true={error}>
+            <p class="slds-text-color_error slds-p-horizontal_medium">{error}</p>
+        </template>
+
+        <template if:true={hasMatters}>
+            <lightning-datatable
+                key-field="id"
+                data={matters}
+                columns={columns}
+                sorted-by={sortedBy}
+                sorted-direction={sortedDirection}
+                onsort={handleSort}
+                onrowaction={handleRowAction}
+                hide-checkbox-column>
+            </lightning-datatable>
+        </template>
+
+        <template if:true={showEmptyState}>
+            <p class="slds-text-color_weak slds-p-around_medium">No companion matters found.</p>
+        </template>
+    </lightning-card>
+</template>
