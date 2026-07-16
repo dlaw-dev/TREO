@@ -5,6 +5,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { EnclosingUtilityId, open, updateUtility, getInfo } from 'lightning/platformUtilityBarApi';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 import getMyDueTasks from '@salesforce/apex/TaskDueReminderController.getMyDueTasks';
+import getTasksAssignedByMe from '@salesforce/apex/TaskDueReminderController.getTasksAssignedByMe';
 import snoozeTask from '@salesforce/apex/TaskDueReminderController.snoozeTask';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
 
@@ -107,6 +108,8 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     @wire(EnclosingUtilityId) utilityId;
 
     tasks = [];
+    delegatedTasks = [];
+    activeTab = 'assignedToMe';
     removingIds = new Set();
     openSnoozeMenuId;
     completedToday = 0;
@@ -161,6 +164,15 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         }
     }
 
+    decorateTasks(results) {
+        return results.map((t) => ({
+            ...t,
+            dueLabel: dueLabelFor(t.DaysUntil),
+            subtypeColorClass: colorClassForSubtype(t.TaskSubtype),
+            priorityClass: priorityClassFor(t.Priority)
+        }));
+    }
+
     async refreshTasks() {
         let results;
 
@@ -186,17 +198,23 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             return;
         }
 
-        this.tasks = results.map((t) => ({
-            ...t,
-            dueLabel: dueLabelFor(t.DaysUntil),
-            subtypeColorClass: colorClassForSubtype(t.TaskSubtype),
-            priorityClass: priorityClassFor(t.Priority)
-        }));
+        this.tasks = this.decorateTasks(results);
 
         this.syncUtilityChrome();
 
         if (this.urgentTasks.length > 0) {
             this.openPanel();
+        }
+
+        try {
+            const delegatedResults = await getTasksAssignedByMe();
+            this.delegatedTasks = this.decorateTasks(delegatedResults);
+        } catch (error) {
+            const message =
+                error?.body?.message || error?.message || 'Unknown error';
+
+            // eslint-disable-next-line no-console
+            console.error('Failed to load tasks assigned by me:', message);
         }
     }
 
@@ -231,28 +249,61 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         });
     }
 
+    get isAssignedToMeTab() {
+        return this.activeTab === 'assignedToMe';
+    }
+
+    get isAssignedByMeTab() {
+        return this.activeTab === 'assignedByMe';
+    }
+
+    get assignedToMeTabClass() {
+        return this.isAssignedToMeTab ? 'tab-button tab-button-active' : 'tab-button';
+    }
+
+    get assignedByMeTabClass() {
+        return this.isAssignedByMeTab ? 'tab-button tab-button-active' : 'tab-button';
+    }
+
+    get assignedToMeCount() {
+        return this.tasks.length;
+    }
+
+    get assignedByMeCount() {
+        return this.delegatedTasks.length;
+    }
+
+    get currentTasks() {
+        return this.isAssignedByMeTab ? this.delegatedTasks : this.tasks;
+    }
+
+    handleTabClick(event) {
+        this.openSnoozeMenuId = null;
+        this.activeTab = event.currentTarget.dataset.tab;
+    }
+
     get overdueTasks() {
-        return this.tasks.filter((t) => t.DaysUntil < 0);
+        return this.currentTasks.filter((t) => t.DaysUntil < 0);
     }
 
     get todayTasks() {
-        return this.tasks.filter((t) => t.DaysUntil === 0);
+        return this.currentTasks.filter((t) => t.DaysUntil === 0);
     }
 
     get tomorrowTasks() {
-        return this.tasks.filter((t) => t.DaysUntil === 1);
+        return this.currentTasks.filter((t) => t.DaysUntil === 1);
     }
 
     get thisWeekTasks() {
-        return this.tasks.filter((t) => t.DaysUntil > 1 && t.DaysUntil <= 7);
+        return this.currentTasks.filter((t) => t.DaysUntil > 1 && t.DaysUntil <= 7);
     }
 
     get thisMonthTasks() {
-        return this.tasks.filter((t) => t.DaysUntil > 7);
+        return this.currentTasks.filter((t) => t.DaysUntil > 7);
     }
 
     get noDueDateTasks() {
-        return this.tasks.filter((t) => t.DaysUntil == null);
+        return this.currentTasks.filter((t) => t.DaysUntil == null);
     }
 
     get urgentTasks() {
@@ -262,6 +313,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     withMenuState(list) {
+        const showActions = this.isAssignedToMeTab;
         return list.map((t) => {
             const isOpen = this.openSnoozeMenuId === t.Id;
             return {
@@ -269,6 +321,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 isSnoozeMenuOpen: isOpen,
                 snoozeCaret: isOpen ? '▴' : '▾',
                 snoozeOptions: this.snoozeOptions,
+                showActions,
                 itemClass: this.removingIds.has(t.Id)
                     ? 'reminder-item reminder-item-removing'
                     : 'reminder-item'
@@ -342,7 +395,13 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     get hasTasks() {
-        return this.tasks.length > 0;
+        return this.currentTasks.length > 0;
+    }
+
+    get emptyStateTitle() {
+        return this.isAssignedByMeTab
+            ? 'Nothing outstanding'
+            : "You're all caught up!";
     }
 
     get isAllExpanded() {
@@ -354,7 +413,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     get hasCompletedToday() {
-        return this.completedToday > 0;
+        return this.isAssignedToMeTab && this.completedToday > 0;
     }
 
     get completedTodayMessage() {
@@ -367,7 +426,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     get hasTodayProgress() {
-        return this.todayProgressTotal > 0;
+        return this.isAssignedToMeTab && this.todayProgressTotal > 0;
     }
 
     get todayProgressPercent() {

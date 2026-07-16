@@ -2,6 +2,58 @@
     padding: 0.5rem;
 }
 
+.reminder-tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0 0.25rem 0.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 0.5rem;
+}
+
+.tab-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.1rem;
+    margin-bottom: -1px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: #706e6b;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tab-button + .tab-button {
+    margin-left: 0.75rem;
+}
+
+.tab-button:hover {
+    color: #444444;
+}
+
+.tab-button-active {
+    color: #0b5cab;
+    border-bottom-color: #0b5cab;
+}
+
+.tab-count {
+    min-width: 1.1rem;
+    padding: 0 0.3rem;
+    border-radius: 1rem;
+    background-color: #e0e0e0;
+    color: #444444;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.tab-button-active .tab-count {
+    background-color: #eef4ff;
+    color: #0b5cab;
+}
+
 .panel-toolbar {
     display: flex;
     align-items: center;
@@ -301,6 +353,29 @@
     background-color: #eef4ff;
     border-color: #0b5cab;
     color: #0b5cab;
+}
+
+.assignee-pill,
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 1.5rem;
+    padding: 0 0.6rem;
+    border-radius: 1rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.assignee-pill {
+    background-color: #eef4ff;
+    color: #3a5dae;
+}
+
+.status-pill {
+    background-color: #f3f2f2;
+    color: #514f4d;
 }
 
 .reminder-empty {

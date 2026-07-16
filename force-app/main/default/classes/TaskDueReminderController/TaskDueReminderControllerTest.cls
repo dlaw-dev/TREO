@@ -228,6 +228,67 @@ private class TaskDueReminderControllerTest {
     }
 
     @IsTest
+    static void testGetTasksAssignedByMe_returnsOnlyDelegatedOpenTasks() {
+
+        Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+
+        User otherUser = new User(
+            ProfileId = sysAdmin.Id,
+            LastName = 'Delegate',
+            Email = 'taskduereminder.delegate@test.example',
+            Username = 'taskduereminder.delegate+' + System.now().getTime() + '@test.example',
+            Alias = 'deleg1',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US'
+        );
+        insert otherUser;
+        otherUser = [SELECT Id, Name FROM User WHERE Id = :otherUser.Id];
+
+        Task delegatedOpenTask = new Task(
+            Subject      = 'Delegated Open Task',
+            Status       = 'Not Started',
+            ActivityDate = Date.today(),
+            OwnerId      = otherUser.Id
+        );
+
+        Task delegatedCompletedTask = new Task(
+            Subject      = 'Delegated Completed Task',
+            Status       = 'Completed',
+            ActivityDate = Date.today(),
+            OwnerId      = otherUser.Id
+        );
+
+        Task ownTask = new Task(
+            Subject      = 'My Own Task',
+            Status       = 'Not Started',
+            ActivityDate = Date.today(),
+            OwnerId      = UserInfo.getUserId()
+        );
+
+        insert new List<Task>{ delegatedOpenTask, delegatedCompletedTask, ownTask };
+
+        Test.startTest();
+        List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getTasksAssignedByMe();
+        Test.stopTest();
+
+        Map<Id, TaskDueReminderController.DueTask> byId =
+            new Map<Id, TaskDueReminderController.DueTask>();
+        for (TaskDueReminderController.DueTask dt : results) {
+            byId.put(dt.Id, dt);
+        }
+
+        System.assertEquals(1, results.size());
+        System.assert(byId.containsKey(delegatedOpenTask.Id));
+        System.assert(!byId.containsKey(delegatedCompletedTask.Id));
+        System.assert(!byId.containsKey(ownTask.Id));
+
+        System.assertEquals(otherUser.Name, byId.get(delegatedOpenTask.Id).OwnerName);
+        System.assertEquals('Not Started', byId.get(delegatedOpenTask.Id).Status);
+    }
+
+    @IsTest
     static void testSnoozeTask_notOwner_throws() {
 
         Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];

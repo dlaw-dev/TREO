@@ -6,6 +6,7 @@ public with sharing class TaskDueReminderController {
         Date todayDate = Date.today();
         Date upperBound = todayDate.addDays(30);
         Datetime nowDt = Datetime.now();
+        Id currentUserId = UserInfo.getUserId();
 
         List<DueTask> results = new List<DueTask>();
 
@@ -19,9 +20,11 @@ public with sharing class TaskDueReminderController {
                    NEOS_Matter__c,
                    NEOS_Matter__r.Name,
                    WhatId,
-                   What.Name
+                   What.Name,
+                   OwnerId,
+                   Owner.Name
             FROM Task
-            WHERE OwnerId = :UserInfo.getUserId()
+            WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
               AND ActivityDate != null
               AND ActivityDate <= :upperBound
@@ -42,12 +45,75 @@ public with sharing class TaskDueReminderController {
                    NEOS_Matter__c,
                    NEOS_Matter__r.Name,
                    WhatId,
-                   What.Name
+                   What.Name,
+                   OwnerId,
+                   Owner.Name
             FROM Task
-            WHERE OwnerId = :UserInfo.getUserId()
+            WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
               AND ActivityDate = null
               AND (Snoozed_Until__c = null OR Snoozed_Until__c <= :nowDt)
+            ORDER BY CreatedDate DESC
+            LIMIT 20
+        ]) {
+            results.add(new DueTask(t, todayDate));
+        }
+
+        return results;
+    }
+
+    @AuraEnabled(cacheable=false)
+    public static List<DueTask> getTasksAssignedByMe() {
+
+        Date todayDate = Date.today();
+        Date upperBound = todayDate.addDays(30);
+        Id currentUserId = UserInfo.getUserId();
+
+        List<DueTask> results = new List<DueTask>();
+
+        for (Task t : [
+            SELECT Id,
+                   Subject,
+                   ActivityDate,
+                   Priority,
+                   Status,
+                   Task_Subtype__c,
+                   NEOS_Matter__c,
+                   NEOS_Matter__r.Name,
+                   WhatId,
+                   What.Name,
+                   OwnerId,
+                   Owner.Name
+            FROM Task
+            WHERE CreatedById = :currentUserId
+              AND OwnerId != :currentUserId
+              AND Status != 'Completed'
+              AND ActivityDate != null
+              AND ActivityDate <= :upperBound
+            ORDER BY ActivityDate ASC
+            LIMIT 150
+        ]) {
+            results.add(new DueTask(t, todayDate));
+        }
+
+        for (Task t : [
+            SELECT Id,
+                   Subject,
+                   ActivityDate,
+                   Priority,
+                   Status,
+                   Task_Subtype__c,
+                   NEOS_Matter__c,
+                   NEOS_Matter__r.Name,
+                   WhatId,
+                   What.Name,
+                   OwnerId,
+                   Owner.Name
+            FROM Task
+            WHERE CreatedById = :currentUserId
+              AND OwnerId != :currentUserId
+              AND Status != 'Completed'
+              AND ActivityDate = null
             ORDER BY CreatedDate DESC
             LIMIT 20
         ]) {
@@ -80,18 +146,22 @@ public with sharing class TaskDueReminderController {
         @AuraEnabled public String  Subject;
         @AuraEnabled public Date    ActivityDate;
         @AuraEnabled public String  Priority;
+        @AuraEnabled public String  Status;
         @AuraEnabled public Id      MatterId;
         @AuraEnabled public String  MatterName;
         @AuraEnabled public String  TaskSubtype;
         @AuraEnabled public Boolean IsOverdue;
         @AuraEnabled public Integer DaysUntil;
+        @AuraEnabled public String  OwnerName;
 
         public DueTask(Task t, Date todayDate) {
             Id           = t.Id;
             Subject      = t.Subject;
             ActivityDate = t.ActivityDate;
             Priority     = t.Priority;
+            Status       = t.Status;
             TaskSubtype  = t.Task_Subtype__c;
+            OwnerName    = t.Owner != null ? t.Owner.Name : null;
 
             if (t.ActivityDate != null) {
                 DaysUntil = todayDate.daysBetween(t.ActivityDate);

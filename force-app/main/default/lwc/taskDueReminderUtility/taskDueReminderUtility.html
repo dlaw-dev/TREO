@@ -1,5 +1,19 @@
 <template>
     <div class="reminder-container">
+        <div class="reminder-tabs">
+            <button
+                type="button"
+                class={assignedToMeTabClass}
+                data-tab="assignedToMe"
+                onclick={handleTabClick}
+            >Assigned to Me<span class="tab-count">{assignedToMeCount}</span></button>
+            <button
+                type="button"
+                class={assignedByMeTabClass}
+                data-tab="assignedByMe"
+                onclick={handleTabClick}
+            >Assigned by Me<span class="tab-count">{assignedByMeCount}</span></button>
+        </div>
         <template if:true={hasTasks}>
             <div class="panel-toolbar">
                 <template if:true={hasTodayProgress}>
@@ -56,22 +70,32 @@
                                             </div>
                                         </div>
                                         <div class="reminder-item-side">
-                                            <lightning-button-icon
-                                                icon-name="utility:check"
-                                                variant="success"
-                                                size="small"
-                                                alternative-text="Complete task"
-                                                title="Mark complete"
-                                                data-id={task.Id}
-                                                onclick={handleComplete}
-                                            ></lightning-button-icon>
-                                            <button
-                                                type="button"
-                                                class="snooze-pill"
-                                                title="Snooze (remind me again later)"
-                                                data-id={task.Id}
-                                                onclick={toggleSnoozeMenu}
-                                            >Snooze <span class="snooze-caret">{task.snoozeCaret}</span></button>
+                                            <template if:true={task.showActions}>
+                                                <lightning-button-icon
+                                                    icon-name="utility:check"
+                                                    variant="success"
+                                                    size="small"
+                                                    alternative-text="Complete task"
+                                                    title="Mark complete"
+                                                    data-id={task.Id}
+                                                    onclick={handleComplete}
+                                                ></lightning-button-icon>
+                                                <button
+                                                    type="button"
+                                                    class="snooze-pill"
+                                                    title="Snooze (remind me again later)"
+                                                    data-id={task.Id}
+                                                    onclick={toggleSnoozeMenu}
+                                                >Snooze <span class="snooze-caret">{task.snoozeCaret}</span></button>
+                                            </template>
+                                            <template if:false={task.showActions}>
+                                                <template if:true={task.OwnerName}>
+                                                    <span class="assignee-pill">{task.OwnerName}</span>
+                                                </template>
+                                                <template if:true={task.Status}>
+                                                    <span class="status-pill">{task.Status}</span>
+                                                </template>
+                                            </template>
                                         </div>
                                     </div>
                                     <template if:true={task.isSnoozeMenuOpen}>
@@ -100,7 +124,7 @@
         <template if:false={hasTasks}>
             <div class="reminder-empty">
                 <lightning-icon icon-name="utility:success" size="small" variant="success"></lightning-icon>
-                <span class="reminder-empty-title">You're all caught up!</span>
+                <span class="reminder-empty-title">{emptyStateTitle}</span>
                 <template if:true={hasCompletedToday}>
                     <span class="reminder-empty-subtitle">{completedTodayMessage}</span>
                 </template>
