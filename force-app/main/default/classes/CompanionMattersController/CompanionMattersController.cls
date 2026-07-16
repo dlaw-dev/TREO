@@ -15,7 +15,8 @@ public with sharing class CompanionMattersController {
             }
 
             return [
-                SELECT Id, Name, Stage__c, Senior_Attorney__r.Name, Associate_Attorney__r.Name
+                SELECT Id, Name, Stage__c, Senior_Attorney__c, Senior_Attorney__r.Name,
+                       Associate_Attorney__c, Associate_Attorney__r.Name
                 FROM NEOS_Matter__c
                 WHERE Lawsuit_Matter__c = :current.Lawsuit_Matter__c
                 AND Id != :matterId

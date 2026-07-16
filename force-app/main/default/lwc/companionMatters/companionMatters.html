@@ -1,5 +1,18 @@
 <template>
-    <lightning-card title={title} icon-name="standard:case">
+    <lightning-card>
+        <span slot="title" class="slds-media slds-media_center slds-has-flexi-truncate">
+            <span class="slds-media__figure">
+                <span class="slds-icon_container chess-icon-container">
+                    <img src={chessIconUrl} class="chess-icon" alt="" />
+                </span>
+            </span>
+            <span class="slds-media__body">
+                <h2 class="slds-card__header-title">
+                    <span>{title}</span>
+                </h2>
+            </span>
+        </span>
+
         <template if:true={isLoading}>
             <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
         </template>
@@ -9,16 +22,48 @@
         </template>
 
         <template if:true={hasMatters}>
-            <lightning-datatable
-                key-field="id"
-                data={matters}
-                columns={columns}
-                sorted-by={sortedBy}
-                sorted-direction={sortedDirection}
-                onsort={handleSort}
-                onrowaction={handleRowAction}
-                hide-checkbox-column>
-            </lightning-datatable>
+            <ul class="record-list">
+                <template for:each={matters} for:item="matter">
+                    <li key={matter.id} class="record-block">
+                        <div class="record-header">
+                            <a href={matter.url} data-id={matter.id} onclick={navigateToMatter} class="record-name">{matter.name}</a>
+                            <lightning-button-menu
+                                alternative-text="Actions"
+                                icon-size="x-small"
+                                menu-alignment="right"
+                                data-id={matter.id}
+                                data-name={matter.name}
+                                onselect={handleRowActionSelect}>
+                                <lightning-menu-item value="view" label="View"></lightning-menu-item>
+                                <lightning-menu-item value="edit" label="Edit"></lightning-menu-item>
+                                <lightning-menu-item value="delete" label="Delete"></lightning-menu-item>
+                            </lightning-button-menu>
+                        </div>
+                        <div class="field-line">
+                            <span class="field-label">Stage:</span>
+                            <span class="field-value">{matter.stage}</span>
+                        </div>
+                        <div class="field-line">
+                            <span class="field-label">Senior Attorney:</span>
+                            <template if:true={matter.seniorAttorneyUrl}>
+                                <a href={matter.seniorAttorneyUrl} class="field-value field-value_link">{matter.seniorAttorney}</a>
+                            </template>
+                            <template if:false={matter.seniorAttorneyUrl}>
+                                <span class="field-value">{matter.seniorAttorney}</span>
+                            </template>
+                        </div>
+                        <div class="field-line">
+                            <span class="field-label">Associate Attorney:</span>
+                            <template if:true={matter.associateAttorneyUrl}>
+                                <a href={matter.associateAttorneyUrl} class="field-value field-value_link">{matter.associateAttorney}</a>
+                            </template>
+                            <template if:false={matter.associateAttorneyUrl}>
+                                <span class="field-value">{matter.associateAttorney}</span>
+                            </template>
+                        </div>
+                    </li>
+                </template>
+            </ul>
         </template>
 
         <template if:true={showEmptyState}>
