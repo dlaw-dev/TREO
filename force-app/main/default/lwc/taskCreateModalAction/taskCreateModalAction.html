@@ -23,7 +23,7 @@
         <template if:true={hasSelectedAssignee}>
             <div class="slds-box slds-m-top_medium">
                 <div class="slds-text-title_caps slds-m-bottom_x-small">
-                    Assignee
+                    Assignee <abbr class="slds-required" title="required">*</abbr>
                 </div>
 
                 <template for:each={selectedUsers} for:item="u">
@@ -44,6 +44,7 @@
                     data-id="user-search-input"
                     type="search"
                     label="Search Assignee"
+                    required
                     value={userSearchKeyword}
                     onfocus={handleUserFocus}
                     onclick={handleUserClick}
@@ -78,32 +79,14 @@
             onchange={handlePriority}>
         </lightning-combobox>
 
-        <!-- Task Subtype -->
-        <lightning-combobox
-            class="slds-m-top_medium"
-            label="Task Subtype"
-            value={taskSubtype}
-            options={taskSubtypeOptions}
-            onchange={handleTaskSubtype}>
-        </lightning-combobox>
-
-        <template if:true={showTaskSubtypeIfOther}>
-            <lightning-input
-                data-id="taskSubtypeIfOther"
-                class="slds-m-top_medium"
-                label="Task Subtype (If Other)"
-                required
-                message-when-value-missing="Enter a subtype when Task Subtype is Other."
-                value={taskSubtypeIfOther}
-                onchange={handleTaskSubtypeIfOther}>
-            </lightning-input>
-        </template>
-
         <!-- Due Date -->
         <lightning-input
+            data-id="dueDate"
             class="slds-m-top_medium"
             type="date"
             label="Due Date"
+            required
+            message-when-value-missing="Please select a Due Date."
             value={activityDate}
             onchange={handleDueDate}>
         </lightning-input>

@@ -12,7 +12,6 @@ import searchUsers from '@salesforce/apex/EventAttendeeUiController.searchUsers'
 import MATTER_NAME from '@salesforce/schema/NEOS_Matter__c.Name';
 import TASK_OBJECT from '@salesforce/schema/Task';
 import INTERNAL_EXTERNAL_TYPE_FIELD from '@salesforce/schema/Task.Internal_External_Type__c';
-import TASK_SUBTYPE_FIELD from '@salesforce/schema/Task.Task_Subtype__c';
 
 import TASK_REMINDER_OBJECT from '@salesforce/schema/Task_Reminder__c';
 import REMINDER_TYPE_FIELD from '@salesforce/schema/Task_Reminder__c.Reminder_Type__c';
@@ -42,14 +41,6 @@ export default class TaskCreateModalAction extends LightningModal {
     @api get initialDescription() { return this._initialDescription; }
     set initialDescription(val) { this._initialDescription = val; if (val != null) this.description = val; }
 
-    _initialTaskSubtype;
-    @api get initialTaskSubtype() { return this._initialTaskSubtype; }
-    set initialTaskSubtype(val) { this._initialTaskSubtype = val; if (val != null) this.taskSubtype = val; }
-
-    _initialTaskSubtypeIfOther;
-    @api get initialTaskSubtypeIfOther() { return this._initialTaskSubtypeIfOther; }
-    set initialTaskSubtypeIfOther(val) { this._initialTaskSubtypeIfOther = val; if (val != null) this.taskSubtypeIfOther = val; }
-
     _initialInternalExternalType;
     @api get initialInternalExternalType() { return this._initialInternalExternalType; }
     set initialInternalExternalType(val) { this._initialInternalExternalType = val; if (val != null) this.internalExternalType = val; }
@@ -72,8 +63,6 @@ export default class TaskCreateModalAction extends LightningModal {
     priority = 'Normal';
     description = '';
 
-    taskSubtype = '';
-    taskSubtypeIfOther = '';
     internalExternalType = '';
 
     @track selectedReminderTypes = [];
@@ -138,37 +127,12 @@ export default class TaskCreateModalAction extends LightningModal {
 
     @wire(getPicklistValues, {
         recordTypeId: '$taskRecordTypeId',
-        fieldApiName: TASK_SUBTYPE_FIELD
-    })
-    taskSubtypePicklist;
-
-    get taskSubtypeOptions() {
-        return this.taskSubtypePicklist?.data?.values ?? [];
-    }
-
-    @wire(getPicklistValues, {
-        recordTypeId: '$taskRecordTypeId',
         fieldApiName: INTERNAL_EXTERNAL_TYPE_FIELD
     })
     internalExternalTypePicklist;
 
     get internalExternalTypeOptions() {
         return this.internalExternalTypePicklist?.data?.values ?? [];
-    }
-
-    get selectedTaskSubtypeOption() {
-        return this.taskSubtypeOptions.find(
-            option => option.value === this.taskSubtype
-        );
-    }
-
-    get showTaskSubtypeIfOther() {
-        const selectedValue = (this.taskSubtype || '').trim().toLowerCase();
-        const selectedLabel = (
-            this.selectedTaskSubtypeOption?.label || ''
-        ).trim().toLowerCase();
-
-        return selectedValue === 'other' || selectedLabel === 'other';
     }
 
     /* -------------------------
@@ -210,14 +174,6 @@ export default class TaskCreateModalAction extends LightningModal {
     handleReminderSet = e => this.isReminderSet = e.target.checked;
     handlePriority = e => this.priority = e.target.value;
     handleDescription = e => this.description = e.target.value;
-    handleTaskSubtype = e => {
-        this.taskSubtype = e.detail.value;
-
-        if (!this.showTaskSubtypeIfOther) {
-            this.taskSubtypeIfOther = '';
-        }
-    };
-    handleTaskSubtypeIfOther = e => this.taskSubtypeIfOther = e.target.value;
     handleInternalExternalType = e => this.internalExternalType = e.detail.value;
 
     /* -------------------------
@@ -379,13 +335,9 @@ export default class TaskCreateModalAction extends LightningModal {
        Validation
     -------------------------- */
 
-    validateTaskSubtypeIfOther() {
-        if (!this.showTaskSubtypeIfOther) {
-            return true;
-        }
-
+    validateDueDate() {
         const input = this.template.querySelector(
-            'lightning-input[data-id="taskSubtypeIfOther"]'
+            'lightning-input[data-id="dueDate"]'
         );
 
         if (!input) return true;
@@ -399,16 +351,12 @@ export default class TaskCreateModalAction extends LightningModal {
     -------------------------- */
 
     async _performSave() {
+        if (!this.validateDueDate()) {
+            return false;
+        }
+
         if (!this.hasSelectedAssignee) {
             throw new Error('Please select an Assignee.');
-        }
-
-        if (!this.activityDate && this.selectedReminderTypes.length > 0) {
-            throw new Error('Please set a Due Date before adding reminders.');
-        }
-
-        if (!this.validateTaskSubtypeIfOther()) {
-            return false;
         }
 
         await saveTask({
@@ -419,8 +367,6 @@ export default class TaskCreateModalAction extends LightningModal {
             status: this.status,
             priority: this.priority,
             description: this.description,
-            taskSubtype: this.taskSubtype,
-            taskSubtypeIfOther: this.taskSubtypeIfOther,
             internalExternalType: this.internalExternalType,
             reminderTypes: this.selectedReminderTypes
         });
@@ -465,8 +411,6 @@ export default class TaskCreateModalAction extends LightningModal {
         this.status                 = 'Open';
         this.priority               = 'Normal';
         this.description            = '';
-        this.taskSubtype            = '';
-        this.taskSubtypeIfOther     = '';
         this.internalExternalType   = '';
         this.selectedReminderTypes  = [];
         this.isReminderSet          = false;

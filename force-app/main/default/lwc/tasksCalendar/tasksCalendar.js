@@ -39,7 +39,6 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         },
         { label: 'Due Date', fieldName: 'ActivityDate', type: 'date-local' },
         { label: 'Status',      fieldName: 'Status',    type: 'text' },
-        { label: 'Task Subtype', fieldName: 'TaskSubtype', type: 'text' },
         { label: 'Priority',    fieldName: 'Priority',  type: 'text' },
         { label: 'Assignee',    fieldName: 'OwnerName', type: 'text' },
         {
@@ -118,8 +117,6 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             initialDueDate:              row.ActivityDate,
             initialPriority:             row.Priority,
             initialDescription:          row.Description,
-            initialTaskSubtype:          row.TaskSubtype,
-            initialTaskSubtypeIfOther:   row.TaskSubtypeIfOther,
             initialInternalExternalType: row.InternalExternalType,
             initialAssignees:            row.OwnerId ? [{ id: row.OwnerId, name: row.OwnerName }] : []
         });
