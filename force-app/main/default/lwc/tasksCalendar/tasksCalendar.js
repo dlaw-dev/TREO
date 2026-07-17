@@ -117,7 +117,6 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             initialDueDate:              row.ActivityDate,
             initialPriority:             row.Priority,
             initialDescription:          row.Description,
-            initialInternalExternalType: row.InternalExternalType,
             initialAssignees:            row.OwnerId ? [{ id: row.OwnerId, name: row.OwnerName }] : []
         });
 

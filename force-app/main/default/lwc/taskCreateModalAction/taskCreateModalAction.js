@@ -11,13 +11,65 @@ import searchUsers from '@salesforce/apex/EventAttendeeUiController.searchUsers'
 
 import MATTER_NAME from '@salesforce/schema/NEOS_Matter__c.Name';
 import TASK_OBJECT from '@salesforce/schema/Task';
-import INTERNAL_EXTERNAL_TYPE_FIELD from '@salesforce/schema/Task.Internal_External_Type__c';
 
 import TASK_REMINDER_OBJECT from '@salesforce/schema/Task_Reminder__c';
 import REMINDER_TYPE_FIELD from '@salesforce/schema/Task_Reminder__c.Reminder_Type__c';
 
 const SEARCH_FOCUS_CLICK_WINDOW_MS = 200;
 const SEARCH_BLUR_CLOSE_DELAY_MS = 150;
+const DROPDOWN_VERTICAL_OFFSET_PX = 4;
+
+const SUBJECT_SUGGESTIONS = [
+    'Call Client',
+    'Call Court',
+    "Call Court's Clerk",
+    'Call OC',
+    'Draft Complaint',
+    'Draft Discovery',
+    'Draft Document',
+    'Draft FAC',
+    'Draft Informal Discovery',
+    'Draft Mediation Brief',
+    'Draft PAGA letter',
+    'F/u with Client',
+    'F/u with Mediator',
+    'F/u with OC',
+    'File Documents',
+    'Prepare Case Comparison Chart',
+    'Review Calendar',
+    'Review File',
+    'Other'
+];
+
+const REMINDER_DAY_OF_SORT_BASE = 100000;
+
+// The uiObjectInfoApi picklist wire doesn't reliably preserve the picklist's
+// defined order, so reminder options are re-sorted by parsing their label
+// into a "days before due date" offset (furthest before sorts first).
+function reminderSortKey(label) {
+    if (!label) return 0;
+
+    const dayOfMatch = label.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)\s*Day Of$/i);
+    if (dayOfMatch) {
+        let hour = parseInt(dayOfMatch[1], 10);
+        const minute = parseInt(dayOfMatch[2], 10);
+        const isPM = /PM/i.test(dayOfMatch[3]);
+        if (isPM && hour !== 12) hour += 12;
+        if (!isPM && hour === 12) hour = 0;
+        return REMINDER_DAY_OF_SORT_BASE + hour * 60 + minute;
+    }
+
+    const monthMatch = label.match(/^(\d+)\s*Months?\s*Before$/i);
+    if (monthMatch) return -parseInt(monthMatch[1], 10) * 30;
+
+    const weekMatch = label.match(/^(\d+)\s*Weeks?\s*Before$/i);
+    if (weekMatch) return -parseInt(weekMatch[1], 10) * 7;
+
+    const dayMatch = label.match(/^(\d+)\s*Days?\s*Before$/i);
+    if (dayMatch) return -parseInt(dayMatch[1], 10);
+
+    return 0;
+}
 
 export default class TaskCreateModalAction extends LightningModal {
 
@@ -41,10 +93,6 @@ export default class TaskCreateModalAction extends LightningModal {
     @api get initialDescription() { return this._initialDescription; }
     set initialDescription(val) { this._initialDescription = val; if (val != null) this.description = val; }
 
-    _initialInternalExternalType;
-    @api get initialInternalExternalType() { return this._initialInternalExternalType; }
-    set initialInternalExternalType(val) { this._initialInternalExternalType = val; if (val != null) this.internalExternalType = val; }
-
     _initialAssignees = [];
     @api get initialAssignees() { return this._initialAssignees; }
     set initialAssignees(val) {
@@ -63,12 +111,20 @@ export default class TaskCreateModalAction extends LightningModal {
     priority = 'Normal';
     description = '';
 
-    internalExternalType = '';
-
     @track selectedReminderTypes = [];
     isReminderSet = false;
 
+    isMoreDetailsOpen = false;
+
     isSaving = false;
+
+    isSubjectSearchOpen = false;
+    subjectDropdownStyle = '';
+    subjectBlurTimeout;
+    subjectDropdownInteractionTimeout;
+    _isInteractingWithSubjectDropdown = false;
+
+    assigneeDropdownStyle = '';
 
     @wire(MessageContext) messageContext;
 
@@ -106,12 +162,39 @@ export default class TaskCreateModalAction extends LightningModal {
         return this.reminderPicklist?.data?.values ?? [];
     }
 
+    get sortedReminderOptions() {
+        return [...this.reminderOptions].sort(
+            (a, b) => reminderSortKey(a.value) - reminderSortKey(b.value)
+        );
+    }
+
+    get reminderOptionRows() {
+        return this.sortedReminderOptions.map(o => ({
+            ...o,
+            checked: this.selectedReminderTypes.includes(o.value)
+        }));
+    }
+
+    get reminderOptionColumnLeft() {
+        const rows = this.reminderOptionRows;
+        return rows.slice(0, Math.ceil(rows.length / 2));
+    }
+
+    get reminderOptionColumnRight() {
+        const rows = this.reminderOptionRows;
+        return rows.slice(Math.ceil(rows.length / 2));
+    }
+
     get isReminderDisabled() {
         return !this.activityDate;
     }
 
-    handleReminderChange(event) {
-        this.selectedReminderTypes = event.detail.value;
+    handleReminderOptionToggle(e) {
+        const value = e.target.dataset.value;
+
+        this.selectedReminderTypes = e.target.checked
+            ? [...this.selectedReminderTypes, value]
+            : this.selectedReminderTypes.filter(v => v !== value);
     }
 
     /* -------------------------
@@ -123,16 +206,6 @@ export default class TaskCreateModalAction extends LightningModal {
 
     get taskRecordTypeId() {
         return this.taskMetadata?.data?.defaultRecordTypeId || '012000000000000AAA';
-    }
-
-    @wire(getPicklistValues, {
-        recordTypeId: '$taskRecordTypeId',
-        fieldApiName: INTERNAL_EXTERNAL_TYPE_FIELD
-    })
-    internalExternalTypePicklist;
-
-    get internalExternalTypeOptions() {
-        return this.internalExternalTypePicklist?.data?.values ?? [];
     }
 
     /* -------------------------
@@ -158,11 +231,96 @@ export default class TaskCreateModalAction extends LightningModal {
         return this.isSaving;
     }
 
+    get moreDetailsIcon() {
+        return this.isMoreDetailsOpen ? 'utility:chevrondown' : 'utility:chevronright';
+    }
+
+    toggleMoreDetails() {
+        this.isMoreDetailsOpen = !this.isMoreDetailsOpen;
+    }
+
+    /* -------------------------
+       Dropdown Positioning
+
+       Search dropdowns render fixed-position so they escape
+       lightning-modal-body's internal scroll clipping.
+    -------------------------- */
+
+    computeDropdownStyle(dataId) {
+        const container = this.template.querySelector(`[data-id="${dataId}"]`);
+        if (!container) return '';
+
+        const rect = container.getBoundingClientRect();
+        return `position:fixed; top:${rect.bottom + DROPDOWN_VERTICAL_OFFSET_PX}px; left:${rect.left}px; width:${rect.width}px;`;
+    }
+
+    /* -------------------------
+       Subject Suggestions
+    -------------------------- */
+
+    get filteredSubjectSuggestions() {
+        const keyword = (this.subject || '').trim().toLowerCase();
+        if (!keyword) return SUBJECT_SUGGESTIONS;
+        return SUBJECT_SUGGESTIONS.filter(s => s.toLowerCase().includes(keyword));
+    }
+
+    get hasSubjectSuggestions() {
+        return this.isSubjectSearchOpen && this.filteredSubjectSuggestions.length > 0;
+    }
+
+    openSubjectSearch() {
+        clearTimeout(this.subjectBlurTimeout);
+        this.isSubjectSearchOpen = true;
+        this.subjectDropdownStyle = this.computeDropdownStyle('subject-search-container');
+    }
+
+    closeSubjectSearch() {
+        this.isSubjectSearchOpen = false;
+        clearTimeout(this.subjectBlurTimeout);
+    }
+
+    handleSubjectFocus() {
+        this.openSubjectSearch();
+    }
+
+    handleSubjectBlur() {
+        if (this._isInteractingWithSubjectDropdown) return;
+
+        clearTimeout(this.subjectBlurTimeout);
+        this.subjectBlurTimeout = setTimeout(() => {
+            this.closeSubjectSearch();
+        }, SEARCH_BLUR_CLOSE_DELAY_MS);
+    }
+
+    handleSubjectDropdownMouseDown() {
+        this._isInteractingWithSubjectDropdown = true;
+        clearTimeout(this.subjectDropdownInteractionTimeout);
+        this.subjectDropdownInteractionTimeout = setTimeout(() => {
+            this._isInteractingWithSubjectDropdown = false;
+        }, 0);
+    }
+
+    selectSubjectSuggestion(e) {
+        this.subject = e.currentTarget.dataset.value;
+        this.closeSubjectSearch();
+
+        // The input blurs (while still empty) just before this click handler
+        // fills in the value, so lightning-input flags itself invalid on that
+        // blur. Re-check validity once the new value has rendered so the
+        // error clears without the user needing to click back into the field.
+        Promise.resolve().then(() => {
+            this.template.querySelector('lightning-input[data-id="subject-input"]')?.reportValidity();
+        });
+    }
+
     /* -------------------------
        Field Handlers
     -------------------------- */
 
-    handleSubject = e => this.subject = e.target.value;
+    handleSubject = e => {
+        this.subject = e.target.value;
+        this.isSubjectSearchOpen = true;
+    };
     handleDueDate = e => {
         this.activityDate = e.target.value;
 
@@ -174,7 +332,6 @@ export default class TaskCreateModalAction extends LightningModal {
     handleReminderSet = e => this.isReminderSet = e.target.checked;
     handlePriority = e => this.priority = e.target.value;
     handleDescription = e => this.description = e.target.value;
-    handleInternalExternalType = e => this.internalExternalType = e.detail.value;
 
     /* -------------------------
        Attendees
@@ -249,6 +406,7 @@ export default class TaskCreateModalAction extends LightningModal {
 
     handleModalOutsideSearchClick() {
         this.closeUserSearch();
+        this.closeSubjectSearch();
     }
 
     handleUserSearch(e) {
@@ -273,6 +431,7 @@ export default class TaskCreateModalAction extends LightningModal {
 
     async searchUsersInternal(keyword) {
         this.isUserSearchOpen = true;
+        this.assigneeDropdownStyle = this.computeDropdownStyle('assignee-search-container');
         const requestId = (this.userSearchRequestId || 0) + 1;
         this.userSearchRequestId = requestId;
 
@@ -367,7 +526,6 @@ export default class TaskCreateModalAction extends LightningModal {
             status: this.status,
             priority: this.priority,
             description: this.description,
-            internalExternalType: this.internalExternalType,
             reminderTypes: this.selectedReminderTypes
         });
 
@@ -411,20 +569,23 @@ export default class TaskCreateModalAction extends LightningModal {
         this.status                 = 'Open';
         this.priority               = 'Normal';
         this.description            = '';
-        this.internalExternalType   = '';
         this.selectedReminderTypes  = [];
         this.isReminderSet          = false;
+        this.isMoreDetailsOpen      = false;
         this.selectedUsers          = [];
         this.selectedUserIds        = new Set();
         this.userResults            = [];
         this.userSearchKeyword      = '';
         this.closeUserSearch();
+        this.closeSubjectSearch();
     }
 
     disconnectedCallback() {
         clearTimeout(this.userSearchTimeout);
         clearTimeout(this.userBlurTimeout);
         clearTimeout(this.searchDropdownInteractionTimeout);
+        clearTimeout(this.subjectBlurTimeout);
+        clearTimeout(this.subjectDropdownInteractionTimeout);
     }
 
     handleCancel() {

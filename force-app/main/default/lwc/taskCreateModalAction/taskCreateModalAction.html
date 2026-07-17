@@ -3,132 +3,185 @@
 
     <lightning-modal-body onclick={handleModalOutsideSearchClick}>
 
-        <!-- Subject -->
-        <lightning-input
-            label="Subject"
-            required
-            autocomplete="off"
-            value={subject}
-            onchange={handleSubject}>
-        </lightning-input>
+        <div class="slds-grid slds-wrap slds-gutters">
+            <div class="slds-col slds-size_1-of-3">
+                <!-- Subject -->
+                <div class="search-container" data-id="subject-search-container" onclick={handleSearchAreaClick}>
+                    <lightning-input
+                        data-id="subject-input"
+                        label="Subject"
+                        required
+                        autocomplete="off"
+                        value={subject}
+                        onfocus={handleSubjectFocus}
+                        onblur={handleSubjectBlur}
+                        onchange={handleSubject}
+                        onkeyup={handleSubject}>
+                    </lightning-input>
 
-        <!-- Description -->
-        <lightning-textarea
-            label="Description"
-            value={description}
-            onchange={handleDescription}>
-        </lightning-textarea>
-
-        <!-- Selected Assignee -->
-        <template if:true={hasSelectedAssignee}>
-            <div class="slds-box slds-m-top_medium">
-                <div class="slds-text-title_caps slds-m-bottom_x-small">
-                    Assignee <abbr class="slds-required" title="required">*</abbr>
+                    <template if:true={hasSubjectSuggestions}>
+                        <div class="search-dropdown" style={subjectDropdownStyle} onmousedown={handleSubjectDropdownMouseDown}>
+                            <template for:each={filteredSubjectSuggestions} for:item="s">
+                                <button
+                                    key={s}
+                                    type="button"
+                                    class="dropdown-item"
+                                    data-value={s}
+                                    onclick={selectSubjectSuggestion}>
+                                    {s}
+                                </button>
+                            </template>
+                        </div>
+                    </template>
                 </div>
-
-                <template for:each={selectedUsers} for:item="u">
-                    <lightning-pill
-                        key={u.id}
-                        label={u.name}
-                        data-id={u.id}
-                        onremove={removeUser}>
-                    </lightning-pill>
-                </template>
             </div>
-        </template>
 
-        <!-- Assignee Search -->
-        <template if:false={hasSelectedAssignee}>
-            <div class="search-container slds-m-top_large" onclick={handleSearchAreaClick}>
-                <lightning-input
-                    data-id="user-search-input"
-                    type="search"
-                    label="Search Assignee"
-                    required
-                    value={userSearchKeyword}
-                    onfocus={handleUserFocus}
-                    onclick={handleUserClick}
-                    onblur={handleUserBlur}
-                    onkeyup={handleUserSearch}
-                    onkeydown={handleUserKeydown}>
-                </lightning-input>
+            <div class="slds-col slds-size_1-of-3">
+                <!-- Selected Assignee -->
+                <template if:true={hasSelectedAssignee}>
+                    <div class="slds-form-element__label slds-m-bottom_x-small">
+                        Assignee <abbr class="slds-required" title="required">*</abbr>
+                    </div>
 
-                <template if:true={hasUserResults}>
-                    <div class="search-dropdown" onmousedown={handleSearchDropdownMouseDown}>
-                        <template for:each={userResults} for:item="u">
-                            <button
-                                key={u.Id}
-                                type="button"
-                                class="dropdown-item"
-                                data-id={u.Id}
-                                onclick={addUser}>
-                                {u.Name}
-                            </button>
+                    <template for:each={selectedUsers} for:item="u">
+                        <lightning-pill
+                            key={u.id}
+                            label={u.name}
+                            data-id={u.id}
+                            onremove={removeUser}>
+                        </lightning-pill>
+                    </template>
+                </template>
+
+                <!-- Assignee Search -->
+                <template if:false={hasSelectedAssignee}>
+                    <div class="search-container" data-id="assignee-search-container" onclick={handleSearchAreaClick}>
+                        <lightning-input
+                            data-id="user-search-input"
+                            type="search"
+                            label="Assignee"
+                            required
+                            value={userSearchKeyword}
+                            onfocus={handleUserFocus}
+                            onclick={handleUserClick}
+                            onblur={handleUserBlur}
+                            onkeyup={handleUserSearch}
+                            onkeydown={handleUserKeydown}>
+                        </lightning-input>
+
+                        <template if:true={hasUserResults}>
+                            <div class="search-dropdown" style={assigneeDropdownStyle} onmousedown={handleSearchDropdownMouseDown}>
+                                <template for:each={userResults} for:item="u">
+                                    <button
+                                        key={u.Id}
+                                        type="button"
+                                        class="dropdown-item"
+                                        data-id={u.Id}
+                                        onclick={addUser}>
+                                        {u.Name}
+                                    </button>
+                                </template>
+                            </div>
                         </template>
                     </div>
                 </template>
             </div>
-        </template>
 
-        <!-- Priority -->
-        <lightning-combobox
-            class="slds-m-top_large"
-            label="Priority"
-            value={priority}
-            options={priorityOptions}
-            onchange={handlePriority}>
-        </lightning-combobox>
+            <div class="slds-col slds-size_1-of-3">
+                <!-- Due Date -->
+                <lightning-input
+                    data-id="dueDate"
+                    type="date"
+                    label="Due Date"
+                    required
+                    message-when-value-missing="Please select a Due Date."
+                    value={activityDate}
+                    onchange={handleDueDate}>
+                </lightning-input>
+            </div>
+        </div>
 
-        <!-- Due Date -->
-        <lightning-input
-            data-id="dueDate"
-            class="slds-m-top_medium"
-            type="date"
-            label="Due Date"
-            required
-            message-when-value-missing="Please select a Due Date."
-            value={activityDate}
-            onchange={handleDueDate}>
-        </lightning-input>
+        <!-- More Details -->
+        <div class="more-details-section slds-m-top_medium">
+            <button
+                type="button"
+                class="more-details-toggle"
+                onclick={toggleMoreDetails}
+                aria-expanded={isMoreDetailsOpen}>
+                <lightning-icon icon-name={moreDetailsIcon} size="xx-small"></lightning-icon>
+                <span>More Details</span>
+            </button>
 
-        <!-- Reminder Set -->
-        <lightning-input
-            class="slds-m-top_medium"
-            type="checkbox"
-            label="Reminder Set"
-            checked={isReminderSet}
-            disabled={isReminderDisabled}
-            onchange={handleReminderSet}>
-        </lightning-input>
+            <template if:true={isMoreDetailsOpen}>
+                <div class="more-details-content slds-m-top_small">
 
-        <!-- Reminder Picker -->
-        <template if:true={isReminderSet}>
-            <lightning-checkbox-group
-                class="slds-m-top_medium"
-                name="reminders"
-                label="Reminders"
-                options={reminderOptions}
-                value={selectedReminderTypes}
-                onchange={handleReminderChange}>
-            </lightning-checkbox-group>
-        </template>
+                    <!-- Priority -->
+                    <lightning-combobox
+                        label="Priority"
+                        value={priority}
+                        options={priorityOptions}
+                        onchange={handlePriority}>
+                    </lightning-combobox>
 
-        <!-- Internal / External -->
-        <lightning-combobox
-            class="slds-m-top_medium"
-            label="Internal / External"
-            value={internalExternalType}
-            options={internalExternalTypeOptions}
-            onchange={handleInternalExternalType}>
-        </lightning-combobox>
+                    <!-- Description -->
+                    <lightning-textarea
+                        class="slds-m-top_medium"
+                        label="Description"
+                        value={description}
+                        onchange={handleDescription}>
+                    </lightning-textarea>
 
-        <!-- Related To -->
-        <lightning-input
-            class="slds-m-top_medium"
-            label="Related To"
-            value={recordName}
-            disabled>
-        </lightning-input>
+                    <!-- Reminder Set -->
+                    <lightning-input
+                        class="slds-m-top_medium"
+                        type="checkbox"
+                        label="Reminder Set"
+                        checked={isReminderSet}
+                        disabled={isReminderDisabled}
+                        onchange={handleReminderSet}>
+                    </lightning-input>
+
+                    <!-- Reminder Picker -->
+                    <template if:true={isReminderSet}>
+                        <div class="slds-form-element__label slds-m-top_medium slds-m-bottom_x-small">Reminders</div>
+                        <div class="reminder-options-grid">
+                            <div class="reminder-options-column">
+                                <template for:each={reminderOptionColumnLeft} for:item="option">
+                                    <lightning-input
+                                        key={option.value}
+                                        type="checkbox"
+                                        label={option.label}
+                                        checked={option.checked}
+                                        data-value={option.value}
+                                        onchange={handleReminderOptionToggle}>
+                                    </lightning-input>
+                                </template>
+                            </div>
+                            <div class="reminder-options-column">
+                                <template for:each={reminderOptionColumnRight} for:item="option">
+                                    <lightning-input
+                                        key={option.value}
+                                        type="checkbox"
+                                        label={option.label}
+                                        checked={option.checked}
+                                        data-value={option.value}
+                                        onchange={handleReminderOptionToggle}>
+                                    </lightning-input>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Related To -->
+                    <lightning-input
+                        class="slds-m-top_medium"
+                        label="Related To"
+                        value={recordName}
+                        disabled>
+                    </lightning-input>
+                </div>
+            </template>
+        </div>
 
     </lightning-modal-body>
 
