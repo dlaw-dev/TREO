@@ -278,8 +278,16 @@ export default class TaskCreateModalAction extends LightningModal {
     @wire(getTemplates)
     wiredTemplates;
 
-    get templateOptions() {
-        return (this.wiredTemplates?.data ?? []).map(t => ({ label: t.Name, value: t.Id }));
+    get templateCards() {
+        const templates = this.wiredTemplates?.data ?? [];
+        return templates.map(t => ({
+            id: t.id,
+            name: t.name,
+            stepLabel: `${t.stepCount} step${t.stepCount === 1 ? '' : 's'}`,
+            cardClass: t.id === this.selectedTemplateId
+                ? 'template-card template-card-selected'
+                : 'template-card'
+        }));
     }
 
     @wire(getTemplateItems, { templateId: '$selectedTemplateId' })
@@ -291,20 +299,38 @@ export default class TaskCreateModalAction extends LightningModal {
 
     get templateItemRows() {
         const items = this.wiredTemplateItems?.data ?? [];
-        return items.map(item => ({
-            ...item,
-            assigneeLabel: item.Assignee_Type__c === 'Static User'
-                ? `Assigned to ${item.Static_Assignee__r?.Name ?? 'Unknown'}`
-                : `Assigned once "${item.Dynamic_Assignee_Field__c}" is set on the Matter`
-        }));
+
+        return items.map((item, index) => {
+            const isFirst = index === 0;
+            const previousSubject = isFirst ? null : items[index - 1].subject;
+
+            return {
+                id: item.id,
+                displayIndex: index + 1,
+                subject: item.subject,
+                description: item.description,
+                isLast: index === items.length - 1,
+                timingLabel: isFirst ? 'Starts immediately' : `Waits for "${previousSubject}"`,
+                timingPillClass: isFirst
+                    ? 'timeline-pill timeline-pill-immediate'
+                    : 'timeline-pill timeline-pill-waiting',
+                assigneeText: item.assigneeType === 'Static User'
+                    ? `Fixed • ${item.assigneeLabel}`
+                    : `Auto • ${item.assigneeLabel}`,
+                assigneePillClass: item.assigneeType === 'Static User'
+                    ? 'timeline-pill timeline-pill-fixed'
+                    : 'timeline-pill timeline-pill-auto'
+            };
+        });
     }
 
     get isApplyTemplateDisabled() {
         return !this.selectedTemplateId || this.isApplyingTemplate;
     }
 
-    handleTemplateChange(event) {
-        this.selectedTemplateId = event.detail.value;
+    handleTemplateCardClick(event) {
+        const id = event.currentTarget.dataset.id;
+        this.selectedTemplateId = this.selectedTemplateId === id ? undefined : id;
     }
 
     async applyTemplate() {

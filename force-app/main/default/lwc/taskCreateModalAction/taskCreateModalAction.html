@@ -199,22 +199,42 @@
         </template>
 
         <template if:true={isUseTemplateTab}>
-            <lightning-combobox
-                label="Template"
-                placeholder="Select a template"
-                options={templateOptions}
-                value={selectedTemplateId}
-                onchange={handleTemplateChange}>
-            </lightning-combobox>
+            <div class="slds-form-element__label slds-m-bottom_x-small">Choose a template</div>
+            <div class="template-card-grid">
+                <template for:each={templateCards} for:item="tpl">
+                    <button
+                        key={tpl.id}
+                        type="button"
+                        class={tpl.cardClass}
+                        data-id={tpl.id}
+                        onclick={handleTemplateCardClick}>
+                        <lightning-icon icon-name="utility:routing_offline" size="small" class="template-card-icon"></lightning-icon>
+                        <span class="template-card-name">{tpl.name}</span>
+                        <span class="template-card-steps">{tpl.stepLabel}</span>
+                    </button>
+                </template>
+            </div>
 
             <template if:true={hasSelectedTemplate}>
-                <div class="template-preview slds-m-top_medium">
-                    <div class="slds-form-element__label slds-m-bottom_x-small">Steps</div>
+                <div class="template-timeline slds-m-top_medium">
                     <template for:each={templateItemRows} for:item="item">
-                        <div key={item.Id} class="template-step-row">
-                            <span class="template-step-index">{item.Sequence_Order__c}.</span>
-                            <span class="template-step-subject">{item.Subject__c}</span>
-                            <span class="template-step-assignee">{item.assigneeLabel}</span>
+                        <div key={item.id} class="timeline-step">
+                            <div class="timeline-marker">
+                                <span class="timeline-circle">{item.displayIndex}</span>
+                                <template if:false={item.isLast}>
+                                    <span class="timeline-line"></span>
+                                </template>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-subject">{item.subject}</div>
+                                <template if:true={item.description}>
+                                    <div class="timeline-description">{item.description}</div>
+                                </template>
+                                <div class="timeline-pills">
+                                    <span class={item.timingPillClass}>{item.timingLabel}</span>
+                                    <span class={item.assigneePillClass}>{item.assigneeText}</span>
+                                </div>
+                            </div>
                         </div>
                     </template>
                 </div>

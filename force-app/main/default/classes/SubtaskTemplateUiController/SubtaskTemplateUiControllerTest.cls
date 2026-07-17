@@ -28,31 +28,38 @@ private class SubtaskTemplateUiControllerTest {
     }
 
     @IsTest
-    static void testGetTemplates_returnsTemplate() {
+    static void testGetTemplates_returnsTemplateWithStepCount() {
         Subtask_Template__c template = buildTemplate();
 
         Test.startTest();
-        List<Subtask_Template__c> results = SubtaskTemplateUiController.getTemplates();
+        List<SubtaskTemplateUiController.TemplateDto> results = SubtaskTemplateUiController.getTemplates();
         Test.stopTest();
 
-        Set<Id> ids = new Set<Id>();
-        for (Subtask_Template__c t : results) {
-            ids.add(t.Id);
+        SubtaskTemplateUiController.TemplateDto match;
+        for (SubtaskTemplateUiController.TemplateDto dto : results) {
+            if (dto.id == template.Id) {
+                match = dto;
+            }
         }
-        System.assert(ids.contains(template.Id));
+
+        System.assertNotEquals(null, match);
+        System.assertEquals('UI Test Template', match.name);
+        System.assertEquals(2, match.stepCount);
     }
 
     @IsTest
-    static void testGetTemplateItems_returnsOrderedSteps() {
+    static void testGetTemplateItems_returnsOrderedStepsWithFriendlyLabels() {
         Subtask_Template__c template = buildTemplate();
 
         Test.startTest();
-        List<Subtask_Template_Item__c> items = SubtaskTemplateUiController.getTemplateItems(template.Id);
+        List<SubtaskTemplateUiController.TemplateItemDto> items = SubtaskTemplateUiController.getTemplateItems(template.Id);
         Test.stopTest();
 
         System.assertEquals(2, items.size());
-        System.assertEquals('Step One', items[0].Subject__c);
-        System.assertEquals('Step Two', items[1].Subject__c);
+        System.assertEquals('Step One', items[0].subject);
+        System.assertEquals('David Yeremian', items[0].assigneeLabel);
+        System.assertEquals('Step Two', items[1].subject);
+        System.assertEquals('Senior Attorney', items[1].assigneeLabel);
     }
 
     @IsTest
