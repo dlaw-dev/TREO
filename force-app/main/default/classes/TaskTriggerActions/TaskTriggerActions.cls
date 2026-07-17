@@ -43,9 +43,9 @@ public with sharing class TaskTriggerActions {
                     continue;
                 }
 
-                Object fieldValue = readMatterField(t.NEOS_Matter__c, nextItem.Dynamic_Assignee_Field__c);
+                Id nextAssigneeId = SubtaskAssigneeResolver.resolveAssignee(nextItem, t.NEOS_Matter__c);
 
-                if (fieldValue == null) {
+                if (nextAssigneeId == null) {
                     t.addError('Please set "' + nextItem.Dynamic_Assignee_Field__c
                         + '" on the Matter before completing this task, so "'
                         + nextItem.Subject__c + '" can be assigned.');
@@ -89,7 +89,7 @@ public with sharing class TaskTriggerActions {
                     continue; // this was the master / last step - chain is complete
                 }
 
-                Id assigneeId = resolveAssignee(nextItem, t.NEOS_Matter__c);
+                Id assigneeId = SubtaskAssigneeResolver.resolveAssignee(nextItem, t.NEOS_Matter__c);
 
                 if (assigneeId == null) {
                     continue; // the before-update safety rail should have blocked this already
@@ -154,38 +154,5 @@ public with sharing class TaskTriggerActions {
         ];
 
         return matches.isEmpty() ? null : matches[0];
-    }
-
-    private static Id resolveAssignee(Subtask_Template_Item__c item, Id matterId) {
-        if (item.Assignee_Type__c == 'Static User') {
-            return item.Static_Assignee__c;
-        }
-
-        if (item.Assignee_Type__c == 'Dynamic Matter Field') {
-            Object fieldValue = readMatterField(matterId, item.Dynamic_Assignee_Field__c);
-            return fieldValue == null ? null : (Id) fieldValue;
-        }
-
-        return null;
-    }
-
-    private static Object readMatterField(Id matterId, String fieldApiName) {
-        if (matterId == null || String.isBlank(fieldApiName)) {
-            return null;
-        }
-
-        Map<String, Schema.SObjectField> fieldMap = Schema.SObjectType.NEOS_Matter__c.fields.getMap();
-
-        if (!fieldMap.containsKey(fieldApiName.toLowerCase())) {
-            return null;
-        }
-
-        String safeFieldName = fieldMap.get(fieldApiName.toLowerCase()).getDescribe().getName();
-
-        List<SObject> matches = Database.query(
-            'SELECT ' + safeFieldName + ' FROM NEOS_Matter__c WHERE Id = :matterId LIMIT 1'
-        );
-
-        return matches.isEmpty() ? null : matches[0].get(safeFieldName);
     }
 }

@@ -4,6 +4,12 @@
  * (Status = Open, assigned), every later step - including the master, the
  * last step in sequence - starts in Status = Waiting until
  * TaskTriggerActions.AdvanceSubtaskChainAfterComplete activates it.
+ *
+ * A step's assignee - static User, or dynamic field read off the Matter -
+ * resolves the same way whether it's the first step or a later one, via
+ * SubtaskAssigneeResolver. A dynamic first step is valid as long as the
+ * Matter field it reads is already populated (e.g. a chain applied after an
+ * earlier chain already set that field).
  */
 public with sharing class SubtaskTemplateApplier {
 
@@ -24,18 +30,15 @@ public with sharing class SubtaskTemplateApplier {
 
         List<Subtask_Template_Item__c> leadingItems = items.clone();
         Subtask_Template_Item__c masterItem = leadingItems.remove(leadingItems.size() - 1);
+        Subtask_Template_Item__c firstStepItem = leadingItems.isEmpty() ? masterItem : leadingItems[0];
+
+        Id firstAssigneeId = SubtaskAssigneeResolver.resolveAssignee(firstStepItem, matterId);
+
+        if (firstAssigneeId == null) {
+            throw new SubtaskTemplateApplierException(firstStepErrorMessage(firstStepItem));
+        }
 
         Boolean masterIsAlsoFirstStep = leadingItems.isEmpty();
-        Id masterAssigneeId;
-
-        if (masterIsAlsoFirstStep) {
-            masterAssigneeId = resolveStaticAssignee(masterItem);
-
-            if (masterAssigneeId == null) {
-                throw new SubtaskTemplateApplierException(
-                    'The first step of a template must have a Static User assignee.');
-            }
-        }
 
         Task master = new Task(
             Subject                  = masterItem.Subject__c,
@@ -45,7 +48,7 @@ public with sharing class SubtaskTemplateApplier {
             Subtask_Template_Item__c = masterItem.Id,
             Status                   = masterIsAlsoFirstStep ? 'Open' : 'Waiting',
             Priority                 = 'Normal',
-            OwnerId                  = masterIsAlsoFirstStep ? masterAssigneeId : UserInfo.getUserId(),
+            OwnerId                  = masterIsAlsoFirstStep ? firstAssigneeId : UserInfo.getUserId(),
             ActivityDate             = masterIsAlsoFirstStep ? Date.today().addDays(7) : null
         );
         insert master;
@@ -54,13 +57,6 @@ public with sharing class SubtaskTemplateApplier {
         update master;
 
         if (!leadingItems.isEmpty()) {
-            Id firstAssigneeId = resolveStaticAssignee(leadingItems[0]);
-
-            if (firstAssigneeId == null) {
-                throw new SubtaskTemplateApplierException(
-                    'The first step of a template must have a Static User assignee.');
-            }
-
             List<Task> tasksToInsert = new List<Task>();
 
             for (Integer i = 0; i < leadingItems.size(); i++) {
@@ -87,7 +83,12 @@ public with sharing class SubtaskTemplateApplier {
         return master.Id;
     }
 
-    private static Id resolveStaticAssignee(Subtask_Template_Item__c item) {
-        return item.Assignee_Type__c == 'Static User' ? item.Static_Assignee__c : null;
+    private static String firstStepErrorMessage(Subtask_Template_Item__c item) {
+        if (item.Assignee_Type__c == 'Dynamic Matter Field') {
+            return 'Cannot apply this template: the Matter\'s "' + item.Dynamic_Assignee_Field__c
+                + '" field must be set before "' + item.Subject__c + '" can be assigned.';
+        }
+
+        return 'Cannot apply this template: the first step has no assignee configured.';
     }
 }
