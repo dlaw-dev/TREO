@@ -8,6 +8,9 @@ import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 
 import saveTask from '@salesforce/apex/TaskUiController.saveTask';
 import searchUsers from '@salesforce/apex/EventAttendeeUiController.searchUsers';
+import getTemplates from '@salesforce/apex/SubtaskTemplateUiController.getTemplates';
+import getTemplateItems from '@salesforce/apex/SubtaskTemplateUiController.getTemplateItems';
+import applyTemplateApex from '@salesforce/apex/SubtaskTemplateUiController.applyTemplate';
 
 import MATTER_NAME from '@salesforce/schema/NEOS_Matter__c.Name';
 import TASK_OBJECT from '@salesforce/schema/Task';
@@ -126,6 +129,11 @@ export default class TaskCreateModalAction extends LightningModal {
 
     assigneeDropdownStyle = '';
 
+    activeTab = 'newTask';
+
+    selectedTemplateId;
+    isApplyingTemplate = false;
+
     @wire(MessageContext) messageContext;
 
     /* -------------------------
@@ -237,6 +245,90 @@ export default class TaskCreateModalAction extends LightningModal {
 
     toggleMoreDetails() {
         this.isMoreDetailsOpen = !this.isMoreDetailsOpen;
+    }
+
+    /* -------------------------
+       Tabs
+    -------------------------- */
+
+    get isNewTaskTab() {
+        return this.activeTab === 'newTask';
+    }
+
+    get isUseTemplateTab() {
+        return this.activeTab === 'useTemplate';
+    }
+
+    get newTaskTabClass() {
+        return this.isNewTaskTab ? 'tab-button tab-button-active' : 'tab-button';
+    }
+
+    get useTemplateTabClass() {
+        return this.isUseTemplateTab ? 'tab-button tab-button-active' : 'tab-button';
+    }
+
+    handleTabClick(event) {
+        this.activeTab = event.currentTarget.dataset.tab;
+    }
+
+    /* -------------------------
+       Use Template
+    -------------------------- */
+
+    @wire(getTemplates)
+    wiredTemplates;
+
+    get templateOptions() {
+        return (this.wiredTemplates?.data ?? []).map(t => ({ label: t.Name, value: t.Id }));
+    }
+
+    @wire(getTemplateItems, { templateId: '$selectedTemplateId' })
+    wiredTemplateItems;
+
+    get hasSelectedTemplate() {
+        return !!this.selectedTemplateId;
+    }
+
+    get templateItemRows() {
+        const items = this.wiredTemplateItems?.data ?? [];
+        return items.map(item => ({
+            ...item,
+            assigneeLabel: item.Assignee_Type__c === 'Static User'
+                ? `Assigned to ${item.Static_Assignee__r?.Name ?? 'Unknown'}`
+                : `Assigned once "${item.Dynamic_Assignee_Field__c}" is set on the Matter`
+        }));
+    }
+
+    get isApplyTemplateDisabled() {
+        return !this.selectedTemplateId || this.isApplyingTemplate;
+    }
+
+    handleTemplateChange(event) {
+        this.selectedTemplateId = event.detail.value;
+    }
+
+    async applyTemplate() {
+        if (this.isApplyingTemplate) return;
+        this.isApplyingTemplate = true;
+
+        try {
+            await applyTemplateApex({ templateId: this.selectedTemplateId, matterId: this.recordId });
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Success',
+                message: 'Template applied',
+                variant: 'success'
+            }));
+            publish(this.messageContext, TASK_CHANGED, {});
+            this.close('success');
+        } catch (e) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error',
+                message: e.body?.message || e.message,
+                variant: 'error'
+            }));
+        } finally {
+            this.isApplyingTemplate = false;
+        }
     }
 
     /* -------------------------

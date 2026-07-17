@@ -3,6 +3,20 @@
 
     <lightning-modal-body onclick={handleModalOutsideSearchClick}>
 
+        <div class="modal-tabs">
+            <button
+                type="button"
+                class={newTaskTabClass}
+                data-tab="newTask"
+                onclick={handleTabClick}>New Task</button>
+            <button
+                type="button"
+                class={useTemplateTabClass}
+                data-tab="useTemplate"
+                onclick={handleTabClick}>Use Template</button>
+        </div>
+
+        <template if:true={isNewTaskTab}>
         <div class="slds-grid slds-wrap slds-gutters">
             <div class="slds-col slds-size_1-of-3">
                 <!-- Subject -->
@@ -182,6 +196,36 @@
                 </div>
             </template>
         </div>
+        </template>
+
+        <template if:true={isUseTemplateTab}>
+            <lightning-combobox
+                label="Template"
+                placeholder="Select a template"
+                options={templateOptions}
+                value={selectedTemplateId}
+                onchange={handleTemplateChange}>
+            </lightning-combobox>
+
+            <template if:true={hasSelectedTemplate}>
+                <div class="template-preview slds-m-top_medium">
+                    <div class="slds-form-element__label slds-m-bottom_x-small">Steps</div>
+                    <template for:each={templateItemRows} for:item="item">
+                        <div key={item.Id} class="template-step-row">
+                            <span class="template-step-index">{item.Sequence_Order__c}.</span>
+                            <span class="template-step-subject">{item.Subject__c}</span>
+                            <span class="template-step-assignee">{item.assigneeLabel}</span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <template if:true={isApplyingTemplate}>
+                <div class="slds-m-top_medium">
+                    <lightning-spinner alternative-text="Applying template" size="small"></lightning-spinner>
+                </div>
+            </template>
+        </template>
 
     </lightning-modal-body>
 
@@ -191,17 +235,28 @@
             onclick={handleCancel}>
         </lightning-button>
 
-        <lightning-button
-            label="Save &amp; New"
-            disabled={isSaveDisabled}
-            onclick={saveAndNew}>
-        </lightning-button>
+        <template if:true={isNewTaskTab}>
+            <lightning-button
+                label="Save &amp; New"
+                disabled={isSaveDisabled}
+                onclick={saveAndNew}>
+            </lightning-button>
 
-        <lightning-button
-            variant="brand"
-            label="Save"
-            disabled={isSaveDisabled}
-            onclick={save}>
-        </lightning-button>
+            <lightning-button
+                variant="brand"
+                label="Save"
+                disabled={isSaveDisabled}
+                onclick={save}>
+            </lightning-button>
+        </template>
+
+        <template if:true={isUseTemplateTab}>
+            <lightning-button
+                variant="brand"
+                label="Apply Template"
+                disabled={isApplyTemplateDisabled}
+                onclick={applyTemplate}>
+            </lightning-button>
+        </template>
     </lightning-modal-footer>
 </template>
