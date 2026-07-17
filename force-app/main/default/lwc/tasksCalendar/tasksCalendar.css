@@ -1,3 +1,7 @@
 .completed-dim-cell {
-    opacity: 0.6;
+    /* opacity dims the Subject button too - it renders in its own shadow
+       DOM, so a text color override here can't reach its label directly,
+       but opacity is a compositing effect that applies regardless. */
+    opacity: 0.55;
+    color: var(--lwc-colorTextWeak, #706e6b);
 }

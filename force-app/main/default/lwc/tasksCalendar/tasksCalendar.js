@@ -48,7 +48,8 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
                 label: { fieldName: 'displaySubject' },
                 name: 'open_record',
                 variant: 'base'
-            }
+            },
+            cellAttributes: { class: { fieldName: 'dimCellClass' } }
         },
         {
             label: 'Due Date',
