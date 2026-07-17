@@ -378,6 +378,19 @@
     color: #514f4d;
 }
 
+.waiting-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 1.25rem;
+    padding: 0 0.5rem;
+    border-radius: 1rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    white-space: nowrap;
+    background-color: #f3f2f2;
+    color: #706e6b;
+}
+
 .reminder-empty {
     display: flex;
     flex-direction: column;

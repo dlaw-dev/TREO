@@ -289,6 +289,53 @@ private class TaskDueReminderControllerTest {
     }
 
     @IsTest
+    static void testGetMyWaitingTasks_returnsOnlyTasksResolvingToCurrentUser() {
+        User staticAssignee = [SELECT Id FROM User WHERE Name = 'David Yeremian' AND IsActive = true LIMIT 1];
+
+        Subtask_Template__c template = new Subtask_Template__c(Name = 'Waiting Tab Test Template');
+        insert template;
+
+        insert new List<Subtask_Template_Item__c>{
+            new Subtask_Template_Item__c(
+                Subtask_Template__c = template.Id,
+                Sequence_Order__c   = 1,
+                Subject__c          = 'Step One',
+                Assignee_Type__c    = 'Static User',
+                Static_Assignee__c  = staticAssignee.Id
+            ),
+            new Subtask_Template_Item__c(
+                Subtask_Template__c        = template.Id,
+                Sequence_Order__c          = 2,
+                Subject__c                 = 'Step Two Waiting On Me',
+                Assignee_Type__c           = 'Dynamic Matter Field',
+                Dynamic_Assignee_Field__c  = 'Senior_Attorney__c'
+            )
+        };
+
+        NEOS_Matter__c matter = new NEOS_Matter__c(
+            Name = 'Test Matter',
+            Case_Title__c = 'Test Case',
+            Senior_Attorney__c = UserInfo.getUserId()
+        );
+        insert matter;
+
+        SubtaskTemplateApplier.apply(template.Id, matter.Id);
+
+        Test.startTest();
+        List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getMyWaitingTasks();
+        Test.stopTest();
+
+        Map<String, TaskDueReminderController.DueTask> bySubject = new Map<String, TaskDueReminderController.DueTask>();
+        for (TaskDueReminderController.DueTask dt : results) {
+            bySubject.put(dt.Subject, dt);
+        }
+
+        System.assert(bySubject.containsKey('Step Two Waiting On Me'));
+        System.assertEquals('Waiting', bySubject.get('Step Two Waiting On Me').Status);
+        System.assert(!bySubject.containsKey('Step One'));
+    }
+
+    @IsTest
     static void testSnoozeTask_notOwner_throws() {
 
         Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];

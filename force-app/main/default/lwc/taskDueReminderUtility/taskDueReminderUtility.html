@@ -13,6 +13,12 @@
                 data-tab="assignedByMe"
                 onclick={handleTabClick}
             >Assigned by Me<span class="tab-count">{assignedByMeCount}</span></button>
+            <button
+                type="button"
+                class={waitingTabClass}
+                data-tab="waiting"
+                onclick={handleTabClick}
+            >Waiting<span class="tab-count">{waitingCount}</span></button>
         </div>
         <template if:true={hasTasks}>
             <div class="panel-toolbar">
@@ -51,8 +57,13 @@
                                                     <span class={task.priorityClass}>{task.Priority}</span>
                                                 </template>
                                                 <span class="reminder-subject">{task.Subject}</span>
-                                                <template if:true={task.TaskSubtype}>
-                                                    <span class={task.subtypeColorClass}>{task.TaskSubtype}</span>
+                                                <template if:true={task.isWaiting}>
+                                                    <span class="waiting-pill">Waiting</span>
+                                                </template>
+                                                <template if:false={task.isWaiting}>
+                                                    <template if:true={task.TaskSubtype}>
+                                                        <span class={task.subtypeColorClass}>{task.TaskSubtype}</span>
+                                                    </template>
                                                 </template>
                                             </div>
                                             <div class="reminder-item-meta">
@@ -89,7 +100,7 @@
                                                 >Snooze <span class="snooze-caret">{task.snoozeCaret}</span></button>
                                             </template>
                                             <template if:false={task.showActions}>
-                                                <template if:true={task.OwnerName}>
+                                                <template if:true={task.showOwnerPill}>
                                                     <span class="assignee-pill">{task.OwnerName}</span>
                                                 </template>
                                                 <template if:true={task.Status}>

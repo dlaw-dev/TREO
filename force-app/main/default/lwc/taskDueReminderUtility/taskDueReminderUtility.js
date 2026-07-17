@@ -6,6 +6,7 @@ import { EnclosingUtilityId, open, updateUtility, getInfo } from 'lightning/plat
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 import getMyDueTasks from '@salesforce/apex/TaskDueReminderController.getMyDueTasks';
 import getTasksAssignedByMe from '@salesforce/apex/TaskDueReminderController.getTasksAssignedByMe';
+import getMyWaitingTasks from '@salesforce/apex/TaskDueReminderController.getMyWaitingTasks';
 import snoozeTask from '@salesforce/apex/TaskDueReminderController.snoozeTask';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
 
@@ -109,6 +110,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
 
     tasks = [];
     delegatedTasks = [];
+    waitingTasks = [];
     activeTab = 'assignedToMe';
     removingIds = new Set();
     openSnoozeMenuId;
@@ -169,7 +171,9 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             ...t,
             dueLabel: dueLabelFor(t.DaysUntil),
             subtypeColorClass: colorClassForSubtype(t.TaskSubtype),
-            priorityClass: priorityClassFor(t.Priority)
+            priorityClass: priorityClassFor(t.Priority),
+            isWaiting: t.Status === 'Waiting',
+            showOwnerPill: t.Status !== 'Waiting' && !!t.OwnerName
         }));
     }
 
@@ -216,6 +220,17 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             // eslint-disable-next-line no-console
             console.error('Failed to load tasks assigned by me:', message);
         }
+
+        try {
+            const waitingResults = await getMyWaitingTasks();
+            this.waitingTasks = this.decorateTasks(waitingResults);
+        } catch (error) {
+            const message =
+                error?.body?.message || error?.message || 'Unknown error';
+
+            // eslint-disable-next-line no-console
+            console.error('Failed to load waiting tasks:', message);
+        }
     }
 
     openPanel() {
@@ -257,12 +272,20 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         return this.activeTab === 'assignedByMe';
     }
 
+    get isWaitingTab() {
+        return this.activeTab === 'waiting';
+    }
+
     get assignedToMeTabClass() {
         return this.isAssignedToMeTab ? 'tab-button tab-button-active' : 'tab-button';
     }
 
     get assignedByMeTabClass() {
         return this.isAssignedByMeTab ? 'tab-button tab-button-active' : 'tab-button';
+    }
+
+    get waitingTabClass() {
+        return this.isWaitingTab ? 'tab-button tab-button-active' : 'tab-button';
     }
 
     get assignedToMeCount() {
@@ -273,8 +296,14 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         return this.delegatedTasks.length;
     }
 
+    get waitingCount() {
+        return this.waitingTasks.length;
+    }
+
     get currentTasks() {
-        return this.isAssignedByMeTab ? this.delegatedTasks : this.tasks;
+        if (this.isAssignedByMeTab) return this.delegatedTasks;
+        if (this.isWaitingTab) return this.waitingTasks;
+        return this.tasks;
     }
 
     handleTabClick(event) {
@@ -399,9 +428,9 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     get emptyStateTitle() {
-        return this.isAssignedByMeTab
-            ? 'Nothing outstanding'
-            : "You're all caught up!";
+        if (this.isAssignedByMeTab) return 'Nothing outstanding';
+        if (this.isWaitingTab) return 'Nothing waiting on you';
+        return "You're all caught up!";
     }
 
     get isAllExpanded() {

@@ -123,6 +123,47 @@ public with sharing class TaskDueReminderController {
         return results;
     }
 
+    @AuraEnabled(cacheable=false)
+    public static List<DueTask> getMyWaitingTasks() {
+
+        Date todayDate = Date.today();
+        Id currentUserId = UserInfo.getUserId();
+
+        List<DueTask> results = new List<DueTask>();
+
+        for (Task t : [
+            SELECT Id,
+                   Subject,
+                   ActivityDate,
+                   Priority,
+                   Status,
+                   Task_Subtype__c,
+                   NEOS_Matter__c,
+                   NEOS_Matter__r.Name,
+                   WhatId,
+                   What.Name,
+                   OwnerId,
+                   Owner.Name,
+                   Subtask_Template_Item__r.Assignee_Type__c,
+                   Subtask_Template_Item__r.Static_Assignee__c,
+                   Subtask_Template_Item__r.Dynamic_Assignee_Field__c
+            FROM Task
+            WHERE Status = 'Waiting'
+              AND Subtask_Template_Item__c != null
+            ORDER BY CreatedDate DESC
+            LIMIT 200
+        ]) {
+            Id resolvedAssigneeId = SubtaskAssigneeResolver.resolveAssignee(
+                t.Subtask_Template_Item__r, t.NEOS_Matter__c);
+
+            if (resolvedAssigneeId == currentUserId) {
+                results.add(new DueTask(t, todayDate));
+            }
+        }
+
+        return results;
+    }
+
     @AuraEnabled
     public static void snoozeTask(Id taskId, Datetime snoozeUntil) {
         try {
