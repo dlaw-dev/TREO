@@ -1,8 +1,8 @@
 <template>
-    <lightning-card title="Subtask Chains" icon-name="utility:routing_offline">
+    <lightning-card title="Task Chain" icon-name="utility:routing_offline">
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
             <template if:true={isLoading}>
-                <lightning-spinner alternative-text="Loading subtask chains" size="small"></lightning-spinner>
+                <lightning-spinner alternative-text="Loading task chain" size="small"></lightning-spinner>
             </template>
 
             <template if:true={hasError}>
@@ -12,7 +12,7 @@
             <template if:false={hasChains}>
                 <template if:false={isLoading}>
                     <template if:false={hasError}>
-                        <p class="chain-empty">No subtask chains on this Matter yet.</p>
+                        <p class="chain-empty">No task chains on this Matter yet.</p>
                     </template>
                 </template>
             </template>
