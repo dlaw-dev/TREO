@@ -26,6 +26,7 @@ public with sharing class TaskDueReminderController {
             FROM Task
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
+              AND Status != 'Waiting'
               AND ActivityDate != null
               AND ActivityDate <= :upperBound
               AND (Snoozed_Until__c = null OR Snoozed_Until__c <= :nowDt)
@@ -51,6 +52,7 @@ public with sharing class TaskDueReminderController {
             FROM Task
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
+              AND Status != 'Waiting'
               AND ActivityDate = null
               AND (Snoozed_Until__c = null OR Snoozed_Until__c <= :nowDt)
             ORDER BY CreatedDate DESC
@@ -88,6 +90,7 @@ public with sharing class TaskDueReminderController {
             WHERE CreatedById = :currentUserId
               AND OwnerId != :currentUserId
               AND Status != 'Completed'
+              AND Status != 'Waiting'
               AND ActivityDate != null
               AND ActivityDate <= :upperBound
             ORDER BY ActivityDate ASC
@@ -113,6 +116,7 @@ public with sharing class TaskDueReminderController {
             WHERE CreatedById = :currentUserId
               AND OwnerId != :currentUserId
               AND Status != 'Completed'
+              AND Status != 'Waiting'
               AND ActivityDate = null
             ORDER BY CreatedDate DESC
             LIMIT 20

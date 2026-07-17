@@ -100,6 +100,41 @@ private class TaskDueReminderControllerTest {
     }
 
     @IsTest
+    static void testGetMyDueTasks_excludesWaitingStatus_evenWhenOwnedByCurrentUser() {
+
+        // A Waiting subtask's placeholder owner is whoever applied its
+        // template - typically the current user in this scenario - but it
+        // must never show up as "assigned to me" since it isn't actionable
+        // yet; it belongs on the dedicated Waiting tab instead.
+        Task waitingNoDueDate = new Task(
+            Subject      = 'Waiting Placeholder No Due Date',
+            Status       = 'Waiting',
+            OwnerId      = UserInfo.getUserId()
+        );
+
+        Task waitingWithDueDate = new Task(
+            Subject      = 'Waiting Placeholder With Due Date',
+            Status       = 'Waiting',
+            ActivityDate = Date.today(),
+            OwnerId      = UserInfo.getUserId()
+        );
+
+        insert new List<Task>{ waitingNoDueDate, waitingWithDueDate };
+
+        Test.startTest();
+        List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getMyDueTasks();
+        Test.stopTest();
+
+        Set<Id> resultIds = new Set<Id>();
+        for (TaskDueReminderController.DueTask dt : results) {
+            resultIds.add(dt.Id);
+        }
+
+        System.assert(!resultIds.contains(waitingNoDueDate.Id));
+        System.assert(!resultIds.contains(waitingWithDueDate.Id));
+    }
+
+    @IsTest
     static void testGetMyDueTasks_noneDue_returnsEmptyList() {
 
         Task farFutureTask = new Task(
