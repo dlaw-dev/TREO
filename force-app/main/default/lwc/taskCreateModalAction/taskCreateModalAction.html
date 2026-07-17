@@ -17,7 +17,7 @@
                 aria-selected={isUseTemplateTab}
                 class={useTemplateTabClass}
                 data-tab="useTemplate"
-                onclick={handleTabClick}>Use Template</button>
+                onclick={handleTabClick}>Use Task Template</button>
         </div>
 
         <template if:true={isNewTaskTab}>
@@ -300,7 +300,7 @@
         <template if:true={isUseTemplateTab}>
             <lightning-button
                 variant="brand"
-                label="Apply Template"
+                label="Create Tasks"
                 disabled={isApplyTemplateDisabled}
                 onclick={applyTemplate}>
             </lightning-button>
