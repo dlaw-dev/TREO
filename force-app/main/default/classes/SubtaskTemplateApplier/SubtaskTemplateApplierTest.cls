@@ -57,6 +57,51 @@ private class SubtaskTemplateApplierTest {
     }
 
     @IsTest
+    static void testApply_laterStepDynamicFieldAlreadySet_resolvesRealOwnerWhileWaiting() {
+        User staticAssignee = [SELECT Id FROM User WHERE Name = 'David Yeremian' AND IsActive = true LIMIT 1];
+        User paralegal = [SELECT Id FROM User WHERE Id != :staticAssignee.Id AND IsActive = true LIMIT 1];
+
+        Subtask_Template__c template = new Subtask_Template__c(Name = 'Test Template');
+        insert template;
+
+        insert new List<Subtask_Template_Item__c>{
+            new Subtask_Template_Item__c(
+                Subtask_Template__c = template.Id,
+                Sequence_Order__c   = 1,
+                Subject__c          = 'Step One',
+                Assignee_Type__c    = 'Static User',
+                Static_Assignee__c  = staticAssignee.Id
+            ),
+            new Subtask_Template_Item__c(
+                Subtask_Template__c        = template.Id,
+                Sequence_Order__c          = 2,
+                Subject__c                 = 'Step Two (Master)',
+                Assignee_Type__c           = 'Dynamic Matter Field',
+                Dynamic_Assignee_Field__c  = 'LSS_Paralegal__c'
+            )
+        };
+
+        NEOS_Matter__c matter = new NEOS_Matter__c(
+            Name = 'Test Matter',
+            Case_Title__c = 'Test Case',
+            LSS_Paralegal__c = paralegal.Id
+        );
+        insert matter;
+
+        Test.startTest();
+        Id masterId = SubtaskTemplateApplier.apply(template.Id, matter.Id);
+        Test.stopTest();
+
+        Task master = [SELECT Status, OwnerId FROM Task WHERE Id = :masterId];
+        System.assertEquals('Waiting', master.Status);
+        System.assertEquals(
+            paralegal.Id,
+            master.OwnerId,
+            'A Waiting step whose dynamic field is already set on the Matter should show its real eventual assignee, not the template applier.'
+        );
+    }
+
+    @IsTest
     static void testApply_throwsWhenTemplateHasNoSteps() {
         Subtask_Template__c emptyTemplate = new Subtask_Template__c(Name = 'Empty Template');
         insert emptyTemplate;

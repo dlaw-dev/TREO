@@ -32,13 +32,33 @@ public with sharing class SubtaskTemplateApplier {
         Subtask_Template_Item__c masterItem = leadingItems.remove(leadingItems.size() - 1);
         Subtask_Template_Item__c firstStepItem = leadingItems.isEmpty() ? masterItem : leadingItems[0];
 
-        Id firstAssigneeId = SubtaskAssigneeResolver.resolveAssignee(firstStepItem, matterId);
+        // Resolve every step's assignee up front, not just the first step's.
+        // A later step's dynamic field is usually already set on the Matter
+        // (e.g. LSS_Paralegal__c), so showing its real assignee immediately -
+        // even while the step is still Waiting - beats showing whoever
+        // applied the template as a misleading placeholder owner. When a
+        // field genuinely isn't resolvable yet (e.g. it's set by an earlier
+        // step in a different chain), we still fall back to the applier;
+        // AdvanceSubtaskChainAfterComplete re-resolves for real at
+        // activation time regardless, so an early guess is never load-bearing.
+        Map<Id, Subtask_Template_Item__c> keyToItem = new Map<Id, Subtask_Template_Item__c>();
+        Map<Id, Id> keyToMatterId = new Map<Id, Id>();
+        for (Subtask_Template_Item__c item : items) {
+            keyToItem.put(item.Id, item);
+            keyToMatterId.put(item.Id, matterId);
+        }
+        Map<Id, Id> resolvedAssignees = SubtaskAssigneeResolver.resolveAssigneesBulk(keyToItem, keyToMatterId);
+
+        Id firstAssigneeId = resolvedAssignees.get(firstStepItem.Id);
 
         if (firstAssigneeId == null) {
             throw new SubtaskTemplateApplierException(firstStepErrorMessage(firstStepItem));
         }
 
         Boolean masterIsAlsoFirstStep = leadingItems.isEmpty();
+        Id masterAssigneeId = masterIsAlsoFirstStep
+            ? firstAssigneeId
+            : coalesceAssignee(resolvedAssignees.get(masterItem.Id));
 
         Task master = new Task(
             Subject                  = masterItem.Subject__c,
@@ -48,7 +68,7 @@ public with sharing class SubtaskTemplateApplier {
             Subtask_Template_Item__c = masterItem.Id,
             Status                   = masterIsAlsoFirstStep ? 'Open' : 'Waiting',
             Priority                 = 'Normal',
-            OwnerId                  = masterIsAlsoFirstStep ? firstAssigneeId : UserInfo.getUserId(),
+            OwnerId                  = masterAssigneeId,
             ActivityDate             = masterIsAlsoFirstStep ? Date.today().addDays(7) : null
         );
         insert master;
@@ -62,6 +82,7 @@ public with sharing class SubtaskTemplateApplier {
             for (Integer i = 0; i < leadingItems.size(); i++) {
                 Subtask_Template_Item__c item = leadingItems[i];
                 Boolean isFirst = (i == 0);
+                Id assigneeId = isFirst ? firstAssigneeId : coalesceAssignee(resolvedAssignees.get(item.Id));
 
                 tasksToInsert.add(new Task(
                     Subject                  = item.Subject__c,
@@ -72,7 +93,7 @@ public with sharing class SubtaskTemplateApplier {
                     Parent_Task__c           = master.Id,
                     Status                   = isFirst ? 'Open' : 'Waiting',
                     Priority                 = 'Normal',
-                    OwnerId                  = isFirst ? firstAssigneeId : UserInfo.getUserId(),
+                    OwnerId                  = assigneeId,
                     ActivityDate             = isFirst ? Date.today().addDays(7) : null
                 ));
             }
@@ -81,6 +102,10 @@ public with sharing class SubtaskTemplateApplier {
         }
 
         return master.Id;
+    }
+
+    private static Id coalesceAssignee(Id resolvedId) {
+        return resolvedId != null ? resolvedId : UserInfo.getUserId();
     }
 
     private static String firstStepErrorMessage(Subtask_Template_Item__c item) {
