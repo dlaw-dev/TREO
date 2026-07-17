@@ -92,9 +92,11 @@ export default class MatterSubtaskChain extends NavigationMixin(LightningElement
                 displayIndex: index + 1,
                 isLast: index === chain.steps.length - 1,
                 isCompleted: step.status === 'Completed',
-                // A Waiting step's Owner is whoever applied the template, not
-                // a real assignee yet - showing it would be misleading.
-                showOwnerPill: step.status !== 'Waiting' && !!step.ownerName,
+                // SubtaskTemplateApplier now resolves a Waiting step's real
+                // future assignee up front whenever the Matter field it
+                // depends on is already known, so this is safe to show for
+                // Waiting steps too, not just Open/Completed ones.
+                showOwnerPill: !!step.ownerName,
                 markerClass: this.markerClass(step.status),
                 statusPillClass: this.statusPillClass(step.status),
                 statusLabel: this.statusLabel(step.status)
