@@ -208,9 +208,11 @@
                         class={tpl.cardClass}
                         data-id={tpl.id}
                         onclick={handleTemplateCardClick}>
-                        <lightning-icon icon-name="utility:routing_offline" size="small" class="template-card-icon"></lightning-icon>
-                        <span class="template-card-name">{tpl.name}</span>
-                        <span class="template-card-steps">{tpl.stepLabel}</span>
+                        <lightning-icon icon-name={tpl.icon} size="small" class="template-card-icon"></lightning-icon>
+                        <div class="template-card-text">
+                            <span class="template-card-name">{tpl.name}</span>
+                            <span class="template-card-steps">{tpl.stepLabel}</span>
+                        </div>
                     </button>
                 </template>
             </div>

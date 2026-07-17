@@ -74,6 +74,19 @@ function reminderSortKey(label) {
     return 0;
 }
 
+const TEMPLATE_ICON_RULES = [
+    { keywords: ['attorney', 'assignment'], icon: 'utility:law' },
+    { keywords: ['complaint'], icon: 'utility:description' },
+    { keywords: ['letter', 'lwda'], icon: 'utility:email' }
+];
+const DEFAULT_TEMPLATE_ICON = 'utility:routing_offline';
+
+function iconForTemplateName(name) {
+    const lower = (name || '').toLowerCase();
+    const match = TEMPLATE_ICON_RULES.find(rule => rule.keywords.some(kw => lower.includes(kw)));
+    return match ? match.icon : DEFAULT_TEMPLATE_ICON;
+}
+
 export default class TaskCreateModalAction extends LightningModal {
 
     @api recordId;
@@ -283,6 +296,7 @@ export default class TaskCreateModalAction extends LightningModal {
         return templates.map(t => ({
             id: t.id,
             name: t.name,
+            icon: iconForTemplateName(t.name),
             stepLabel: `${t.stepCount} step${t.stepCount === 1 ? '' : 's'}`,
             cardClass: t.id === this.selectedTemplateId
                 ? 'template-card template-card-selected'
