@@ -1,11 +1,17 @@
 import { LightningElement, api, wire } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
 import { subscribe, unsubscribe, MessageContext } from 'lightning/messageService';
 import { refreshApex } from '@salesforce/apex';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 import getChainsForMatter from '@salesforce/apex/SubtaskChainViewerController.getChainsForMatter';
 
-export default class MatterSubtaskChain extends LightningElement {
+export default class MatterSubtaskChain extends NavigationMixin(LightningElement) {
     @api recordId;
+
+    // Keyed by chain key; only present once the user has manually
+    // expanded/collapsed a chain, overriding the default (auto-collapse
+    // once every step in the chain is completed).
+    manualOverrides = new Map();
 
     @wire(MessageContext) messageContext;
     subscription;
@@ -49,10 +55,9 @@ export default class MatterSubtaskChain extends LightningElement {
     get chains() {
         const data = this.wiredChainsResult?.data ?? [];
 
-        return data.map((chain, chainIndex) => ({
-            key: `chain-${chainIndex}`,
-            templateName: chain.templateName,
-            steps: chain.steps.map((step, index) => ({
+        return data.map((chain, chainIndex) => {
+            const key = `chain-${chainIndex}`;
+            const steps = chain.steps.map((step, index) => ({
                 ...step,
                 displayIndex: index + 1,
                 isLast: index === chain.steps.length - 1,
@@ -63,12 +68,57 @@ export default class MatterSubtaskChain extends LightningElement {
                 markerClass: this.markerClass(step.status),
                 statusPillClass: this.statusPillClass(step.status),
                 statusLabel: this.statusLabel(step.status)
-            }))
-        }));
+            }));
+
+            const completedCount = steps.filter(s => s.isCompleted).length;
+            const isFullyCompleted = completedCount === steps.length;
+            const expanded = this.manualOverrides.has(key)
+                ? this.manualOverrides.get(key)
+                : !isFullyCompleted;
+
+            return {
+                key,
+                templateName: chain.templateName,
+                steps,
+                expanded,
+                progressLabel: `${completedCount}/${steps.length} complete`,
+                chevronIcon: expanded ? 'utility:chevrondown' : 'utility:chevronright',
+                headerClass: isFullyCompleted ? 'chain-header chain-header-complete' : 'chain-header'
+            };
+        });
     }
 
     get hasChains() {
         return !this.isLoading && !this.hasError && this.chains.length > 0;
+    }
+
+    toggleChain(event) {
+        const key = event.currentTarget.dataset.key;
+        const chain = this.chains.find(c => c.key === key);
+        const nextOverrides = new Map(this.manualOverrides);
+        nextOverrides.set(key, !chain.expanded);
+        this.manualOverrides = nextOverrides;
+    }
+
+    handleChainHeaderKeydown(event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            this.toggleChain(event);
+        }
+    }
+
+    handleOpenTask(event) {
+        event.stopPropagation();
+        const taskId = event.currentTarget.dataset.id;
+
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: {
+                recordId: taskId,
+                objectApiName: 'Task',
+                actionName: 'view'
+            }
+        });
     }
 
     markerClass(status) {

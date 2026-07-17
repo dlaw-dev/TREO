@@ -14,13 +14,41 @@
     border-top: 1px solid var(--lwc-colorBorder, #d8dde6);
 }
 
+.chain-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.25rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+}
+
+.chain-header:hover {
+    background-color: var(--lwc-colorBackgroundRowHover, #f3f3f3);
+}
+
+.chain-header-complete .chain-title {
+    color: var(--lwc-colorTextWeak, #706e6b);
+}
+
+.chain-chevron {
+    flex-shrink: 0;
+}
+
 .chain-title {
     font-size: 0.8125rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
+    color: var(--lwc-colorTextDefault, #16325c);
+}
+
+.chain-progress-badge {
+    margin-left: auto;
+    font-size: 0.7rem;
+    font-weight: 700;
     color: var(--lwc-colorTextWeak, #706e6b);
-    margin-bottom: 0.75rem;
 }
 
 .template-timeline {
@@ -79,11 +107,25 @@
     min-width: 0;
 }
 
-.timeline-subject {
+.timeline-subject-link {
+    display: block;
+    padding: 0;
+    padding-top: 0.15rem;
+    border: none;
+    background: none;
+    text-align: left;
+    font: inherit;
     font-size: 0.875rem;
     font-weight: 700;
     color: var(--lwc-colorTextDefault, #16325c);
-    padding-top: 0.15rem;
+    cursor: pointer;
+}
+
+.timeline-subject-link:hover,
+.timeline-subject-link:focus {
+    color: var(--lwc-colorTextLink, #0b5cab);
+    text-decoration: underline;
+    outline: none;
 }
 
 .timeline-pills {

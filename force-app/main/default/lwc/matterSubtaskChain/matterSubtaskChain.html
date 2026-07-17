@@ -19,31 +19,51 @@
 
             <template for:each={chains} for:item="chain">
                 <div key={chain.key} class="chain-group">
-                    <div class="chain-title">{chain.templateName}</div>
-                    <div class="template-timeline">
-                        <template for:each={chain.steps} for:item="step">
-                            <div key={step.id} class="timeline-step">
-                                <div class="timeline-marker">
-                                    <span class={step.markerClass}>
-                                        <template if:true={step.isCompleted}>✓</template>
-                                        <template if:false={step.isCompleted}>{step.displayIndex}</template>
-                                    </span>
-                                    <template if:false={step.isLast}>
-                                        <span class="timeline-line"></span>
-                                    </template>
-                                </div>
-                                <div class="timeline-content">
-                                    <div class="timeline-subject">{step.subject}</div>
-                                    <div class="timeline-pills">
-                                        <span class={step.statusPillClass}>{step.statusLabel}</span>
-                                        <template if:true={step.showOwnerPill}>
-                                            <span class="chain-pill chain-pill-owner">{step.ownerName}</span>
+                    <div
+                        class={chain.headerClass}
+                        data-key={chain.key}
+                        onclick={toggleChain}
+                        onkeydown={handleChainHeaderKeydown}
+                        role="button"
+                        tabindex="0"
+                        aria-expanded={chain.expanded}
+                    >
+                        <lightning-icon icon-name={chain.chevronIcon} size="xx-small" class="chain-chevron"></lightning-icon>
+                        <span class="chain-title">{chain.templateName}</span>
+                        <span class="chain-progress-badge">{chain.progressLabel}</span>
+                    </div>
+                    <template if:true={chain.expanded}>
+                        <div class="template-timeline">
+                            <template for:each={chain.steps} for:item="step">
+                                <div key={step.id} class="timeline-step">
+                                    <div class="timeline-marker">
+                                        <span class={step.markerClass}>
+                                            <template if:true={step.isCompleted}>✓</template>
+                                            <template if:false={step.isCompleted}>{step.displayIndex}</template>
+                                        </span>
+                                        <template if:false={step.isLast}>
+                                            <span class="timeline-line"></span>
                                         </template>
                                     </div>
+                                    <div class="timeline-content">
+                                        <button
+                                            type="button"
+                                            class="timeline-subject-link"
+                                            data-id={step.id}
+                                            onclick={handleOpenTask}
+                                            title="Open this task"
+                                        >{step.subject}</button>
+                                        <div class="timeline-pills">
+                                            <span class={step.statusPillClass}>{step.statusLabel}</span>
+                                            <template if:true={step.showOwnerPill}>
+                                                <span class="chain-pill chain-pill-owner">{step.ownerName}</span>
+                                            </template>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </template>
-                    </div>
+                            </template>
+                        </div>
+                    </template>
                 </div>
             </template>
         </div>
