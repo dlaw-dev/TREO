@@ -9,6 +9,19 @@ import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 import getTasksForMatter from '@salesforce/apex/TaskCalendarController.getTasksForMatter';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
 
+// Base Lightning components (lightning-button, used for the Subject cell)
+// render in their own shadow DOM, so a CSS class from this component can't
+// reach their label text. A combining-character overlay strikes the text
+// itself, so it survives regardless of shadow boundaries.
+const STRIKETHROUGH_COMBINING_CHAR = '\u0336'; // COMBINING LONG STROKE OVERLAY
+
+function strikeThroughText(text) {
+    if (!text) return text;
+    return Array.from(text)
+        .map((ch) => ch + STRIKETHROUGH_COMBINING_CHAR)
+        .join('');
+}
+
 export default class TasksCalendar extends NavigationMixin(LightningElement) {
 
     @api recordId; // NEOS_Matter__c Id
@@ -32,22 +45,46 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             fieldName: 'Subject',
             type: 'button',
             typeAttributes: {
-                label: { fieldName: 'Subject' },
+                label: { fieldName: 'displaySubject' },
                 name: 'open_record',
                 variant: 'base'
             }
         },
-        { label: 'Due Date', fieldName: 'ActivityDate', type: 'date-local' },
-        { label: 'Status',      fieldName: 'Status',    type: 'text' },
-        { label: 'Priority',    fieldName: 'Priority',  type: 'text' },
-        { label: 'Assignee',    fieldName: 'OwnerName', type: 'text' },
+        {
+            label: 'Due Date',
+            fieldName: 'ActivityDate',
+            type: 'date-local',
+            cellAttributes: { class: { fieldName: 'dimCellClass' } }
+        },
+        {
+            label: 'Status',
+            fieldName: 'Status',
+            type: 'text',
+            cellAttributes: { class: { fieldName: 'dimCellClass' } }
+        },
+        {
+            label: 'Priority',
+            fieldName: 'Priority',
+            type: 'text',
+            cellAttributes: { class: { fieldName: 'dimCellClass' } }
+        },
+        {
+            label: 'Assignee',
+            fieldName: 'OwnerName',
+            type: 'text',
+            cellAttributes: { class: { fieldName: 'dimCellClass' } }
+        },
         {
             type: 'action',
             typeAttributes: {
-                rowActions: [
-                    { label: 'Complete',  name: 'complete' },
-                    { label: 'Duplicate', name: 'duplicate' }
-                ]
+                rowActions: (row, doneCallback) => {
+                    const actions = [];
+                    if (row.Status !== 'Completed') {
+                        actions.push({ label: 'Complete', name: 'complete' });
+                    }
+                    actions.push({ label: 'Duplicate', name: 'duplicate' });
+                    doneCallback(actions);
+                }
             }
         }
     ];
@@ -140,12 +177,33 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     }
 
     // ---------- Task groupings ----------
+
+    // Completed tasks get their own tab and are struck through wherever
+    // else they still appear (All Tasks) - Upcoming/Past/No Due Date are
+    // meant to answer "what's still actionable," so completed items are
+    // excluded from those three entirely rather than cluttering them.
+    get decoratedTasks() {
+        return (this.tasks || []).map(t => ({
+            ...t,
+            displaySubject: t.Status === 'Completed' ? strikeThroughText(t.Subject) : t.Subject,
+            dimCellClass: t.Status === 'Completed' ? 'completed-dim-cell' : ''
+        }));
+    }
+
+    get openTasks() {
+        return this.decoratedTasks.filter(t => t.Status !== 'Completed');
+    }
+
+    get completedTasks() {
+        return this.decoratedTasks.filter(t => t.Status === 'Completed');
+    }
+
     get tasksWithDeadline() {
-        return (this.tasks || []).filter(t => !!t.ActivityDate);
+        return this.openTasks.filter(t => !!t.ActivityDate);
     }
 
     get tasksNoDeadline() {
-        return (this.tasks || []).filter(t => !t.ActivityDate);
+        return this.openTasks.filter(t => !t.ActivityDate);
     }
 
     get upcomingTasks() {
@@ -184,8 +242,13 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     }
 
     get allTasksSorted() {
-        const withDeadlineSorted = this.sortByDateAsc(this.tasksWithDeadline);
-        return [...withDeadlineSorted, ...(this.tasksNoDeadline || [])];
+        const allWithDeadline = this.decoratedTasks.filter(t => !!t.ActivityDate);
+        const allNoDeadline = this.decoratedTasks.filter(t => !t.ActivityDate);
+        return [...this.sortByDateAsc(allWithDeadline), ...allNoDeadline];
+    }
+
+    get completedTasksSorted() {
+        return this.sortByDateDesc(this.completedTasks);
     }
 
     // ---------- Counts ----------
@@ -205,6 +268,10 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         return this.tasksNoDeadline.length;
     }
 
+    get completedCount() {
+        return this.completedTasks.length;
+    }
+
     // ---------- Tab Labels ----------
     get allTabLabel() {
         return `All Tasks (${this.allCount})`;
@@ -220,6 +287,10 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
 
     get noDeadlineTabLabel() {
         return `No Due Date (${this.noDeadlineCount})`;
+    }
+
+    get completedTabLabel() {
+        return `Completed (${this.completedCount})`;
     }
 
     // ---------- Actions ----------

@@ -103,6 +103,19 @@
         </template>
       </lightning-tab>
 
+      <!-- Completed -->
+      <lightning-tab label={completedTabLabel}>
+        <template if:true={completedTasksSorted}>
+          <lightning-datatable
+            key-field="Id"
+            data={completedTasksSorted}
+            columns={columns}
+            hide-checkbox-column
+            onrowaction={handleRowAction}
+          ></lightning-datatable>
+        </template>
+      </lightning-tab>
+
     </lightning-tabset>
   </lightning-card>
 </template>
