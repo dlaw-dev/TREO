@@ -111,6 +111,18 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         noDueDate: false
     };
 
+    // Waiting tab is usually a short list where nothing is truly "later" -
+    // default every section open there rather than reusing the Assigned
+    // tabs' collapsed-by-default thresholds.
+    expandedWaiting = {
+        overdue: true,
+        today: true,
+        tomorrow: true,
+        thisWeek: true,
+        thisMonth: true,
+        noDueDate: true
+    };
+
     connectedCallback() {
         this.ensureBaseUtilityLabel();
         this.refreshTasks();
@@ -340,7 +352,13 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         });
     }
 
+    get activeExpanded() {
+        return this.isWaitingTab ? this.expandedWaiting : this.expanded;
+    }
+
     get groups() {
+        const expandedState = this.activeExpanded;
+
         return [
             {
                 key: 'overdue',
@@ -349,7 +367,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 iconVariant: 'error',
                 headerClass: 'reminder-header reminder-header_overdue',
                 tasks: this.withMenuState(this.overdueTasks),
-                expanded: this.expanded.overdue
+                expanded: expandedState.overdue
             },
             {
                 key: 'today',
@@ -358,7 +376,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 iconVariant: 'warning',
                 headerClass: 'reminder-header reminder-header_today',
                 tasks: this.withMenuState(this.todayTasks),
-                expanded: this.expanded.today
+                expanded: expandedState.today
             },
             {
                 key: 'tomorrow',
@@ -367,7 +385,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 iconVariant: 'brand',
                 headerClass: 'reminder-header reminder-header_tomorrow',
                 tasks: this.withMenuState(this.tomorrowTasks),
-                expanded: this.expanded.tomorrow
+                expanded: expandedState.tomorrow
             },
             {
                 key: 'thisWeek',
@@ -376,7 +394,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 iconVariant: 'neutral',
                 headerClass: 'reminder-header reminder-header_week',
                 tasks: this.withMenuState(this.thisWeekTasks),
-                expanded: this.expanded.thisWeek
+                expanded: expandedState.thisWeek
             },
             {
                 key: 'thisMonth',
@@ -385,7 +403,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 iconVariant: 'neutral',
                 headerClass: 'reminder-header reminder-header_month',
                 tasks: this.withMenuState(this.thisMonthTasks),
-                expanded: this.expanded.thisMonth
+                expanded: expandedState.thisMonth
             },
             {
                 key: 'noDueDate',
@@ -394,7 +412,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 iconVariant: 'neutral',
                 headerClass: 'reminder-header reminder-header_none',
                 tasks: this.withMenuState(this.noDueDateTasks),
-                expanded: this.expanded.noDueDate
+                expanded: expandedState.noDueDate
             }
         ]
             .filter((group) => group.tasks.length > 0)
@@ -455,7 +473,13 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
 
     toggleSection(event) {
         const key = event.currentTarget.dataset.key;
-        this.expanded = { ...this.expanded, [key]: !this.expanded[key] };
+        const next = { ...this.activeExpanded, [key]: !this.activeExpanded[key] };
+
+        if (this.isWaitingTab) {
+            this.expandedWaiting = next;
+        } else {
+            this.expanded = next;
+        }
     }
 
     handleSectionHeaderKeydown(event) {
@@ -467,7 +491,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
 
     handleToggleAll() {
         const target = !this.isAllExpanded;
-        this.expanded = {
+        const next = {
             overdue: target,
             today: target,
             tomorrow: target,
@@ -475,6 +499,12 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             thisMonth: target,
             noDueDate: target
         };
+
+        if (this.isWaitingTab) {
+            this.expandedWaiting = next;
+        } else {
+            this.expanded = next;
+        }
     }
 
     removeTask(taskId) {
