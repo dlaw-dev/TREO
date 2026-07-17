@@ -1,14 +1,39 @@
 import { LightningElement, api, wire } from 'lwc';
+import { subscribe, unsubscribe, MessageContext } from 'lightning/messageService';
+import { refreshApex } from '@salesforce/apex';
+import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 import getChainsForMatter from '@salesforce/apex/SubtaskChainViewerController.getChainsForMatter';
 
 export default class MatterSubtaskChain extends LightningElement {
     @api recordId;
 
+    @wire(MessageContext) messageContext;
+    subscription;
+
+    wiredChainsResult;
+
     @wire(getChainsForMatter, { matterId: '$recordId' })
-    wiredChains;
+    wiredChains(result) {
+        this.wiredChainsResult = result;
+    }
+
+    connectedCallback() {
+        if (!this.subscription) {
+            this.subscription = subscribe(this.messageContext, TASK_CHANGED, () => {
+                refreshApex(this.wiredChainsResult);
+            });
+        }
+    }
+
+    disconnectedCallback() {
+        if (this.subscription) {
+            unsubscribe(this.subscription);
+            this.subscription = null;
+        }
+    }
 
     get chains() {
-        const data = this.wiredChains?.data ?? [];
+        const data = this.wiredChainsResult?.data ?? [];
 
         return data.map((chain, chainIndex) => ({
             key: `chain-${chainIndex}`,
