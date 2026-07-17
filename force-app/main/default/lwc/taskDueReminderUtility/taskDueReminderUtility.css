@@ -377,7 +377,7 @@
 
 .assignee-pill {
     background-color: #eef4ff;
-    color: #3a5dae;
+    color: var(--lwc-colorTextLink, #0b5cab);
 }
 
 .status-pill {
@@ -394,8 +394,8 @@
     font-size: 0.65rem;
     font-weight: 700;
     white-space: nowrap;
-    background-color: #f3f2f2;
-    color: #706e6b;
+    background-color: #fdf1d1;
+    color: #825a00;
 }
 
 .reminder-empty {

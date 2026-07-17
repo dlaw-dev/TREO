@@ -3,14 +3,18 @@
 
     <lightning-modal-body onclick={handleModalOutsideSearchClick}>
 
-        <div class="modal-tabs">
+        <div class="modal-tabs" role="tablist">
             <button
                 type="button"
+                role="tab"
+                aria-selected={isNewTaskTab}
                 class={newTaskTabClass}
                 data-tab="newTask"
                 onclick={handleTabClick}>New Task</button>
             <button
                 type="button"
+                role="tab"
+                aria-selected={isUseTemplateTab}
                 class={useTemplateTabClass}
                 data-tab="useTemplate"
                 onclick={handleTabClick}>Use Template</button>
@@ -200,6 +204,19 @@
 
         <template if:true={isUseTemplateTab}>
             <div class="slds-form-element__label slds-m-bottom_x-small">Choose a template</div>
+
+            <template if:true={isTemplatesLoading}>
+                <lightning-spinner alternative-text="Loading templates" size="small"></lightning-spinner>
+            </template>
+
+            <template if:true={hasTemplatesError}>
+                <p class="template-error">{templatesErrorMessage}</p>
+            </template>
+
+            <template if:true={hasNoTemplates}>
+                <p class="template-empty">No templates are available yet.</p>
+            </template>
+
             <div class="template-card-grid">
                 <template for:each={templateCards} for:item="tpl">
                     <button
@@ -218,6 +235,14 @@
             </div>
 
             <template if:true={hasSelectedTemplate}>
+                <template if:true={isTemplateItemsLoading}>
+                    <lightning-spinner alternative-text="Loading template steps" size="small" class="slds-m-top_medium"></lightning-spinner>
+                </template>
+
+                <template if:true={hasTemplateItemsError}>
+                    <p class="template-error slds-m-top_medium">{templateItemsErrorMessage}</p>
+                </template>
+
                 <div class="template-timeline slds-m-top_medium">
                     <template for:each={templateItemRows} for:item="item">
                         <div key={item.id} class="timeline-step">

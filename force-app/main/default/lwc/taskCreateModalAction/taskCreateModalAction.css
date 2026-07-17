@@ -160,6 +160,16 @@
     color: var(--lwc-colorTextWeak, #706e6b);
 }
 
+.template-error {
+    color: var(--lwc-colorTextError, #ba0517);
+    font-size: 0.8125rem;
+}
+
+.template-empty {
+    color: var(--lwc-colorTextWeak, #706e6b);
+    font-size: 0.8125rem;
+}
+
 .template-timeline {
     display: flex;
     flex-direction: column;
@@ -247,7 +257,7 @@
 
 .timeline-pill-fixed {
     background-color: #eef4ff;
-    color: #3a5dae;
+    color: #0b5cab;
 }
 
 .timeline-pill-auto {

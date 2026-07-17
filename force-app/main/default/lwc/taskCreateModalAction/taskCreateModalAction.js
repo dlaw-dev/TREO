@@ -75,7 +75,7 @@ function reminderSortKey(label) {
 }
 
 const TEMPLATE_ICON_RULES = [
-    { keywords: ['attorney', 'assignment'], icon: 'utility:law' },
+    { keywords: ['attorney', 'assignment'], icon: 'utility:user' },
     { keywords: ['complaint'], icon: 'utility:description' },
     { keywords: ['letter', 'lwda'], icon: 'utility:email' }
 ];
@@ -291,6 +291,24 @@ export default class TaskCreateModalAction extends LightningModal {
     @wire(getTemplates)
     wiredTemplates;
 
+    get isTemplatesLoading() {
+        return !this.wiredTemplates?.data && !this.wiredTemplates?.error;
+    }
+
+    get templatesErrorMessage() {
+        return this.wiredTemplates?.error?.body?.message
+            || this.wiredTemplates?.error?.message
+            || 'Something went wrong loading templates.';
+    }
+
+    get hasTemplatesError() {
+        return !!this.wiredTemplates?.error;
+    }
+
+    get hasNoTemplates() {
+        return !this.isTemplatesLoading && !this.hasTemplatesError && this.templateCards.length === 0;
+    }
+
     get templateCards() {
         const templates = this.wiredTemplates?.data ?? [];
         return templates.map(t => ({
@@ -309,6 +327,20 @@ export default class TaskCreateModalAction extends LightningModal {
 
     get hasSelectedTemplate() {
         return !!this.selectedTemplateId;
+    }
+
+    get isTemplateItemsLoading() {
+        return this.hasSelectedTemplate && !this.wiredTemplateItems?.data && !this.wiredTemplateItems?.error;
+    }
+
+    get hasTemplateItemsError() {
+        return !!this.wiredTemplateItems?.error;
+    }
+
+    get templateItemsErrorMessage() {
+        return this.wiredTemplateItems?.error?.body?.message
+            || this.wiredTemplateItems?.error?.message
+            || 'Something went wrong loading this template.';
     }
 
     get templateItemRows() {

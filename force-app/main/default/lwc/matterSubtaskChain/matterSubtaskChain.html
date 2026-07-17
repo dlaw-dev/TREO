@@ -1,8 +1,20 @@
 <template>
     <lightning-card title="Subtask Chains" icon-name="utility:routing_offline">
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="Loading subtask chains" size="small"></lightning-spinner>
+            </template>
+
+            <template if:true={hasError}>
+                <p class="chain-error">{errorMessage}</p>
+            </template>
+
             <template if:false={hasChains}>
-                <p class="chain-empty">No subtask chains on this Matter yet.</p>
+                <template if:false={isLoading}>
+                    <template if:false={hasError}>
+                        <p class="chain-empty">No subtask chains on this Matter yet.</p>
+                    </template>
+                </template>
             </template>
 
             <template for:each={chains} for:item="chain">
@@ -24,7 +36,7 @@
                                     <div class="timeline-subject">{step.subject}</div>
                                     <div class="timeline-pills">
                                         <span class={step.statusPillClass}>{step.statusLabel}</span>
-                                        <template if:true={step.ownerName}>
+                                        <template if:true={step.showOwnerPill}>
                                             <span class="chain-pill chain-pill-owner">{step.ownerName}</span>
                                         </template>
                                     </div>

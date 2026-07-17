@@ -32,6 +32,20 @@ export default class MatterSubtaskChain extends LightningElement {
         }
     }
 
+    get isLoading() {
+        return !this.wiredChainsResult?.data && !this.wiredChainsResult?.error;
+    }
+
+    get hasError() {
+        return !!this.wiredChainsResult?.error;
+    }
+
+    get errorMessage() {
+        return this.wiredChainsResult?.error?.body?.message
+            || this.wiredChainsResult?.error?.message
+            || 'Something went wrong loading subtask chains.';
+    }
+
     get chains() {
         const data = this.wiredChainsResult?.data ?? [];
 
@@ -43,6 +57,9 @@ export default class MatterSubtaskChain extends LightningElement {
                 displayIndex: index + 1,
                 isLast: index === chain.steps.length - 1,
                 isCompleted: step.status === 'Completed',
+                // A Waiting step's Owner is whoever applied the template, not
+                // a real assignee yet - showing it would be misleading.
+                showOwnerPill: step.status !== 'Waiting' && !!step.ownerName,
                 markerClass: this.markerClass(step.status),
                 statusPillClass: this.statusPillClass(step.status),
                 statusLabel: this.statusLabel(step.status)
@@ -51,7 +68,7 @@ export default class MatterSubtaskChain extends LightningElement {
     }
 
     get hasChains() {
-        return this.chains.length > 0;
+        return !this.isLoading && !this.hasError && this.chains.length > 0;
     }
 
     markerClass(status) {

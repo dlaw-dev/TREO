@@ -458,6 +458,13 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         this.expanded = { ...this.expanded, [key]: !this.expanded[key] };
     }
 
+    handleSectionHeaderKeydown(event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            this.toggleSection(event);
+        }
+    }
+
     handleToggleAll() {
         const target = !this.isAllExpanded;
         this.expanded = {

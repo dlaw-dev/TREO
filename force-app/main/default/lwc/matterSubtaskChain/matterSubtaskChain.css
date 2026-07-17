@@ -3,6 +3,11 @@
     font-size: 0.8125rem;
 }
 
+.chain-error {
+    color: var(--lwc-colorTextError, #ba0517);
+    font-size: 0.8125rem;
+}
+
 .chain-group + .chain-group {
     margin-top: 1.25rem;
     padding-top: 1.25rem;
@@ -54,7 +59,7 @@
 }
 
 .timeline-circle-waiting {
-    background: var(--lwc-colorTextWeak, #a6a6a6);
+    background: #b98900;
 }
 
 .timeline-circle-completed {
@@ -105,8 +110,8 @@
 }
 
 .chain-pill-waiting {
-    background-color: #f3f2f2;
-    color: #706e6b;
+    background-color: #fdf1d1;
+    color: #825a00;
 }
 
 .chain-pill-completed {
@@ -115,6 +120,6 @@
 }
 
 .chain-pill-owner {
-    background-color: #f2e8fb;
-    color: #6b3fa0;
+    background-color: #eef4ff;
+    color: #0b5cab;
 }
