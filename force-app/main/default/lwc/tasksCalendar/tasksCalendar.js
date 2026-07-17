@@ -42,9 +42,13 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     columns = [
         {
             label: 'Subject',
-            fieldName: 'displaySubject',
-            type: 'text',
-            cellAttributes: { class: { fieldName: 'dimCellClass' } }
+            fieldName: 'Subject',
+            type: 'button',
+            typeAttributes: {
+                label: { fieldName: 'displaySubject' },
+                name: 'open_record',
+                variant: 'base'
+            }
         },
         {
             label: 'Due Date',
@@ -74,7 +78,7 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             type: 'action',
             typeAttributes: {
                 rowActions: (row, doneCallback) => {
-                    const actions = [{ label: 'Open', name: 'open_record' }];
+                    const actions = [];
                     if (row.Status !== 'Completed') {
                         actions.push({ label: 'Complete', name: 'complete' });
                     }
