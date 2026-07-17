@@ -133,10 +133,7 @@ public with sharing class TaskDueReminderController {
         Date todayDate = Date.today();
         Id currentUserId = UserInfo.getUserId();
 
-        List<Task> matchingTasks = new List<Task>();
-        Set<String> chainIds = new Set<String>();
-
-        for (Task t : [
+        List<Task> waitingTasks = [
             SELECT Id,
                    Subject,
                    ActivityDate,
@@ -158,11 +155,27 @@ public with sharing class TaskDueReminderController {
               AND Subtask_Template_Item__c != null
             ORDER BY CreatedDate DESC
             LIMIT 200
-        ]) {
-            Id resolvedAssigneeId = SubtaskAssigneeResolver.resolveAssignee(
-                t.Subtask_Template_Item__r, t.NEOS_Matter__c);
+        ];
 
-            if (resolvedAssigneeId == currentUserId) {
+        // Resolve all pending assignees in one bulk pass - one query per
+        // distinct dynamic field referenced, not one per Waiting task - so
+        // this stays within governor limits no matter how many chains are
+        // in flight org-wide.
+        Map<Id, Subtask_Template_Item__c> keyToItem = new Map<Id, Subtask_Template_Item__c>();
+        Map<Id, Id> keyToMatterId = new Map<Id, Id>();
+
+        for (Task t : waitingTasks) {
+            keyToItem.put(t.Id, t.Subtask_Template_Item__r);
+            keyToMatterId.put(t.Id, t.NEOS_Matter__c);
+        }
+
+        Map<Id, Id> resolvedAssigneeByTaskId = SubtaskAssigneeResolver.resolveAssigneesBulk(keyToItem, keyToMatterId);
+
+        List<Task> matchingTasks = new List<Task>();
+        Set<String> chainIds = new Set<String>();
+
+        for (Task t : waitingTasks) {
+            if (resolvedAssigneeByTaskId.get(t.Id) == currentUserId) {
                 matchingTasks.add(t);
 
                 if (t.Parent_Task__c != null) {

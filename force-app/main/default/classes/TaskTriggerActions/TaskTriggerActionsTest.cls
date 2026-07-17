@@ -109,4 +109,101 @@ private class TaskTriggerActionsTest {
         Task reloaded = [SELECT Status FROM Task WHERE Id = :manualTask.Id];
         System.assertEquals('Completed', reloaded.Status);
     }
+
+    @IsTest
+    static void testChainAdvances_bulkCompletionAcrossManyChains_staysWithinQueryLimits() {
+        Subtask_Template__c template = buildSeniorToAssociateTemplate();
+        User seniorAttorney = [
+            SELECT Id FROM User
+            WHERE UserRole.Name = 'Senior Counsel' AND IsActive = true
+            LIMIT 1
+        ];
+
+        Integer chainCount = 5;
+        List<Id> masterIds = new List<Id>();
+
+        for (Integer i = 0; i < chainCount; i++) {
+            NEOS_Matter__c matter = new NEOS_Matter__c(
+                Name = 'Bulk Chain Matter ' + i,
+                Case_Title__c = 'Bulk Chain Case ' + i,
+                Senior_Attorney__c = seniorAttorney.Id
+            );
+            insert matter;
+            masterIds.add(SubtaskTemplateApplier.apply(template.Id, matter.Id));
+        }
+
+        Set<Id> masterIdSet = new Set<Id>(masterIds);
+        List<Task> firstTasks = new List<Task>();
+
+        for (Task t : [SELECT Id, Status, Parent_Task__c FROM Task WHERE Parent_Task__c IN :masterIds]) {
+            if (!masterIdSet.contains(t.Id)) {
+                firstTasks.add(t);
+            }
+        }
+        System.assertEquals(chainCount, firstTasks.size());
+
+        for (Task t : firstTasks) {
+            t.Status = 'Completed';
+        }
+
+        Test.startTest();
+        Integer queriesBefore = Limits.getQueries();
+        update firstTasks;
+        Integer queriesUsed = Limits.getQueries() - queriesBefore;
+        Test.stopTest();
+
+        System.assert(queriesUsed < chainCount * 3,
+            'Expected query count independent of chain count (bulkified), got ' + queriesUsed
+            + ' for ' + chainCount + ' chains completing at once.');
+
+        List<Task> masters = [SELECT Id, Status, OwnerId FROM Task WHERE Id IN :masterIds];
+        for (Task master : masters) {
+            System.assertEquals('Open', master.Status);
+            System.assertEquals(seniorAttorney.Id, master.OwnerId);
+        }
+    }
+
+    @IsTest
+    static void testAdvanceChain_reCompletingEarlierStep_doesNotRegressAlreadyCompletedMaster() {
+        Subtask_Template__c template = buildSeniorToAssociateTemplate();
+        NEOS_Matter__c matter = createMatter();
+
+        User seniorAttorney = [
+            SELECT Id FROM User
+            WHERE UserRole.Name = 'Senior Counsel' AND IsActive = true
+            LIMIT 1
+        ];
+        matter.Senior_Attorney__c = seniorAttorney.Id;
+        update matter;
+
+        Id masterId = SubtaskTemplateApplier.apply(template.Id, matter.Id);
+
+        Task firstTask = [
+            SELECT Id, Status FROM Task
+            WHERE Parent_Task__c = :masterId AND Id != :masterId
+            LIMIT 1
+        ];
+        firstTask.Status = 'Completed';
+        update firstTask;
+
+        // Complete the master too - the whole chain is now fully done.
+        Task master = [SELECT Id, Status, OwnerId, ActivityDate FROM Task WHERE Id = :masterId];
+        master.Status = 'Completed';
+        update master;
+
+        // Reopen and re-complete the first step - this must NOT regress the
+        // already-completed master back to Waiting/Open.
+        firstTask.Status = 'Open';
+        update firstTask;
+
+        Test.startTest();
+        firstTask.Status = 'Completed';
+        update firstTask;
+        Test.stopTest();
+
+        Task masterReloaded = [SELECT Id, Status, OwnerId, ActivityDate FROM Task WHERE Id = :masterId];
+        System.assertEquals('Completed', masterReloaded.Status);
+        System.assertEquals(master.OwnerId, masterReloaded.OwnerId);
+        System.assertEquals(master.ActivityDate, masterReloaded.ActivityDate);
+    }
 }
