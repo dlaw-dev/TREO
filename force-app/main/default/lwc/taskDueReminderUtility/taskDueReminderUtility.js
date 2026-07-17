@@ -172,13 +172,25 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     async refreshTasks() {
-        let results;
+        // The three lists are independent - fetch them concurrently instead
+        // of one after another so a refresh takes as long as the slowest
+        // call, not the sum of all three.
+        const [dueOutcome, delegatedOutcome, waitingOutcome] = await Promise.allSettled([
+            getMyDueTasks(),
+            getTasksAssignedByMe(),
+            getMyWaitingTasks()
+        ]);
 
-        try {
-            results = await getMyDueTasks();
-        } catch (error) {
+        if (dueOutcome.status === 'fulfilled') {
+            this.tasks = this.decorateTasks(dueOutcome.value);
+            this.syncUtilityChrome();
+
+            if (this.urgentTasks.length > 0) {
+                this.openPanel();
+            }
+        } else {
             const message =
-                error?.body?.message || error?.message || 'Unknown error';
+                dueOutcome.reason?.body?.message || dueOutcome.reason?.message || 'Unknown error';
 
             // eslint-disable-next-line no-console
             console.error('Failed to load due tasks:', message);
@@ -193,34 +205,23 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                     })
                 );
             }
-            return;
         }
 
-        this.tasks = this.decorateTasks(results);
-
-        this.syncUtilityChrome();
-
-        if (this.urgentTasks.length > 0) {
-            this.openPanel();
-        }
-
-        try {
-            const delegatedResults = await getTasksAssignedByMe();
-            this.delegatedTasks = this.decorateTasks(delegatedResults);
-        } catch (error) {
+        if (delegatedOutcome.status === 'fulfilled') {
+            this.delegatedTasks = this.decorateTasks(delegatedOutcome.value);
+        } else {
             const message =
-                error?.body?.message || error?.message || 'Unknown error';
+                delegatedOutcome.reason?.body?.message || delegatedOutcome.reason?.message || 'Unknown error';
 
             // eslint-disable-next-line no-console
             console.error('Failed to load tasks assigned by me:', message);
         }
 
-        try {
-            const waitingResults = await getMyWaitingTasks();
-            this.waitingTasks = this.decorateTasks(waitingResults);
-        } catch (error) {
+        if (waitingOutcome.status === 'fulfilled') {
+            this.waitingTasks = this.decorateTasks(waitingOutcome.value);
+        } else {
             const message =
-                error?.body?.message || error?.message || 'Unknown error';
+                waitingOutcome.reason?.body?.message || waitingOutcome.reason?.message || 'Unknown error';
 
             // eslint-disable-next-line no-console
             console.error('Failed to load waiting tasks:', message);
@@ -445,6 +446,23 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         return this.isAssignedToMeTab && this.completedToday > 0;
     }
 
+    get waitingSummaryLabel() {
+        if (!this.isWaitingTab) {
+            return '';
+        }
+
+        const distinctPeople = new Set(
+            this.waitingTasks.map((t) => t.WaitingOnOwnerName).filter(Boolean)
+        );
+
+        if (distinctPeople.size === 0) {
+            return '';
+        }
+
+        const peopleWord = distinctPeople.size === 1 ? 'person' : 'people';
+        return `Blocked on ${distinctPeople.size} ${peopleWord} right now`;
+    }
+
     get completedTodayMessage() {
         const count = this.completedToday;
         return `You've completed ${count} task${count === 1 ? '' : 's'} today. Nice work!`;
@@ -569,7 +587,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         const taskId = event.currentTarget.dataset.id;
 
         try {
-            await completeTask({ taskId });
+            const finishedChain = await completeTask({ taskId });
 
             this.completedToday += 1;
             this.scheduleRemoval(taskId);
@@ -577,11 +595,19 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             publish(this.messageContext, TASK_CHANGED, {});
 
             this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Nice work!',
-                    message: 'Task marked complete.',
-                    variant: 'success'
-                })
+                new ShowToastEvent(
+                    finishedChain
+                        ? {
+                              title: '🎉 Chain complete!',
+                              message: 'Every step in this task chain is done.',
+                              variant: 'success'
+                          }
+                        : {
+                              title: 'Nice work!',
+                              message: 'Task marked complete.',
+                              variant: 'success'
+                          }
+                )
             );
         } catch (error) {
             this.dispatchEvent(

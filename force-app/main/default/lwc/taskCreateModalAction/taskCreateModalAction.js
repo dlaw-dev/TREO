@@ -316,14 +316,28 @@ export default class TaskCreateModalAction extends LightningModal {
             name: t.name,
             icon: iconForTemplateName(t.name),
             stepLabel: `${t.stepCount} step${t.stepCount === 1 ? '' : 's'}`,
+            pressed: t.id === this.selectedTemplateId,
             cardClass: t.id === this.selectedTemplateId
                 ? 'template-card template-card-selected'
                 : 'template-card'
         }));
     }
 
-    @wire(getTemplateItems, { templateId: '$selectedTemplateId' })
+    @wire(getTemplateItems, { templateId: '$selectedTemplateId', matterId: '$recordId' })
     wiredTemplateItems;
+
+    get templatePreviewSummary() {
+        const items = this.wiredTemplateItems?.data ?? [];
+        if (items.length === 0) return '';
+
+        const people = new Set(
+            items.map(i => (i.assigneeType === 'Static User' ? i.assigneeLabel : (i.resolvedName || i.assigneeLabel)))
+        );
+
+        const stepWord = items.length === 1 ? 'step' : 'steps';
+        const peopleWord = people.size === 1 ? 'person' : 'people';
+        return `${items.length} ${stepWord} · ${people.size} ${peopleWord} involved`;
+    }
 
     get hasSelectedTemplate() {
         return !!this.selectedTemplateId;
@@ -362,7 +376,9 @@ export default class TaskCreateModalAction extends LightningModal {
                     : 'timeline-pill timeline-pill-waiting',
                 assigneeText: item.assigneeType === 'Static User'
                     ? `Fixed • ${item.assigneeLabel}`
-                    : `Auto • ${item.assigneeLabel}`,
+                    : item.resolvedName
+                        ? `Auto • ${item.resolvedName} (${item.assigneeLabel})`
+                        : `Auto • ${item.assigneeLabel}`,
                 assigneePillClass: item.assigneeType === 'Static User'
                     ? 'timeline-pill timeline-pill-fixed'
                     : 'timeline-pill timeline-pill-auto'

@@ -38,6 +38,9 @@
                         <span class="progress-label">{todayProgressLabel} done today</span>
                     </div>
                 </template>
+                <template if:true={waitingSummaryLabel}>
+                    <span class="waiting-summary-label">{waitingSummaryLabel}</span>
+                </template>
                 <button type="button" class="toggle-all-button" onclick={handleToggleAll}>{collapseAllLabel}</button>
             </div>
             <template for:each={groups} for:item="group">

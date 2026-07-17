@@ -137,15 +137,39 @@ public with sharing class TaskUiController {
         }
     }
 
+    /**
+     * Completes a Task, returning true when this was the last step of a
+     * subtask chain - so the UI can celebrate finishing the whole chain
+     * rather than just checking off one more item.
+     */
     @AuraEnabled
-    public static void completeTask(Id taskId) {
+    public static Boolean completeTask(Id taskId) {
         try {
-            Task t = [SELECT Id FROM Task WHERE Id = :taskId LIMIT 1];
+            Task t = [SELECT Id, Subtask_Template_Item__c FROM Task WHERE Id = :taskId LIMIT 1];
             t.Status = 'Completed';
             update t;
+
+            return t.Subtask_Template_Item__c != null && isLastChainStep(t.Subtask_Template_Item__c);
         } catch (Exception e) {
             throw new AuraHandledException('Error completing task: ' + e.getMessage());
         }
+    }
+
+    private static Boolean isLastChainStep(Id templateItemId) {
+        Subtask_Template_Item__c item = [
+            SELECT Subtask_Template__c, Sequence_Order__c
+            FROM Subtask_Template_Item__c
+            WHERE Id = :templateItemId
+        ];
+
+        Integer laterStepCount = [
+            SELECT COUNT()
+            FROM Subtask_Template_Item__c
+            WHERE Subtask_Template__c = :item.Subtask_Template__c
+              AND Sequence_Order__c > :item.Sequence_Order__c
+        ];
+
+        return laterStepCount == 0;
     }
 
     // ======================================

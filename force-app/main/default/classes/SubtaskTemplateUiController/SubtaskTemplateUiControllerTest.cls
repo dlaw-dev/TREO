@@ -52,7 +52,7 @@ private class SubtaskTemplateUiControllerTest {
         Subtask_Template__c template = buildTemplate();
 
         Test.startTest();
-        List<SubtaskTemplateUiController.TemplateItemDto> items = SubtaskTemplateUiController.getTemplateItems(template.Id);
+        List<SubtaskTemplateUiController.TemplateItemDto> items = SubtaskTemplateUiController.getTemplateItems(template.Id, null);
         Test.stopTest();
 
         System.assertEquals(2, items.size());
@@ -60,6 +60,31 @@ private class SubtaskTemplateUiControllerTest {
         System.assertEquals('David Yeremian', items[0].assigneeLabel);
         System.assertEquals('Step Two', items[1].subject);
         System.assertEquals('Senior Attorney', items[1].assigneeLabel);
+        System.assertEquals(null, items[1].resolvedName, 'No matterId was passed, so a dynamic field should not resolve to a real name.');
+    }
+
+    @IsTest
+    static void testGetTemplateItems_withMatterId_resolvesRealNameForDynamicStep() {
+        Subtask_Template__c template = buildTemplate();
+
+        User seniorAttorney = [SELECT Id FROM User WHERE Name = 'David Yeremian' AND IsActive = true LIMIT 1];
+        NEOS_Matter__c matter = new NEOS_Matter__c(
+            Name = 'Test Matter',
+            Case_Title__c = 'Test Case',
+            Senior_Attorney__c = seniorAttorney.Id
+        );
+        insert matter;
+
+        Test.startTest();
+        List<SubtaskTemplateUiController.TemplateItemDto> items = SubtaskTemplateUiController.getTemplateItems(template.Id, matter.Id);
+        Test.stopTest();
+
+        System.assertEquals('Senior Attorney', items[1].assigneeLabel);
+        System.assertEquals(
+            'David Yeremian',
+            items[1].resolvedName,
+            'With a matterId whose Senior_Attorney__c is set, the dynamic step should resolve to the real person.'
+        );
     }
 
     @IsTest

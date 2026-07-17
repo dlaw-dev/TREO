@@ -102,6 +102,12 @@
     color: #706e6b;
 }
 
+.waiting-summary-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #825a00;
+}
+
 .toggle-all-button {
     padding: 0;
     border: none;

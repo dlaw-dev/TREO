@@ -1,5 +1,14 @@
 <template>
     <lightning-card title="Task Chain" icon-name="utility:routing_offline">
+        <lightning-button-icon
+            slot="actions"
+            icon-name="utility:refresh"
+            variant="border-filled"
+            alternative-text="Refresh"
+            title="Refresh"
+            disabled={isManuallyRefreshing}
+            onclick={handleManualRefresh}
+        ></lightning-button-icon>
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
             <template if:true={isLoading}>
                 <lightning-spinner alternative-text="Loading task chain" size="small"></lightning-spinner>

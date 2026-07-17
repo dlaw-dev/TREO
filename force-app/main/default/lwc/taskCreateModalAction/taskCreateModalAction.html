@@ -224,6 +224,7 @@
                         type="button"
                         class={tpl.cardClass}
                         data-id={tpl.id}
+                        aria-pressed={tpl.pressed}
                         onclick={handleTemplateCardClick}>
                         <lightning-icon icon-name={tpl.icon} size="small" class="template-card-icon"></lightning-icon>
                         <div class="template-card-text">
@@ -241,6 +242,10 @@
 
                 <template if:true={hasTemplateItemsError}>
                     <p class="template-error slds-m-top_medium">{templateItemsErrorMessage}</p>
+                </template>
+
+                <template if:true={templatePreviewSummary}>
+                    <p class="template-preview-summary slds-m-top_medium">{templatePreviewSummary}</p>
                 </template>
 
                 <div class="template-timeline slds-m-top_medium">

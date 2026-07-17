@@ -5,6 +5,8 @@ import { refreshApex } from '@salesforce/apex';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 import getChainsForMatter from '@salesforce/apex/SubtaskChainViewerController.getChainsForMatter';
 
+const POLL_INTERVAL_MS = 5 * 60 * 1000;
+
 export default class MatterSubtaskChain extends NavigationMixin(LightningElement) {
     @api recordId;
 
@@ -15,6 +17,8 @@ export default class MatterSubtaskChain extends NavigationMixin(LightningElement
 
     @wire(MessageContext) messageContext;
     subscription;
+    pollIntervalId;
+    isManuallyRefreshing = false;
 
     wiredChainsResult;
 
@@ -29,9 +33,35 @@ export default class MatterSubtaskChain extends NavigationMixin(LightningElement
                 refreshApex(this.wiredChainsResult);
             });
         }
+
+        // Completing a step via the native Task related list (rather than
+        // through our own components) never publishes taskChanged__c - this
+        // poll is the only thing that catches that case for this component.
+        this.pollIntervalId = setInterval(() => {
+            if (this.wiredChainsResult) {
+                refreshApex(this.wiredChainsResult);
+            }
+        }, POLL_INTERVAL_MS);
+    }
+
+    async handleManualRefresh() {
+        if (!this.wiredChainsResult || this.isManuallyRefreshing) {
+            return;
+        }
+
+        this.isManuallyRefreshing = true;
+        try {
+            await refreshApex(this.wiredChainsResult);
+        } finally {
+            this.isManuallyRefreshing = false;
+        }
     }
 
     disconnectedCallback() {
+        if (this.pollIntervalId) {
+            clearInterval(this.pollIntervalId);
+        }
+
         if (this.subscription) {
             unsubscribe(this.subscription);
             this.subscription = null;

@@ -170,6 +170,12 @@
     font-size: 0.8125rem;
 }
 
+.template-preview-summary {
+    color: var(--lwc-colorTextWeak, #706e6b);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
 .template-timeline {
     display: flex;
     flex-direction: column;
