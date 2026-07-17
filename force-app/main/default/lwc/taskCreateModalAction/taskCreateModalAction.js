@@ -375,10 +375,10 @@ export default class TaskCreateModalAction extends LightningModal {
                     ? 'timeline-pill timeline-pill-immediate'
                     : 'timeline-pill timeline-pill-waiting',
                 assigneeText: item.assigneeType === 'Static User'
-                    ? `Fixed • ${item.assigneeLabel}`
+                    ? item.assigneeLabel
                     : item.resolvedName
-                        ? `Auto • ${item.resolvedName} (${item.assigneeLabel})`
-                        : `Auto • ${item.assigneeLabel}`,
+                        ? `${item.resolvedName} (${item.assigneeLabel})`
+                        : item.assigneeLabel,
                 assigneePillClass: item.assigneeType === 'Static User'
                     ? 'timeline-pill timeline-pill-fixed'
                     : 'timeline-pill timeline-pill-auto'
