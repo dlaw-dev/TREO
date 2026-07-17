@@ -403,7 +403,7 @@ export default class TaskCreateModalAction extends LightningModal {
             await applyTemplateApex({ templateId: this.selectedTemplateId, matterId: this.recordId });
             this.dispatchEvent(new ShowToastEvent({
                 title: 'Success',
-                message: 'Template applied',
+                message: 'Tasks created',
                 variant: 'success'
             }));
             publish(this.messageContext, TASK_CHANGED, {});
