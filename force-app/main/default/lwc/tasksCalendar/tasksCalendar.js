@@ -1,10 +1,12 @@
 import { LightningElement, api, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { loadStyle } from 'lightning/platformResourceLoader';
 import TaskCreateModalAction from 'c/taskCreateModalAction';
 import { refreshApex } from '@salesforce/apex';
 import { subscribe, MessageContext } from 'lightning/messageService';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
+import TASKS_CALENDAR_STYLES from '@salesforce/resourceUrl/tasksCalendarStyles';
 
 import getTasksForMatter from '@salesforce/apex/TaskCalendarController.getTasksForMatter';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
@@ -37,6 +39,18 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         subscribe(this.messageContext, TASK_CHANGED, () => {
             refreshApex(this.wiredResult);
         });
+
+        // cellAttributes.class only ever reaches elements lightning-datatable
+        // itself renders directly - the Subject cell's lightning-button
+        // renders its label in a further-nested shadow root that a scoped
+        // component stylesheet can never select into, no matter the class
+        // name. loadStyle injects this as a genuine unscoped <style> tag,
+        // and CSS custom properties (unlike selectors) inherit through
+        // shadow boundaries, so the button's own styling hooks pick it up.
+        loadStyle(this, TASKS_CALENDAR_STYLES).catch((error) => {
+            // eslint-disable-next-line no-console
+            console.error('Could not load tasksCalendar styles', error);
+        });
     }
 
     columns = [
@@ -48,7 +62,8 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
                 label: { fieldName: 'displaySubject' },
                 name: 'open_record',
                 variant: 'base'
-            }
+            },
+            cellAttributes: { class: { fieldName: 'subjectDimClass' } }
         },
         {
             label: 'Due Date',
@@ -190,7 +205,11 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             // cells - they're rendered deep inside lightning-datatable's own
             // shadow tree. slds-text-color_weak is a real global SLDS
             // utility class, so it actually takes effect there.
-            dimCellClass: t.Status === 'Completed' ? 'slds-text-color_weak' : ''
+            dimCellClass: t.Status === 'Completed' ? 'slds-text-color_weak' : '',
+            // The Subject cell is a nested lightning-button, one shadow root
+            // further in - slds-text-color_weak alone won't reach its label,
+            // so it gets the styling-hook class loaded via tasksCalendarStyles.
+            subjectDimClass: t.Status === 'Completed' ? 'completed-task-subject' : ''
         }));
     }
 
