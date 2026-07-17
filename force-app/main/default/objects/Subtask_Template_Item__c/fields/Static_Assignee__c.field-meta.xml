@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Static_Assignee__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <label>Static Assignee</label>
+    <referenceTo>User</referenceTo>
+    <relationshipLabel>Subtask Template Items (Static Assignee)</relationshipLabel>
+    <relationshipName>Subtask_Template_Items_Static</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

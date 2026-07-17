@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Assignee_Configuration_Required</fullName>
+    <active>true</active>
+    <description>Ensures each template item has the assignee data its Assignee Type needs, so the subtask chain engine never silently resolves a null assignee.</description>
+    <errorConditionFormula>OR(
+    AND(ISPICKVAL(Assignee_Type__c, &quot;Static User&quot;), ISBLANK(Static_Assignee__c)),
+    AND(ISPICKVAL(Assignee_Type__c, &quot;Dynamic Matter Field&quot;), ISBLANK(Dynamic_Assignee_Field__c))
+)</errorConditionFormula>
+    <errorMessage>When Assignee Type is &quot;Static User&quot;, Static Assignee is required. When Assignee Type is &quot;Dynamic Matter Field&quot;, Dynamic Assignee Field is required.</errorMessage>
+</ValidationRule>

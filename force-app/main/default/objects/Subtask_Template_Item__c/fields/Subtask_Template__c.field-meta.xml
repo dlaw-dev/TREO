@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Subtask_Template__c</fullName>
+    <label>Subtask Template</label>
+    <referenceTo>Subtask_Template__c</referenceTo>
+    <relationshipLabel>Subtask Template Items</relationshipLabel>
+    <relationshipName>Subtask_Template_Items</relationshipName>
+    <type>MasterDetail</type>
+    <writeRequiresMasterRead>false</writeRequiresMasterRead>
+</CustomField>

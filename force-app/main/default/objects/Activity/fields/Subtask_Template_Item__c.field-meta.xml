@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Subtask_Template_Item__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Populated only for tasks generated from a Subtask Template chain. Blank on ordinary manually-created tasks, which the subtask chain engine and validation ignore entirely.</description>
+    <label>Subtask Template Item</label>
+    <referenceTo>Subtask_Template_Item__c</referenceTo>
+    <relationshipLabel>Generated Tasks</relationshipLabel>
+    <relationshipName>Generated_Tasks</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>
