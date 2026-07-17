@@ -42,13 +42,8 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     columns = [
         {
             label: 'Subject',
-            fieldName: 'Subject',
-            type: 'button',
-            typeAttributes: {
-                label: { fieldName: 'displaySubject' },
-                name: 'open_record',
-                variant: 'base'
-            },
+            fieldName: 'displaySubject',
+            type: 'text',
             cellAttributes: { class: { fieldName: 'dimCellClass' } }
         },
         {
@@ -79,7 +74,7 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             type: 'action',
             typeAttributes: {
                 rowActions: (row, doneCallback) => {
-                    const actions = [];
+                    const actions = [{ label: 'Open', name: 'open_record' }];
                     if (row.Status !== 'Completed') {
                         actions.push({ label: 'Complete', name: 'complete' });
                     }
@@ -187,7 +182,11 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         return (this.tasks || []).map(t => ({
             ...t,
             displaySubject: t.Status === 'Completed' ? strikeThroughText(t.Subject) : t.Subject,
-            dimCellClass: t.Status === 'Completed' ? 'completed-dim-cell' : ''
+            // A custom class in this component's own CSS can't reach these
+            // cells - they're rendered deep inside lightning-datatable's own
+            // shadow tree. slds-text-color_weak is a real global SLDS
+            // utility class, so it actually takes effect there.
+            dimCellClass: t.Status === 'Completed' ? 'slds-text-color_weak' : ''
         }));
     }
 
