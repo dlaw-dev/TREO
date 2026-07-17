@@ -14,15 +14,6 @@ const POLL_INTERVAL_MS = 5 * 60 * 1000;
 const REMOVE_ANIMATION_MS = 220;
 const DEFAULT_UTILITY_LABEL = 'Task Hub';
 
-const PILL_COLOR_CLASSES = [
-    'pill-color-1',
-    'pill-color-2',
-    'pill-color-3',
-    'pill-color-4',
-    'pill-color-5',
-    'pill-color-6'
-];
-
 const SNOOZE_OPTIONS = [
     { duration: 'ONE_HOUR', label: '1 Hour' },
     { duration: 'THREE_HOURS', label: '3 Hours' },
@@ -30,17 +21,6 @@ const SNOOZE_OPTIONS = [
     { duration: 'THREE_DAYS', label: '3 Days' },
     { duration: 'NEXT_WEEK', label: 'Next Week' }
 ];
-
-function colorClassForSubtype(subtype) {
-    if (!subtype) {
-        return 'pill-color-default';
-    }
-    let hash = 0;
-    for (let i = 0; i < subtype.length; i++) {
-        hash = (hash * 31 + subtype.charCodeAt(i)) & 0xffffffff;
-    }
-    return PILL_COLOR_CLASSES[Math.abs(hash) % PILL_COLOR_CLASSES.length];
-}
 
 function priorityClassFor(priority) {
     if (priority === 'High') {
@@ -170,7 +150,6 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         return results.map((t) => ({
             ...t,
             dueLabel: dueLabelFor(t.DaysUntil),
-            subtypeColorClass: colorClassForSubtype(t.TaskSubtype),
             priorityClass: priorityClassFor(t.Priority),
             isWaiting: t.Status === 'Waiting',
             showOwnerPill: t.Status !== 'Waiting' && !!t.OwnerName,

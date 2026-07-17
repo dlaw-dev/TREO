@@ -60,11 +60,6 @@
                                                 <template if:true={task.isWaiting}>
                                                     <span class="waiting-pill">Waiting</span>
                                                 </template>
-                                                <template if:false={task.isWaiting}>
-                                                    <template if:true={task.TaskSubtype}>
-                                                        <span class={task.subtypeColorClass}>{task.TaskSubtype}</span>
-                                                    </template>
-                                                </template>
                                             </div>
                                             <div class="reminder-item-meta">
                                                 <template if:true={task.MatterName}>

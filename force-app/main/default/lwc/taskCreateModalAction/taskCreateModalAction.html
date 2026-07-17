@@ -129,21 +129,21 @@
             <template if:true={isMoreDetailsOpen}>
                 <div class="more-details-content slds-m-top_small">
 
+                    <!-- Description -->
+                    <lightning-textarea
+                        label="Description"
+                        value={description}
+                        onchange={handleDescription}>
+                    </lightning-textarea>
+
                     <!-- Priority -->
                     <lightning-combobox
+                        class="slds-m-top_medium"
                         label="Priority"
                         value={priority}
                         options={priorityOptions}
                         onchange={handlePriority}>
                     </lightning-combobox>
-
-                    <!-- Description -->
-                    <lightning-textarea
-                        class="slds-m-top_medium"
-                        label="Description"
-                        value={description}
-                        onchange={handleDescription}>
-                    </lightning-textarea>
 
                     <!-- Reminder Set -->
                     <lightning-input

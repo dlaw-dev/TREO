@@ -419,58 +419,6 @@
     font-size: 0.8rem;
 }
 
-.pill-color-1,
-.pill-color-2,
-.pill-color-3,
-.pill-color-4,
-.pill-color-5,
-.pill-color-6,
-.pill-color-default {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.05rem 0.5rem;
-    border-radius: 1rem;
-    font-size: 0.7rem;
-    font-weight: 700;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.pill-color-1 {
-    background-color: #eef4ff;
-    color: #3a5dae;
-}
-
-.pill-color-2 {
-    background-color: #f5eeff;
-    color: #7c4dbd;
-}
-
-.pill-color-3 {
-    background-color: #eafbf0;
-    color: #2f855a;
-}
-
-.pill-color-4 {
-    background-color: #fff4e5;
-    color: #b35c00;
-}
-
-.pill-color-5 {
-    background-color: #ffeef3;
-    color: #b3396b;
-}
-
-.pill-color-6 {
-    background-color: #e6fbfa;
-    color: #17795e;
-}
-
-.pill-color-default {
-    background-color: #f3f2f2;
-    color: #514f4d;
-}
-
 .priority-high,
 .priority-normal,
 .priority-low {
