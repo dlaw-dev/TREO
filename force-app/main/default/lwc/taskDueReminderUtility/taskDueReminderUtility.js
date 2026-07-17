@@ -507,11 +507,6 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         }
     }
 
-    removeTask(taskId) {
-        this.tasks = this.tasks.filter((t) => t.Id !== taskId);
-        this.syncUtilityChrome();
-    }
-
     scheduleRemoval(taskId) {
         const removing = new Set(this.removingIds);
         removing.add(taskId);
@@ -522,7 +517,12 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             const after = new Set(this.removingIds);
             after.delete(taskId);
             this.removingIds = after;
-            this.removeTask(taskId);
+
+            // A full refetch - not just dropping taskId locally - so any
+            // successor step this completion just activated (e.g. the next
+            // subtask chain step, now assigned to this same user) shows up
+            // without waiting for the poll interval or a manual page refresh.
+            this.refreshTasks();
         }, REMOVE_ANIMATION_MS);
     }
 
