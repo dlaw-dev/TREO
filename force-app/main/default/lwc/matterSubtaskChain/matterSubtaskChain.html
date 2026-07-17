@@ -1,0 +1,39 @@
+<template>
+    <lightning-card title="Subtask Chains" icon-name="utility:routing_offline">
+        <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+            <template if:false={hasChains}>
+                <p class="chain-empty">No subtask chains on this Matter yet.</p>
+            </template>
+
+            <template for:each={chains} for:item="chain">
+                <div key={chain.key} class="chain-group">
+                    <div class="chain-title">{chain.templateName}</div>
+                    <div class="template-timeline">
+                        <template for:each={chain.steps} for:item="step">
+                            <div key={step.id} class="timeline-step">
+                                <div class="timeline-marker">
+                                    <span class={step.markerClass}>
+                                        <template if:true={step.isCompleted}>✓</template>
+                                        <template if:false={step.isCompleted}>{step.displayIndex}</template>
+                                    </span>
+                                    <template if:false={step.isLast}>
+                                        <span class="timeline-line"></span>
+                                    </template>
+                                </div>
+                                <div class="timeline-content">
+                                    <div class="timeline-subject">{step.subject}</div>
+                                    <div class="timeline-pills">
+                                        <span class={step.statusPillClass}>{step.statusLabel}</span>
+                                        <template if:true={step.ownerName}>
+                                            <span class="chain-pill chain-pill-owner">{step.ownerName}</span>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>

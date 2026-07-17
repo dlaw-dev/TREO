@@ -1,0 +1,120 @@
+.chain-empty {
+    color: var(--lwc-colorTextWeak, #706e6b);
+    font-size: 0.8125rem;
+}
+
+.chain-group + .chain-group {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--lwc-colorBorder, #d8dde6);
+}
+
+.chain-title {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--lwc-colorTextWeak, #706e6b);
+    margin-bottom: 0.75rem;
+}
+
+.template-timeline {
+    display: flex;
+    flex-direction: column;
+}
+
+.timeline-step {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.timeline-marker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+.timeline-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex: 0 0 auto;
+}
+
+.timeline-circle-open {
+    background: #0b5cab;
+    box-shadow: 0 0 0 3px #cfe4ff;
+}
+
+.timeline-circle-waiting {
+    background: var(--lwc-colorTextWeak, #a6a6a6);
+}
+
+.timeline-circle-completed {
+    background: #1b7f4d;
+}
+
+.timeline-line {
+    width: 2px;
+    flex: 1 1 auto;
+    min-height: 1.25rem;
+    background: var(--lwc-colorBorder, #d8dde6);
+}
+
+.timeline-content {
+    padding-bottom: 1rem;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.timeline-subject {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--lwc-colorTextDefault, #16325c);
+    padding-top: 0.15rem;
+}
+
+.timeline-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+}
+
+.chain-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 1.35rem;
+    padding: 0 0.55rem;
+    border-radius: 1rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.chain-pill-open {
+    background-color: #eef4ff;
+    color: #0b5cab;
+}
+
+.chain-pill-waiting {
+    background-color: #f3f2f2;
+    color: #706e6b;
+}
+
+.chain-pill-completed {
+    background-color: #dff5e8;
+    color: #1b7f4d;
+}
+
+.chain-pill-owner {
+    background-color: #f2e8fb;
+    color: #6b3fa0;
+}
