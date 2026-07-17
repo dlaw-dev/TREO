@@ -290,7 +290,21 @@ private class TaskDueReminderControllerTest {
 
     @IsTest
     static void testGetMyWaitingTasks_returnsOnlyTasksResolvingToCurrentUser() {
-        User staticAssignee = [SELECT Id FROM User WHERE Name = 'David Yeremian' AND IsActive = true LIMIT 1];
+        Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+
+        User staticAssignee = new User(
+            ProfileId = sysAdmin.Id,
+            LastName = 'WaitingOnTest',
+            Email = 'waitingontest@test.example',
+            Username = 'waitingontest+' + System.now().getTime() + '@test.example',
+            Alias = 'waiton1',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US'
+        );
+        insert staticAssignee;
+        staticAssignee = [SELECT Id, Name FROM User WHERE Id = :staticAssignee.Id];
 
         Subtask_Template__c template = new Subtask_Template__c(Name = 'Waiting Tab Test Template');
         insert template;
@@ -332,6 +346,8 @@ private class TaskDueReminderControllerTest {
 
         System.assert(bySubject.containsKey('Step Two Waiting On Me'));
         System.assertEquals('Waiting', bySubject.get('Step Two Waiting On Me').Status);
+        System.assertEquals('Step One', bySubject.get('Step Two Waiting On Me').WaitingOnSubject);
+        System.assertEquals(staticAssignee.Name, bySubject.get('Step Two Waiting On Me').WaitingOnOwnerName);
         System.assert(!bySubject.containsKey('Step One'));
     }
 

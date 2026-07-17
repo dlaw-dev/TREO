@@ -129,7 +129,8 @@ public with sharing class TaskDueReminderController {
         Date todayDate = Date.today();
         Id currentUserId = UserInfo.getUserId();
 
-        List<DueTask> results = new List<DueTask>();
+        List<Task> matchingTasks = new List<Task>();
+        Set<String> chainIds = new Set<String>();
 
         for (Task t : [
             SELECT Id,
@@ -144,6 +145,7 @@ public with sharing class TaskDueReminderController {
                    What.Name,
                    OwnerId,
                    Owner.Name,
+                   Parent_Task__c,
                    Subtask_Template_Item__r.Assignee_Type__c,
                    Subtask_Template_Item__r.Static_Assignee__c,
                    Subtask_Template_Item__r.Dynamic_Assignee_Field__c
@@ -157,8 +159,41 @@ public with sharing class TaskDueReminderController {
                 t.Subtask_Template_Item__r, t.NEOS_Matter__c);
 
             if (resolvedAssigneeId == currentUserId) {
-                results.add(new DueTask(t, todayDate));
+                matchingTasks.add(t);
+
+                if (t.Parent_Task__c != null) {
+                    chainIds.add(t.Parent_Task__c);
+                }
             }
+        }
+
+        // Exactly one task per chain is ever Open at a time - whoever owns it
+        // is the person actually holding up every Waiting step behind it.
+        Map<String, Task> openTaskByChain = new Map<String, Task>();
+
+        if (!chainIds.isEmpty()) {
+            for (Task openTask : [
+                SELECT Id, Subject, Owner.Name, Parent_Task__c
+                FROM Task
+                WHERE Parent_Task__c IN :chainIds
+                  AND Status = 'Open'
+            ]) {
+                openTaskByChain.put(openTask.Parent_Task__c, openTask);
+            }
+        }
+
+        List<DueTask> results = new List<DueTask>();
+
+        for (Task t : matchingTasks) {
+            DueTask dueTask = new DueTask(t, todayDate);
+            Task openTask = t.Parent_Task__c != null ? openTaskByChain.get(t.Parent_Task__c) : null;
+
+            if (openTask != null) {
+                dueTask.WaitingOnSubject = openTask.Subject;
+                dueTask.WaitingOnOwnerName = openTask.Owner.Name;
+            }
+
+            results.add(dueTask);
         }
 
         return results;
@@ -194,6 +229,8 @@ public with sharing class TaskDueReminderController {
         @AuraEnabled public Boolean IsOverdue;
         @AuraEnabled public Integer DaysUntil;
         @AuraEnabled public String  OwnerName;
+        @AuraEnabled public String  WaitingOnSubject;
+        @AuraEnabled public String  WaitingOnOwnerName;
 
         public DueTask(Task t, Date todayDate) {
             Id           = t.Id;

@@ -79,6 +79,9 @@
                                                     <span class="reminder-due">{task.dueLabel}</span>
                                                 </template>
                                             </div>
+                                            <template if:true={task.waitingOnLabel}>
+                                                <div class="reminder-waiting-on">{task.waitingOnLabel}</div>
+                                            </template>
                                         </div>
                                         <div class="reminder-item-side">
                                             <template if:true={task.showActions}>

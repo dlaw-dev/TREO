@@ -290,6 +290,13 @@
     color: #c9c7c5;
 }
 
+.reminder-waiting-on {
+    font-size: 0.7rem;
+    color: #706e6b;
+    font-style: italic;
+    margin-top: 0.15rem;
+}
+
 .reminder-item-side {
     display: flex;
     align-items: center;

@@ -173,7 +173,10 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             subtypeColorClass: colorClassForSubtype(t.TaskSubtype),
             priorityClass: priorityClassFor(t.Priority),
             isWaiting: t.Status === 'Waiting',
-            showOwnerPill: t.Status !== 'Waiting' && !!t.OwnerName
+            showOwnerPill: t.Status !== 'Waiting' && !!t.OwnerName,
+            waitingOnLabel: t.Status === 'Waiting' && t.WaitingOnOwnerName
+                ? `Waiting on ${t.WaitingOnOwnerName} to finish "${t.WaitingOnSubject}"`
+                : null
         }));
     }
 
