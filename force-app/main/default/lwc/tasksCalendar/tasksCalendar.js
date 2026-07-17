@@ -122,6 +122,14 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         }
     }
 
+    get hasError() {
+        return !!this.error;
+    }
+
+    get errorMessage() {
+        return this.error?.body?.message || this.error?.message || 'Something went wrong loading tasks.';
+    }
+
     // ---------- Row Action ----------
     handleRowAction(event) {
         const actionName = event.detail.action.name;
@@ -274,6 +282,27 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         return this.sortByDateDesc(this.completedTasks);
     }
 
+    // ---------- Empty states ----------
+    get hasAllTasks() {
+        return this.allTasksSorted.length > 0;
+    }
+
+    get hasUpcomingTasks() {
+        return this.upcomingTasksSorted.length > 0;
+    }
+
+    get hasPastTasks() {
+        return this.pastTasksSorted.length > 0;
+    }
+
+    get hasNoDeadlineTasks() {
+        return this.tasksNoDeadline.length > 0;
+    }
+
+    get hasCompletedTasks() {
+        return this.completedTasksSorted.length > 0;
+    }
+
     // ---------- Counts ----------
     get allCount() {
         return (this.tasks || []).length;
@@ -314,6 +343,15 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
 
     get completedTabLabel() {
         return `Completed (${this.completedCount})`;
+    }
+
+    // ---------- Progress ----------
+    get hasProgress() {
+        return this.allCount > 0;
+    }
+
+    get progressLabel() {
+        return `${this.completedCount}/${this.allCount} complete`;
     }
 
     // ---------- Actions ----------

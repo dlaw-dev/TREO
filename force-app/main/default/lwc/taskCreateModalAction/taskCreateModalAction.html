@@ -203,6 +203,8 @@
         </template>
 
         <template if:true={isUseTemplateTab}>
+            <p class="template-tab-subtitle">Automatically creates a sequence of tasks for this Matter - each one activates and gets assigned as soon as the step before it is completed.</p>
+
             <div class="slds-form-element__label slds-m-bottom_x-small">Choose a template</div>
 
             <template if:true={isTemplatesLoading}>

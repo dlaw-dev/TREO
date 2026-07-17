@@ -15,6 +15,9 @@
           class="slds-m-right_small"
         ></lightning-icon>
         <span>Tasks</span>
+        <template if:true={hasProgress}>
+          <span class="tasks-progress-badge">{progressLabel}</span>
+        </template>
       </span>
 
       <div
@@ -45,74 +48,136 @@
 
       <!-- All Tasks -->
       <lightning-tab label={allTabLabel}>
-        <template if:true={allTasksSorted}>
-          <lightning-datatable
-    key-field="Id"
-    data={allTasksSorted}
-    columns={columns}
-    hide-checkbox-column
-    onrowaction={handleRowAction}
-    density="compact">
-</lightning-datatable>
-        </template>
-
         <template if:true={isLoading}>
-          <lightning-spinner
-            alternative-text="Loading tasks"
-            size="medium"
-          ></lightning-spinner>
+          <lightning-spinner alternative-text="Loading tasks" size="medium"></lightning-spinner>
+        </template>
+        <template if:true={hasError}>
+          <p class="tasks-error">{errorMessage}</p>
+        </template>
+        <template if:false={isLoading}>
+          <template if:false={hasError}>
+            <template if:true={hasAllTasks}>
+              <lightning-datatable
+                key-field="Id"
+                data={allTasksSorted}
+                columns={columns}
+                hide-checkbox-column
+                onrowaction={handleRowAction}
+                density="compact">
+              </lightning-datatable>
+            </template>
+            <template if:false={hasAllTasks}>
+              <p class="tasks-empty">No tasks yet on this Matter.</p>
+            </template>
+          </template>
         </template>
       </lightning-tab>
 
       <!-- Upcoming -->
       <lightning-tab label={upcomingTabLabel}>
-        <template if:true={upcomingTasksSorted}>
-          <lightning-datatable
-            key-field="Id"
-            data={upcomingTasksSorted}
-            columns={columns}
-            hide-checkbox-column
-            onrowaction={handleRowAction}
-          ></lightning-datatable>
+        <template if:true={isLoading}>
+          <lightning-spinner alternative-text="Loading tasks" size="medium"></lightning-spinner>
+        </template>
+        <template if:true={hasError}>
+          <p class="tasks-error">{errorMessage}</p>
+        </template>
+        <template if:false={isLoading}>
+          <template if:false={hasError}>
+            <template if:true={hasUpcomingTasks}>
+              <lightning-datatable
+                key-field="Id"
+                data={upcomingTasksSorted}
+                columns={columns}
+                hide-checkbox-column
+                onrowaction={handleRowAction}
+                density="compact">
+              </lightning-datatable>
+            </template>
+            <template if:false={hasUpcomingTasks}>
+              <p class="tasks-empty">No upcoming tasks.</p>
+            </template>
+          </template>
         </template>
       </lightning-tab>
 
       <!-- Past -->
       <lightning-tab label={pastTabLabel}>
-        <template if:true={pastTasksSorted}>
-          <lightning-datatable
-            key-field="Id"
-            data={pastTasksSorted}
-            columns={columns}
-            hide-checkbox-column
-            onrowaction={handleRowAction}
-          ></lightning-datatable>
+        <template if:true={isLoading}>
+          <lightning-spinner alternative-text="Loading tasks" size="medium"></lightning-spinner>
+        </template>
+        <template if:true={hasError}>
+          <p class="tasks-error">{errorMessage}</p>
+        </template>
+        <template if:false={isLoading}>
+          <template if:false={hasError}>
+            <template if:true={hasPastTasks}>
+              <lightning-datatable
+                key-field="Id"
+                data={pastTasksSorted}
+                columns={columns}
+                hide-checkbox-column
+                onrowaction={handleRowAction}
+                density="compact">
+              </lightning-datatable>
+            </template>
+            <template if:false={hasPastTasks}>
+              <p class="tasks-empty">No past-due tasks.</p>
+            </template>
+          </template>
         </template>
       </lightning-tab>
 
       <!-- No Deadline -->
       <lightning-tab label={noDeadlineTabLabel}>
-        <template if:true={tasksNoDeadline}>
-          <lightning-datatable
-            key-field="Id"
-            data={tasksNoDeadline}
-            columns={columns}
-            hide-checkbox-column
-            onrowaction={handleRowAction}
-          ></lightning-datatable>
+        <template if:true={isLoading}>
+          <lightning-spinner alternative-text="Loading tasks" size="medium"></lightning-spinner>
+        </template>
+        <template if:true={hasError}>
+          <p class="tasks-error">{errorMessage}</p>
+        </template>
+        <template if:false={isLoading}>
+          <template if:false={hasError}>
+            <template if:true={hasNoDeadlineTasks}>
+              <lightning-datatable
+                key-field="Id"
+                data={tasksNoDeadline}
+                columns={columns}
+                hide-checkbox-column
+                onrowaction={handleRowAction}
+                density="compact">
+              </lightning-datatable>
+            </template>
+            <template if:false={hasNoDeadlineTasks}>
+              <p class="tasks-empty">Every task has a due date.</p>
+            </template>
+          </template>
         </template>
       </lightning-tab>
 
       <!-- Completed -->
       <lightning-tab label={completedTabLabel}>
-        <template if:true={completedTasksSorted}>
-          <lightning-datatable
-            key-field="Id"
-            data={completedTasksSorted}
-            columns={columns}
-            hide-checkbox-column
-            onrowaction={handleRowAction}
-          ></lightning-datatable>
+        <template if:true={isLoading}>
+          <lightning-spinner alternative-text="Loading tasks" size="medium"></lightning-spinner>
+        </template>
+        <template if:true={hasError}>
+          <p class="tasks-error">{errorMessage}</p>
+        </template>
+        <template if:false={isLoading}>
+          <template if:false={hasError}>
+            <template if:true={hasCompletedTasks}>
+              <lightning-datatable
+                key-field="Id"
+                data={completedTasksSorted}
+                columns={columns}
+                hide-checkbox-column
+                onrowaction={handleRowAction}
+                density="compact">
+              </lightning-datatable>
+            </template>
+            <template if:false={hasCompletedTasks}>
+              <p class="tasks-empty">No completed tasks yet.</p>
+            </template>
+          </template>
         </template>
       </lightning-tab>
 
