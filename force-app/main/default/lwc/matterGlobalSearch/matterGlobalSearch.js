@@ -63,11 +63,13 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
 
     handleSearch(event) {
         this.searchTerm = event.target.value;
-        if (this.isInBrowseMode) {
-            this.browseType = null;
-            this.browseResults = [];
-        }
         clearTimeout(this._debounceTimer);
+
+        // While browsing a specific object type, keep that scope and just
+        // filter the already-loaded records instead of running a global search.
+        if (this.isInBrowseMode) {
+            return;
+        }
 
         if (this.searchTerm.length < 3) {
             this.results = [];
@@ -114,6 +116,20 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
         this.browseType    = null;
         this.browseLabel   = '';
         this.browseResults = [];
+        this.searchTerm    = '';
+    }
+
+    // ── Browse filtering (client-side, scoped to the selected object) ─────
+
+    get filteredBrowseResults() {
+        const term = this.searchTerm.trim().toLowerCase();
+        if (!term) return this.browseResults;
+        return this.browseResults.filter(r => {
+            return ['title', 'subtitle', 'preview', 'extra'].some(field => {
+                const value = r[field];
+                return value && value.toLowerCase().includes(term);
+            });
+        });
     }
 
     // ── Filter pills ─────────────────────────────────────────
@@ -172,7 +188,7 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
     }
 
     get totalCount() {
-        return this.isInBrowseMode ? this.browseResults.length : this.results.length;
+        return this.isInBrowseMode ? this.filteredBrowseResults.length : this.results.length;
     }
 
     get showTypeFilter() {
@@ -180,7 +196,7 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
     }
 
     get hasResults() {
-        if (this.isInBrowseMode) return !this.isBrowseLoading && this.browseResults.length > 0;
+        if (this.isInBrowseMode) return !this.isBrowseLoading && this.filteredBrowseResults.length > 0;
         return !this.isLoading && this.results.length > 0;
     }
 
@@ -189,7 +205,21 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
     }
 
     get showBrowseEmpty() {
-        return this.isInBrowseMode && !this.isBrowseLoading && this.browseResults.length === 0;
+        return this.isInBrowseMode && !this.isBrowseLoading && this.filteredBrowseResults.length === 0;
+    }
+
+    get isBrowseFiltering() {
+        return this.searchTerm.trim().length > 0;
+    }
+
+    get browseEmptyHeading() {
+        return this.isBrowseFiltering
+            ? `No ${this.browseLabel} match "${this.searchTerm.trim()}"`
+            : `No ${this.browseLabel} on this matter`;
+    }
+
+    get browseEmptySubtext() {
+        return this.isBrowseFiltering ? 'Try different keywords' : 'Nothing has been added yet';
     }
 
     get showPrompt() {
@@ -200,7 +230,7 @@ export default class MatterGlobalSearch extends NavigationMixin(LightningElement
 
     get groupedResults() {
         const source = this.isInBrowseMode
-            ? this.browseResults
+            ? this.filteredBrowseResults
             : (this.selectedType === 'all'
                 ? this.results
                 : this.results.filter(r => r.objectType === this.selectedType));
