@@ -11,8 +11,7 @@ export default class MatterSubtaskChain extends NavigationMixin(LightningElement
     @api recordId;
 
     // Keyed by chain key; only present once the user has manually
-    // expanded/collapsed a chain, overriding the default (auto-collapse
-    // once every step in the chain is completed).
+    // expanded/collapsed a chain, overriding the default (collapsed).
     manualOverrides = new Map();
 
     @wire(MessageContext) messageContext;
@@ -106,7 +105,7 @@ export default class MatterSubtaskChain extends NavigationMixin(LightningElement
             const isFullyCompleted = completedCount === steps.length;
             const expanded = this.manualOverrides.has(key)
                 ? this.manualOverrides.get(key)
-                : !isFullyCompleted;
+                : false;
 
             return {
                 key,
