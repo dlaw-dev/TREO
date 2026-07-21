@@ -10,14 +10,6 @@ import CURRENT_USER_ID from '@salesforce/user/Id';
 import getTasksForMatter from '@salesforce/apex/TaskCalendarController.getTasksForMatter';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
 
-const GROUP_LABELS = {
-    all:        'All',
-    upcoming:   'Upcoming',
-    past:       'Past',
-    noDeadline: 'No Due Date',
-    completed:  'Completed'
-};
-
 export default class TasksCalendar extends NavigationMixin(LightningElement) {
 
     @api recordId; // NEOS_Matter__c Id
@@ -28,7 +20,7 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     error;
     wiredResult;
 
-    _activeGroup    = 'all';
+    _taskFilter     = '90';
     _showCompleted  = false;
     _searchTerm     = '';
     _priorityFilter = '';
@@ -81,21 +73,18 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         return activityDate ? new Date(`${activityDate}T00:00:00`) : null;
     }
 
-    // ---------- Grouping / filtering / sorting ----------
-    _groupTasks(list) {
+    // ---------- Range filtering / sorting ----------
+    _filterByRange(list) {
         const today = this.todayStart;
-        switch (this._activeGroup) {
-            case 'completed':
-                return list.filter(t => t.Status === 'Completed');
-            case 'noDeadline':
-                return list.filter(t => t.Status !== 'Completed' && !t.ActivityDate);
-            case 'upcoming':
-                return list.filter(t => t.Status !== 'Completed' && t.ActivityDate && this.toLocalDateStart(t.ActivityDate) >= today);
-            case 'past':
-                return list.filter(t => t.Status !== 'Completed' && t.ActivityDate && this.toLocalDateStart(t.ActivityDate) < today);
-            default:
-                return this._showCompleted ? list : list.filter(t => t.Status !== 'Completed');
+        const cutoff = new Date(today);
+        if (this._taskFilter === 'week') {
+            cutoff.setDate(today.getDate() + (6 - today.getDay()));
+        } else if (this._taskFilter === 'month') {
+            cutoff.setDate(today.getDate() + 30);
+        } else {
+            cutoff.setDate(today.getDate() + parseInt(this._taskFilter, 10));
         }
+        return list.filter(t => !t.ActivityDate || this.toLocalDateStart(t.ActivityDate) <= cutoff);
     }
 
     _dueInfo(task, today) {
@@ -164,8 +153,9 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     }
 
     _rebuild() {
-        const grouped  = this._groupTasks(this.tasks || []);
-        const filtered = grouped
+        const ranged   = this._filterByRange(this.tasks || []);
+        const visible  = this._showCompleted ? ranged : ranged.filter(t => t.Status !== 'Completed');
+        const filtered = visible
             .filter(t => !this._priorityFilter || t.Priority === this._priorityFilter)
             .filter(t => this._matchesSearch(t));
         this.displayTasks = this._decorate(this._sortList(filtered));
@@ -177,18 +167,14 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
 
     get tasksHeader() {
         const n = this.displayTasks.length;
-        return `Tasks — ${GROUP_LABELS[this._activeGroup]}${n > 0 ? ` (${n})` : ''}`;
+        const labels = { week: 'This Week', month: '1 Month', '90': '3 Months', '180': '6 Months', '270': '9 Months', '360': '12 Months' };
+        return `Tasks — ${labels[this._taskFilter] || 'This Week'}${n > 0 ? ` (${n})` : ''}`;
     }
 
     get tasksEmptyMessage() {
-        const labels = {
-            all:        'on this Matter',
-            upcoming:   'upcoming',
-            past:       'past due',
-            noDeadline: 'without a due date',
-            completed:  'completed yet'
-        };
-        return `No tasks ${labels[this._activeGroup] || ''}`;
+        const labels = { week: 'this week', month: 'in the next month', '90': 'in the next 3 months', '180': 'in the next 6 months', '270': 'in the next 9 months', '360': 'in the next 12 months' };
+        const scope = this._showCompleted ? 'tasks' : 'open tasks';
+        return `No ${scope} ${labels[this._taskFilter] || 'in this period'}`;
     }
 
     get priorityFilters() {
@@ -196,35 +182,13 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         return priorities.map(p => ({ key: p, label: p }));
     }
 
-    // ---------- Group filter bar ----------
-    get groupCounts() {
-        const tasks       = this.tasks || [];
-        const today       = this.todayStart;
-        const open        = tasks.filter(t => t.Status !== 'Completed');
-        const withDueDate = open.filter(t => !!t.ActivityDate);
-        return {
-            all:        this._showCompleted ? tasks.length : open.length,
-            upcoming:   withDueDate.filter(t => this.toLocalDateStart(t.ActivityDate) >= today).length,
-            past:       withDueDate.filter(t => this.toLocalDateStart(t.ActivityDate) < today).length,
-            noDeadline: open.filter(t => !t.ActivityDate).length,
-            completed:  tasks.filter(t => t.Status === 'Completed').length
-        };
-    }
-
-    get groupAllLabel()        { return `All (${this.groupCounts.all})`; }
-    get groupUpcomingLabel()   { return `Upcoming (${this.groupCounts.upcoming})`; }
-    get groupPastLabel()       { return `Past (${this.groupCounts.past})`; }
-    get groupNoDeadlineLabel() { return `No Due Date (${this.groupCounts.noDeadline})`; }
-    get groupCompletedLabel()  { return `Completed (${this.groupCounts.completed})`; }
-
-    _groupClass(group) {
-        return 'task-filter-btn' + (this._activeGroup === group ? ' task-filter-btn--active' : '');
-    }
-    get groupAllClass()        { return this._groupClass('all'); }
-    get groupUpcomingClass()   { return this._groupClass('upcoming'); }
-    get groupPastClass()       { return this._groupClass('past'); }
-    get groupNoDeadlineClass() { return this._groupClass('noDeadline'); }
-    get groupCompletedClass()  { return this._groupClass('completed'); }
+    // ---------- Date-range filter bar ----------
+    get taskFilterWeekClass()  { return 'task-filter-btn' + (this._taskFilter === 'week'  ? ' task-filter-btn--active' : ''); }
+    get taskFilter1MClass()    { return 'task-filter-btn' + (this._taskFilter === 'month' ? ' task-filter-btn--active' : ''); }
+    get taskFilter3MClass()    { return 'task-filter-btn' + (this._taskFilter === '90'    ? ' task-filter-btn--active' : ''); }
+    get taskFilter6MClass()    { return 'task-filter-btn' + (this._taskFilter === '180'   ? ' task-filter-btn--active' : ''); }
+    get taskFilter9MClass()    { return 'task-filter-btn' + (this._taskFilter === '270'   ? ' task-filter-btn--active' : ''); }
+    get taskFilter12MClass()   { return 'task-filter-btn' + (this._taskFilter === '360'   ? ' task-filter-btn--active' : ''); }
 
     // ---------- Open / All (completed-visibility) toggle ----------
     get showOpenClass() { return 'task-filter-btn' + (!this._showCompleted ? ' task-filter-btn--active' : ''); }
@@ -246,8 +210,8 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     get assigneeSortIcon() { return this._sortIconFor('OwnerName'); }
 
     // ---------- Handlers ----------
-    handleGroupFilter(event) {
-        this._activeGroup = event.currentTarget.dataset.group;
+    handleTaskFilter(event) {
+        this._taskFilter = event.currentTarget.dataset.filter;
         this._rebuild();
     }
 

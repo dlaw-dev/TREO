@@ -11,12 +11,13 @@
           <button type="button" class={showOpenClass} onclick={handleToggleShowCompleted}>Open</button>
           <button type="button" class={showAllClass}  onclick={handleToggleShowCompleted}>All</button>
         </div>
-        <div class="task-filter-bar task-filter-bar--view">
-          <button type="button" class={groupAllClass}        data-group="all"        onclick={handleGroupFilter}>{groupAllLabel}</button>
-          <button type="button" class={groupUpcomingClass}   data-group="upcoming"   onclick={handleGroupFilter}>{groupUpcomingLabel}</button>
-          <button type="button" class={groupPastClass}       data-group="past"       onclick={handleGroupFilter}>{groupPastLabel}</button>
-          <button type="button" class={groupNoDeadlineClass} data-group="noDeadline" onclick={handleGroupFilter}>{groupNoDeadlineLabel}</button>
-          <button type="button" class={groupCompletedClass}  data-group="completed"  onclick={handleGroupFilter}>{groupCompletedLabel}</button>
+        <div class="task-filter-bar">
+          <button type="button" class={taskFilterWeekClass} data-filter="week"  onclick={handleTaskFilter}>Week</button>
+          <button type="button" class={taskFilter1MClass}   data-filter="month" onclick={handleTaskFilter}>1 Mo</button>
+          <button type="button" class={taskFilter3MClass}   data-filter="90"    onclick={handleTaskFilter}>3 Mo</button>
+          <button type="button" class={taskFilter6MClass}   data-filter="180"   onclick={handleTaskFilter}>6 Mo</button>
+          <button type="button" class={taskFilter9MClass}   data-filter="270"   onclick={handleTaskFilter}>9 Mo</button>
+          <button type="button" class={taskFilter12MClass}  data-filter="360"   onclick={handleTaskFilter}>12 Mo</button>
         </div>
       </div>
     </div>
