@@ -82,16 +82,16 @@
 }
 
 .timeline-circle-open {
-    background: var(--slds-g-color-accent-1, #0b5cab);
+    background: #0b5cab;
     box-shadow: 0 0 0 3px #cfe4ff;
 }
 
 .timeline-circle-waiting {
-    background: var(--slds-g-color-warning-1, #b98900);
+    background: #b98900;
 }
 
 .timeline-circle-completed {
-    background: var(--slds-g-color-success-1, #1b7f4d);
+    background: #1b7f4d;
 }
 
 .timeline-line {
@@ -147,21 +147,21 @@
 }
 
 .chain-pill-open {
-    background-color: var(--slds-g-color-surface-2, #eef4ff);
-    color: var(--slds-g-color-accent-1, #0b5cab);
+    background-color: #eef4ff;
+    color: #0b5cab;
 }
 
 .chain-pill-waiting {
-    background-color: var(--slds-g-color-surface-2, #fdf1d1);
-    color: var(--slds-g-color-warning-1, #825a00);
+    background-color: #fdf1d1;
+    color: #825a00;
 }
 
 .chain-pill-completed {
-    background-color: var(--slds-g-color-surface-2, #dff5e8);
-    color: var(--slds-g-color-success-1, #1b7f4d);
+    background-color: #dff5e8;
+    color: #1b7f4d;
 }
 
 .chain-pill-owner {
-    background-color: var(--slds-g-color-surface-2, #eef4ff);
-    color: var(--slds-g-color-accent-1, #0b5cab);
+    background-color: #f2e8fb;
+    color: #6b3fa0;
 }
