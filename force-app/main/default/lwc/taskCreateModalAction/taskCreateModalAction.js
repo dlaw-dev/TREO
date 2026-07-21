@@ -87,27 +87,45 @@ function iconForTemplateName(name) {
     return match ? match.icon : DEFAULT_TEMPLATE_ICON;
 }
 
+function blankTaskRow(id) {
+    return {
+        _id: id,
+        subject: '',
+        activityDate: undefined,
+        status: 'Open',
+        priority: 'Normal',
+        description: '',
+        selectedUsers: [],
+        selectedUserIds: new Set(),
+        selectedReminderTypes: [],
+        isReminderSet: false,
+        isMoreDetailsOpen: false
+    };
+}
+
 export default class TaskCreateModalAction extends LightningModal {
 
     @api recordId;
 
     // Getter/setter pairs so values populate correctly whether the LWC modal
-    // framework sets them before or after connectedCallback fires.
+    // framework sets them before or after connectedCallback fires. draftTasks
+    // is initialized synchronously as a class field, so patching row 0 here
+    // is safe no matter when these setters run.
     _initialSubject;
     @api get initialSubject() { return this._initialSubject; }
-    set initialSubject(val) { this._initialSubject = val; if (val != null) this.subject = val; }
+    set initialSubject(val) { this._initialSubject = val; if (val != null) this._patchFirstRow({ subject: val }); }
 
     _initialDueDate;
     @api get initialDueDate() { return this._initialDueDate; }
-    set initialDueDate(val) { this._initialDueDate = val; if (val != null) this.activityDate = val; }
+    set initialDueDate(val) { this._initialDueDate = val; if (val != null) this._patchFirstRow({ activityDate: val }); }
 
     _initialPriority;
     @api get initialPriority() { return this._initialPriority; }
-    set initialPriority(val) { this._initialPriority = val; if (val != null) this.priority = val; }
+    set initialPriority(val) { this._initialPriority = val; if (val != null) this._patchFirstRow({ priority: val }); }
 
     _initialDescription;
     @api get initialDescription() { return this._initialDescription; }
-    set initialDescription(val) { this._initialDescription = val; if (val != null) this.description = val; }
+    set initialDescription(val) { this._initialDescription = val; if (val != null) this._patchFirstRow({ description: val }); }
 
     _initialAssignees = [];
     @api get initialAssignees() { return this._initialAssignees; }
@@ -116,30 +134,25 @@ export default class TaskCreateModalAction extends LightningModal {
         const first = Array.isArray(this._initialAssignees) ? this._initialAssignees[0] : null;
 
         if (first?.id) {
-            this.selectedUserIds = new Set([first.id]);
-            this.selectedUsers = [{ id: first.id, name: first.name }];
+            this._patchFirstRow({
+                selectedUserIds: new Set([first.id]),
+                selectedUsers: [{ id: first.id, name: first.name }]
+            });
         }
     }
 
-    subject = '';
-    activityDate;
-    status = 'Open';
-    priority = 'Normal';
-    description = '';
-
-    @track selectedReminderTypes = [];
-    isReminderSet = false;
-
-    isMoreDetailsOpen = false;
+    _taskCounter = 1;
+    @track draftTasks = [blankTaskRow('1')];
 
     isSaving = false;
 
-    isSubjectSearchOpen = false;
+    _activeSubjectRowId;
     subjectDropdownStyle = '';
     subjectBlurTimeout;
     subjectDropdownInteractionTimeout;
     _isInteractingWithSubjectDropdown = false;
 
+    _activeAssigneeRowId;
     assigneeDropdownStyle = '';
 
     activeTab = 'newTask';
@@ -148,6 +161,10 @@ export default class TaskCreateModalAction extends LightningModal {
     isApplyingTemplate = false;
 
     @wire(MessageContext) messageContext;
+
+    _patchFirstRow(patch) {
+        this.draftTasks = this.draftTasks.map((t, i) => (i === 0 ? { ...t, ...patch } : t));
+    }
 
     /* -------------------------
        Related Record
@@ -189,33 +206,25 @@ export default class TaskCreateModalAction extends LightningModal {
         );
     }
 
-    get reminderOptionRows() {
+    _reminderOptionRowsFor(selectedTypes) {
         return this.sortedReminderOptions.map(o => ({
             ...o,
-            checked: this.selectedReminderTypes.includes(o.value)
+            checked: selectedTypes.includes(o.value)
         }));
     }
 
-    get reminderOptionColumnLeft() {
-        const rows = this.reminderOptionRows;
-        return rows.slice(0, Math.ceil(rows.length / 2));
-    }
-
-    get reminderOptionColumnRight() {
-        const rows = this.reminderOptionRows;
-        return rows.slice(Math.ceil(rows.length / 2));
-    }
-
-    get isReminderDisabled() {
-        return !this.activityDate;
-    }
-
     handleReminderOptionToggle(e) {
+        const rowId = e.currentTarget.dataset.id;
         const value = e.target.dataset.value;
+        const checked = e.target.checked;
 
-        this.selectedReminderTypes = e.target.checked
-            ? [...this.selectedReminderTypes, value]
-            : this.selectedReminderTypes.filter(v => v !== value);
+        this.draftTasks = this.draftTasks.map(t => {
+            if (t._id !== rowId) return t;
+            const types = checked
+                ? [...t.selectedReminderTypes, value]
+                : t.selectedReminderTypes.filter(v => v !== value);
+            return { ...t, selectedReminderTypes: types };
+        });
     }
 
     /* -------------------------
@@ -241,23 +250,76 @@ export default class TaskCreateModalAction extends LightningModal {
     }
 
     /* -------------------------
-       UI Helpers
+       Draft task rows (repeater)
     -------------------------- */
 
-    get hasSelectedAssignee() {
-        return this.selectedUsers.length > 0;
+    _suggestionsFor(subjectValue) {
+        const keyword = (subjectValue || '').trim().toLowerCase();
+        if (!keyword) return SUBJECT_SUGGESTIONS;
+        return SUBJECT_SUGGESTIONS.filter(s => s.toLowerCase().includes(keyword));
+    }
+
+    get displayTasks() {
+        return this.draftTasks.map((t, index) => {
+            const suggestions = this._suggestionsFor(t.subject);
+            const isSubjectActive = this._activeSubjectRowId === t._id;
+            const isAssigneeActive = this._activeAssigneeRowId === t._id;
+            const reminderRows = this._reminderOptionRowsFor(t.selectedReminderTypes);
+
+            return {
+                ...t,
+                displayIndex: index + 1,
+                canRemove: this.draftTasks.length > 1,
+                subjectContainerId: `subject-search-container-${t._id}`,
+                assigneeContainerId: `assignee-search-container-${t._id}`,
+                hasSelectedAssignee: t.selectedUsers.length > 0,
+                isReminderDisabled: !t.activityDate,
+                moreDetailsIcon: t.isMoreDetailsOpen ? 'utility:chevrondown' : 'utility:chevronright',
+                filteredSubjectSuggestions: suggestions,
+                hasSubjectSuggestions: isSubjectActive && suggestions.length > 0,
+                subjectDropdownStyle: this.subjectDropdownStyle,
+                hasUserResults: isAssigneeActive && this.userResults.length > 0,
+                userResults: isAssigneeActive ? this.userResults : [],
+                userSearchKeyword: isAssigneeActive ? this.userSearchKeyword : '',
+                assigneeDropdownStyle: this.assigneeDropdownStyle,
+                reminderOptionColumnLeft: reminderRows.slice(0, Math.ceil(reminderRows.length / 2)),
+                reminderOptionColumnRight: reminderRows.slice(Math.ceil(reminderRows.length / 2))
+            };
+        });
+    }
+
+    get hasMultipleTasks() {
+        return this.draftTasks.length > 1;
     }
 
     get isSaveDisabled() {
         return this.isSaving;
     }
 
-    get moreDetailsIcon() {
-        return this.isMoreDetailsOpen ? 'utility:chevrondown' : 'utility:chevronright';
+    get saveLabel() {
+        if (this.isSaving) return 'Saving…';
+        const n = this.draftTasks.length;
+        return n > 1 ? `Create ${n} Tasks` : 'Create Task';
     }
 
-    toggleMoreDetails() {
-        this.isMoreDetailsOpen = !this.isMoreDetailsOpen;
+    addTaskRow() {
+        this._taskCounter++;
+        this.draftTasks = [...this.draftTasks, blankTaskRow(String(this._taskCounter))];
+    }
+
+    removeTaskRow(event) {
+        const rowId = event.currentTarget.dataset.id;
+        this.draftTasks = this.draftTasks.filter(t => t._id !== rowId);
+        if (this.draftTasks.length === 0) {
+            this.addTaskRow();
+        }
+    }
+
+    toggleMoreDetails(event) {
+        const rowId = event.currentTarget.dataset.id;
+        this.draftTasks = this.draftTasks.map(t =>
+            t._id === rowId ? { ...t, isMoreDetailsOpen: !t.isMoreDetailsOpen } : t
+        );
     }
 
     /* -------------------------
@@ -438,29 +500,19 @@ export default class TaskCreateModalAction extends LightningModal {
        Subject Suggestions
     -------------------------- */
 
-    get filteredSubjectSuggestions() {
-        const keyword = (this.subject || '').trim().toLowerCase();
-        if (!keyword) return SUBJECT_SUGGESTIONS;
-        return SUBJECT_SUGGESTIONS.filter(s => s.toLowerCase().includes(keyword));
-    }
-
-    get hasSubjectSuggestions() {
-        return this.isSubjectSearchOpen && this.filteredSubjectSuggestions.length > 0;
-    }
-
-    openSubjectSearch() {
+    openSubjectSearch(rowId) {
         clearTimeout(this.subjectBlurTimeout);
-        this.isSubjectSearchOpen = true;
-        this.subjectDropdownStyle = this.computeDropdownStyle('subject-search-container');
+        this._activeSubjectRowId = rowId;
+        this.subjectDropdownStyle = this.computeDropdownStyle(`subject-search-container-${rowId}`);
     }
 
     closeSubjectSearch() {
-        this.isSubjectSearchOpen = false;
+        this._activeSubjectRowId = undefined;
         clearTimeout(this.subjectBlurTimeout);
     }
 
-    handleSubjectFocus() {
-        this.openSubjectSearch();
+    handleSubjectFocus(e) {
+        this.openSubjectSearch(e.currentTarget.dataset.id);
     }
 
     handleSubjectBlur() {
@@ -481,7 +533,11 @@ export default class TaskCreateModalAction extends LightningModal {
     }
 
     selectSubjectSuggestion(e) {
-        this.subject = e.currentTarget.dataset.value;
+        const rowId = this._activeSubjectRowId;
+        const value = e.currentTarget.dataset.value;
+        if (!rowId) return;
+
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId ? { ...t, subject: value } : t));
         this.closeSubjectSearch();
 
         // The input blurs (while still empty) just before this click handler
@@ -489,7 +545,7 @@ export default class TaskCreateModalAction extends LightningModal {
         // blur. Re-check validity once the new value has rendered so the
         // error clears without the user needing to click back into the field.
         Promise.resolve().then(() => {
-            this.template.querySelector('lightning-input[data-id="subject-input"]')?.reportValidity();
+            this.template.querySelector(`lightning-input[data-role="subject-input"][data-id="${rowId}"]`)?.reportValidity();
         });
     }
 
@@ -497,70 +553,93 @@ export default class TaskCreateModalAction extends LightningModal {
        Field Handlers
     -------------------------- */
 
-    handleSubject = e => {
-        this.subject = e.target.value;
-        this.isSubjectSearchOpen = true;
-    };
-    handleDueDate = e => {
-        this.activityDate = e.target.value;
+    handleSubject(e) {
+        const rowId = e.currentTarget.dataset.id;
+        const value = e.target.value;
+        this._activeSubjectRowId = rowId;
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId ? { ...t, subject: value } : t));
+    }
 
-        if (!this.activityDate) {
-            this.selectedReminderTypes = [];
-            this.isReminderSet = false;
-        }
-    };
-    handleReminderSet = e => this.isReminderSet = e.target.checked;
-    handlePriority = e => this.priority = e.target.value;
-    handleDescription = e => this.description = e.target.value;
+    handleDueDate(e) {
+        const rowId = e.currentTarget.dataset.id;
+        const value = e.target.value;
+
+        this.draftTasks = this.draftTasks.map(t => {
+            if (t._id !== rowId) return t;
+            const updated = { ...t, activityDate: value };
+            if (!value) {
+                updated.selectedReminderTypes = [];
+                updated.isReminderSet = false;
+            }
+            return updated;
+        });
+    }
+
+    handleReminderSet(e) {
+        const rowId = e.currentTarget.dataset.id;
+        const checked = e.target.checked;
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId ? { ...t, isReminderSet: checked } : t));
+    }
+
+    handlePriority(e) {
+        const rowId = e.currentTarget.dataset.id;
+        const value = e.target.value;
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId ? { ...t, priority: value } : t));
+    }
+
+    handleDescription(e) {
+        const rowId = e.currentTarget.dataset.id;
+        const value = e.target.value;
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId ? { ...t, description: value } : t));
+    }
 
     /* -------------------------
        Attendees
     -------------------------- */
 
     @track userResults = [];
-    @track selectedUsers = [];
-
-    selectedUserIds = new Set();
 
     userSearchTimeout;
     userSearchKeyword = '';
 
-    isUserSearchOpen = false;
     userSearchRequestId = 0;
     userBlurTimeout;
     searchDropdownInteractionTimeout;
-
-    get hasUserResults() {
-        return this.userResults.length > 0;
-    }
+    _isInteractingWithSearchDropdown = false;
+    _skipNextUserFocus = false;
+    _lastUserFocusSearchAt = 0;
 
     /* -------------------------
        Search
     -------------------------- */
 
-    handleUserFocus() {
+    handleUserFocus(e) {
+        const rowId = e.currentTarget.dataset.id;
         if (this._skipNextUserFocus) {
             this._skipNextUserFocus = false;
             return;
         }
         clearTimeout(this.userBlurTimeout);
         this._lastUserFocusSearchAt = Date.now();
-        this.searchUsersInternal(this.userSearchKeyword || '');
+        const keyword = this._activeAssigneeRowId === rowId ? (this.userSearchKeyword || '') : '';
+        this.searchUsersInternal(rowId, keyword);
     }
 
-    handleUserClick() {
+    handleUserClick(e) {
+        const rowId = e.currentTarget.dataset.id;
         clearTimeout(this.userBlurTimeout);
         this._skipNextUserFocus = false;
 
         if (
-            this.isUserSearchOpen &&
+            this._activeAssigneeRowId === rowId &&
             this.userResults.length > 0 &&
             Date.now() - (this._lastUserFocusSearchAt || 0) < SEARCH_FOCUS_CLICK_WINDOW_MS
         ) {
             return;
         }
 
-        this.searchUsersInternal(this.userSearchKeyword || '');
+        const keyword = this._activeAssigneeRowId === rowId ? (this.userSearchKeyword || '') : '';
+        this.searchUsersInternal(rowId, keyword);
     }
 
     handleUserBlur() {
@@ -590,41 +669,45 @@ export default class TaskCreateModalAction extends LightningModal {
     }
 
     handleUserSearch(e) {
+        const rowId = e.currentTarget.dataset.id;
         clearTimeout(this.userSearchTimeout);
 
         const val = e.target.value;
         this.userSearchKeyword = val || '';
+        this._activeAssigneeRowId = rowId;
 
         this.userSearchTimeout = setTimeout(() => {
-            this.searchUsersInternal(val || '');
+            this.searchUsersInternal(rowId, val || '');
         }, 300);
     }
 
     handleUserKeydown(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
+            const rowId = e.currentTarget.dataset.id;
             const keyword = e.target.value || '';
             this.userSearchKeyword = keyword;
-            this.searchUsersInternal(keyword);
+            this.searchUsersInternal(rowId, keyword);
         }
     }
 
-    async searchUsersInternal(keyword) {
-        this.isUserSearchOpen = true;
-        this.assigneeDropdownStyle = this.computeDropdownStyle('assignee-search-container');
+    async searchUsersInternal(rowId, keyword) {
+        this._activeAssigneeRowId = rowId;
+        this.userSearchKeyword = keyword;
+        this.assigneeDropdownStyle = this.computeDropdownStyle(`assignee-search-container-${rowId}`);
         const requestId = (this.userSearchRequestId || 0) + 1;
         this.userSearchRequestId = requestId;
 
         try {
             const results = await searchUsers({ keyword });
 
-            if (!this.isUserSearchOpen || requestId !== this.userSearchRequestId) return;
+            if (this._activeAssigneeRowId !== rowId || requestId !== this.userSearchRequestId) return;
 
-            this.userResults = results.filter(
-                user => !this.selectedUserIds.has(user.Id)
-            );
+            const row = this.draftTasks.find(t => t._id === rowId);
+            const selectedIds = row ? row.selectedUserIds : new Set();
+            this.userResults = results.filter(user => !selectedIds.has(user.Id));
         } catch (err) {
-            if (this.isUserSearchOpen && requestId === this.userSearchRequestId) {
+            if (this._activeAssigneeRowId === rowId && requestId === this.userSearchRequestId) {
                 this.dispatchEvent(new ShowToastEvent({
                     title: 'Could not load users',
                     message: err?.body?.message || 'An error occurred while searching users.',
@@ -636,9 +719,10 @@ export default class TaskCreateModalAction extends LightningModal {
     }
 
     closeUserSearch() {
-        this.isUserSearchOpen = false;
+        this._activeAssigneeRowId = undefined;
         this.userSearchRequestId = (this.userSearchRequestId || 0) + 1;
         this.userResults = [];
+        this.userSearchKeyword = '';
         clearTimeout(this.userSearchTimeout);
     }
 
@@ -647,117 +731,101 @@ export default class TaskCreateModalAction extends LightningModal {
     -------------------------- */
 
     addUser(e) {
+        const rowId = this._activeAssigneeRowId;
         const id = e.currentTarget.dataset.id;
         const u = this.userResults.find(x => x.Id === id);
 
-        if (!u) return;
+        if (!u || !rowId) return;
 
-        this.addSelectedUser(u);
-    }
-
-    addSelectedUser(user) {
-        this.selectedUserIds = new Set([user.Id]);
-        this.selectedUsers = [{ id: user.Id, name: user.Name }];
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId
+            ? { ...t, selectedUserIds: new Set([u.Id]), selectedUsers: [{ id: u.Id, name: u.Name }] }
+            : t));
 
         this.userSearchKeyword = '';
         this.closeUserSearch();
     }
 
     removeUser(e) {
-        const id = e.target.dataset.id;
-
-        this.selectedUserIds.delete(id);
-        this.selectedUsers = this.selectedUsers.filter(u => u.id !== id);
+        const rowId = e.target.dataset.rowId;
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId
+            ? { ...t, selectedUsers: [], selectedUserIds: new Set() }
+            : t));
     }
 
     /* -------------------------
        Validation
     -------------------------- */
 
-    validateDueDate() {
-        const input = this.template.querySelector(
-            'lightning-input[data-id="dueDate"]'
-        );
-
-        if (!input) return true;
-
-        input.reportValidity();
-        return input.checkValidity();
+    _validateDueDates() {
+        const inputs = this.template.querySelectorAll('lightning-input[data-role="dueDate"]');
+        let allValid = true;
+        inputs.forEach(input => {
+            input.reportValidity();
+            if (!input.checkValidity()) allValid = false;
+        });
+        return allValid;
     }
 
     /* -------------------------
        Save
     -------------------------- */
 
-    async _performSave() {
-        if (!this.validateDueDate()) {
-            return false;
-        }
-
-        if (!this.hasSelectedAssignee) {
-            throw new Error('Please select an Assignee.');
-        }
-
-        await saveTask({
-            relatedId: this.recordId,
-            ownerIds: this.selectedUsers.map(u => u.id),
-            subject: this.subject,
-            dueDate: this.activityDate,
-            status: this.status,
-            priority: this.priority,
-            description: this.description,
-            reminderTypes: this.selectedReminderTypes
-        });
-
-        return true;
-    }
-
-    async save() {
+    async saveAll() {
         if (this.isSaving) return;
+
+        if (!this._validateDueDates()) {
+            return;
+        }
+
+        if (this.draftTasks.some(t => t.selectedUsers.length === 0)) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error',
+                message: 'Please select an Assignee for every task.',
+                variant: 'error'
+            }));
+            return;
+        }
+
         this.isSaving = true;
         try {
-            const saved = await this._performSave();
-            if (!saved) return;
-            this.dispatchEvent(new ShowToastEvent({ title: 'Success', message: 'Task created', variant: 'success' }));
-            this.close('success');
-        } catch (e) {
-            this.dispatchEvent(new ShowToastEvent({ title: 'Error', message: e.body?.message || e.message, variant: 'error' }));
+            const results = await Promise.allSettled(this.draftTasks.map(t => saveTask({
+                relatedId: this.recordId,
+                ownerIds: t.selectedUsers.map(u => u.id),
+                subject: t.subject,
+                dueDate: t.activityDate,
+                status: t.status,
+                priority: t.priority,
+                description: t.description,
+                reminderTypes: t.selectedReminderTypes
+            })));
+
+            const failedRows   = this.draftTasks.filter((t, i) => results[i].status === 'rejected');
+            const successCount = results.length - failedRows.length;
+
+            if (successCount > 0) {
+                publish(this.messageContext, TASK_CHANGED, {});
+            }
+
+            if (failedRows.length === 0) {
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Success',
+                    message: successCount === 1 ? 'Task created' : `${successCount} tasks created`,
+                    variant: 'success'
+                }));
+                this.close('success');
+            } else {
+                const firstFailure = results.find(r => r.status === 'rejected');
+                this.dispatchEvent(new ShowToastEvent({
+                    title: successCount > 0 ? 'Some tasks were not created' : 'Error',
+                    message: `${successCount} of ${results.length} task${results.length === 1 ? '' : 's'} created. `
+                        + (firstFailure.reason?.body?.message || firstFailure.reason?.message || 'Please check the remaining task(s) and try again.'),
+                    variant: successCount > 0 ? 'warning' : 'error'
+                }));
+                this.draftTasks = failedRows;
+            }
         } finally {
             this.isSaving = false;
         }
-    }
-
-    async saveAndNew() {
-        if (this.isSaving) return;
-        this.isSaving = true;
-        try {
-            const saved = await this._performSave();
-            if (!saved) return;
-            this.dispatchEvent(new ShowToastEvent({ title: 'Success', message: 'Task created', variant: 'success' }));
-            publish(this.messageContext, TASK_CHANGED, {});
-            this.resetForNew();
-        } catch (e) {
-            this.dispatchEvent(new ShowToastEvent({ title: 'Error', message: e.body?.message || e.message, variant: 'error' }));
-        } finally {
-            this.isSaving = false;
-        }
-    }
-
-    resetForNew() {
-        this.subject                = '';
-        this.activityDate           = undefined;
-        this.status                 = 'Open';
-        this.priority               = 'Normal';
-        this.description            = '';
-        this.selectedReminderTypes  = [];
-        this.isReminderSet          = false;
-        this.isMoreDetailsOpen      = false;
-        this.selectedUsers          = [];
-        this.selectedUserIds        = new Set();
-        this.userResults            = [];
-        this.userSearchKeyword      = '';
-        this.closeUserSearch();
-        this.closeSubjectSearch();
     }
 
     disconnectedCallback() {
