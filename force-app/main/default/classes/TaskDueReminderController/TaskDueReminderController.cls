@@ -213,6 +213,71 @@ public with sharing class TaskDueReminderController {
             results.add(dueTask);
         }
 
+        results.addAll(getMyAdHocWaitingTasks(currentUserId, todayDate));
+
+        return results;
+    }
+
+    /**
+     * Ad hoc (non-chain) tasks a user manually marked Waiting on another
+     * task via the New Task modal. Unlike chain steps, these already have
+     * a concrete OwnerId up front, so no assignee resolution is needed -
+     * just a bulk lookup of whatever task each one references.
+     */
+    private static List<DueTask> getMyAdHocWaitingTasks(Id currentUserId, Date todayDate) {
+        List<Task> adHocWaitingTasks = [
+            SELECT Id,
+                   Subject,
+                   ActivityDate,
+                   Priority,
+                   Status,
+                   Task_Subtype__c,
+                   NEOS_Matter__c,
+                   NEOS_Matter__r.Name,
+                   WhatId,
+                   What.Name,
+                   OwnerId,
+                   Owner.Name,
+                   Waiting_On_Task__c
+            FROM Task
+            WHERE Status = 'Waiting'
+              AND Subtask_Template_Item__c = null
+              AND OwnerId = :currentUserId
+            ORDER BY CreatedDate DESC
+            LIMIT 200
+        ];
+
+        Set<String> waitingOnIds = new Set<String>();
+        for (Task t : adHocWaitingTasks) {
+            if (String.isNotBlank(t.Waiting_On_Task__c)) {
+                waitingOnIds.add(t.Waiting_On_Task__c);
+            }
+        }
+
+        Map<Id, Task> waitingOnTaskById = new Map<Id, Task>();
+        if (!waitingOnIds.isEmpty()) {
+            waitingOnTaskById = new Map<Id, Task>([
+                SELECT Id, Subject, Owner.Name
+                FROM Task
+                WHERE Id IN :waitingOnIds
+            ]);
+        }
+
+        List<DueTask> results = new List<DueTask>();
+        for (Task t : adHocWaitingTasks) {
+            DueTask dueTask = new DueTask(t, todayDate);
+            Task waitingOnTask = String.isNotBlank(t.Waiting_On_Task__c)
+                ? waitingOnTaskById.get(t.Waiting_On_Task__c)
+                : null;
+
+            if (waitingOnTask != null) {
+                dueTask.WaitingOnSubject = waitingOnTask.Subject;
+                dueTask.WaitingOnOwnerName = (waitingOnTask.Owner == null) ? null : waitingOnTask.Owner.Name;
+            }
+
+            results.add(dueTask);
+        }
+
         return results;
     }
 

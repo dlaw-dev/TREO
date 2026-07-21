@@ -68,7 +68,7 @@
                         <span class="task-done-pill">✓ Done</span>
                       </template>
                       <template if:true={t.isWaiting}>
-                        <span class="task-waiting-pill" title="Waiting on a prior step in this task's chain">⏳ Waiting</span>
+                        <span class="task-waiting-pill" title={t.waitingTitle}>⏳ Waiting</span>
                       </template>
                       <template if:true={t.showMarkDone}>
                         <button type="button" class="task-done-btn" data-id={t.Id} onclick={handleTaskCompleteBtn} disabled={t.disableMarkDone} title={t.markDoneTitle}>Mark Done</button>

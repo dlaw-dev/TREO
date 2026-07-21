@@ -7,6 +7,7 @@ import { publish, MessageContext } from 'lightning/messageService';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 
 import saveTask from '@salesforce/apex/TaskUiController.saveTask';
+import searchTasksForMatter from '@salesforce/apex/TaskUiController.searchTasksForMatter';
 import searchUsers from '@salesforce/apex/EventAttendeeUiController.searchUsers';
 import getTemplates from '@salesforce/apex/SubtaskTemplateUiController.getTemplates';
 import getTemplateItems from '@salesforce/apex/SubtaskTemplateUiController.getTemplateItems';
@@ -99,7 +100,9 @@ function blankTaskRow(id) {
         selectedUserIds: new Set(),
         selectedReminderTypes: [],
         isReminderSet: false,
-        isMoreDetailsOpen: false
+        isMoreDetailsOpen: false,
+        waitingOnTaskId: undefined,
+        waitingOnTaskLabel: ''
     };
 }
 
@@ -154,6 +157,16 @@ export default class TaskCreateModalAction extends LightningModal {
 
     _activeAssigneeRowId;
     assigneeDropdownStyle = '';
+
+    _activeWaitingRowId;
+    waitingDropdownStyle = '';
+    waitingSearchTimeout;
+    waitingSearchKeyword = '';
+    waitingSearchRequestId = 0;
+    waitingBlurTimeout;
+    waitingDropdownInteractionTimeout;
+    _isInteractingWithWaitingDropdown = false;
+    @track waitingResults = [];
 
     activeTab = 'newTask';
 
@@ -249,6 +262,13 @@ export default class TaskCreateModalAction extends LightningModal {
         ];
     }
 
+    get statusOptions() {
+        return [
+            { label: 'Open', value: 'Open' },
+            { label: 'Waiting', value: 'Waiting' }
+        ];
+    }
+
     /* -------------------------
        Draft task rows (repeater)
     -------------------------- */
@@ -264,6 +284,7 @@ export default class TaskCreateModalAction extends LightningModal {
             const suggestions = this._suggestionsFor(t.subject);
             const isSubjectActive = this._activeSubjectRowId === t._id;
             const isAssigneeActive = this._activeAssigneeRowId === t._id;
+            const isWaitingActive = this._activeWaitingRowId === t._id;
             const reminderRows = this._reminderOptionRowsFor(t.selectedReminderTypes);
 
             return {
@@ -272,6 +293,7 @@ export default class TaskCreateModalAction extends LightningModal {
                 canRemove: this.draftTasks.length > 1,
                 subjectContainerId: `subject-search-container-${t._id}`,
                 assigneeContainerId: `assignee-search-container-${t._id}`,
+                waitingContainerId: `waiting-search-container-${t._id}`,
                 hasSelectedAssignee: t.selectedUsers.length > 0,
                 isReminderDisabled: !t.activityDate,
                 moreDetailsIcon: t.isMoreDetailsOpen ? 'utility:chevrondown' : 'utility:chevronright',
@@ -282,6 +304,12 @@ export default class TaskCreateModalAction extends LightningModal {
                 userResults: isAssigneeActive ? this.userResults : [],
                 userSearchKeyword: isAssigneeActive ? this.userSearchKeyword : '',
                 assigneeDropdownStyle: this.assigneeDropdownStyle,
+                isStatusWaiting: t.status === 'Waiting',
+                hasWaitingOnTask: !!t.waitingOnTaskId,
+                hasWaitingResults: isWaitingActive && this.waitingResults.length > 0,
+                waitingResults: isWaitingActive ? this.waitingResults : [],
+                waitingSearchKeyword: isWaitingActive ? this.waitingSearchKeyword : '',
+                waitingDropdownStyle: this.waitingDropdownStyle,
                 reminderOptionColumnLeft: reminderRows.slice(0, Math.ceil(reminderRows.length / 2)),
                 reminderOptionColumnRight: reminderRows.slice(Math.ceil(reminderRows.length / 2))
             };
@@ -587,6 +615,20 @@ export default class TaskCreateModalAction extends LightningModal {
         this.draftTasks = this.draftTasks.map(t => (t._id === rowId ? { ...t, priority: value } : t));
     }
 
+    handleStatus(e) {
+        const rowId = e.currentTarget.dataset.id;
+        const value = e.target.value;
+        this.draftTasks = this.draftTasks.map(t => {
+            if (t._id !== rowId) return t;
+            const updated = { ...t, status: value };
+            if (value !== 'Waiting') {
+                updated.waitingOnTaskId = undefined;
+                updated.waitingOnTaskLabel = '';
+            }
+            return updated;
+        });
+    }
+
     handleDescription(e) {
         const rowId = e.currentTarget.dataset.id;
         const value = e.target.value;
@@ -666,6 +708,7 @@ export default class TaskCreateModalAction extends LightningModal {
     handleModalOutsideSearchClick() {
         this.closeUserSearch();
         this.closeSubjectSearch();
+        this.closeWaitingSearch();
     }
 
     handleUserSearch(e) {
@@ -753,6 +796,131 @@ export default class TaskCreateModalAction extends LightningModal {
     }
 
     /* -------------------------
+       Waiting On Task (only shown when a row's Status = Waiting)
+    -------------------------- */
+
+    openWaitingSearch(rowId) {
+        clearTimeout(this.waitingBlurTimeout);
+        this._activeWaitingRowId = rowId;
+        this.waitingDropdownStyle = this.computeDropdownStyle(`waiting-search-container-${rowId}`);
+    }
+
+    closeWaitingSearch() {
+        this._activeWaitingRowId = undefined;
+        this.waitingSearchRequestId = (this.waitingSearchRequestId || 0) + 1;
+        this.waitingResults = [];
+        this.waitingSearchKeyword = '';
+        clearTimeout(this.waitingSearchTimeout);
+    }
+
+    handleWaitingFocus(e) {
+        const rowId = e.currentTarget.dataset.id;
+        clearTimeout(this.waitingBlurTimeout);
+        const keyword = this._activeWaitingRowId === rowId ? (this.waitingSearchKeyword || '') : '';
+        this.searchTasksInternal(rowId, keyword);
+    }
+
+    handleWaitingBlur() {
+        if (this._isInteractingWithWaitingDropdown) return;
+
+        clearTimeout(this.waitingBlurTimeout);
+        this.waitingBlurTimeout = setTimeout(() => {
+            this.closeWaitingSearch();
+        }, SEARCH_BLUR_CLOSE_DELAY_MS);
+    }
+
+    handleWaitingDropdownMouseDown() {
+        this._isInteractingWithWaitingDropdown = true;
+        clearTimeout(this.waitingDropdownInteractionTimeout);
+        this.waitingDropdownInteractionTimeout = setTimeout(() => {
+            this._isInteractingWithWaitingDropdown = false;
+        }, 0);
+    }
+
+    handleWaitingSearch(e) {
+        const rowId = e.currentTarget.dataset.id;
+        clearTimeout(this.waitingSearchTimeout);
+
+        const val = e.target.value;
+        this.waitingSearchKeyword = val || '';
+        this._activeWaitingRowId = rowId;
+
+        this.waitingSearchTimeout = setTimeout(() => {
+            this.searchTasksInternal(rowId, val || '');
+        }, 300);
+    }
+
+    handleWaitingKeydown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const rowId = e.currentTarget.dataset.id;
+            const keyword = e.target.value || '';
+            this.waitingSearchKeyword = keyword;
+            this.searchTasksInternal(rowId, keyword);
+        }
+    }
+
+    _formatShortDate(dateStr) {
+        const d = new Date(`${dateStr}T00:00:00`);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    _taskMetaLabel(task) {
+        const owner = task.Owner ? task.Owner.Name : 'Unassigned';
+        const due = task.ActivityDate ? `Due ${this._formatShortDate(task.ActivityDate)}` : 'No due date';
+        const parts = [owner, due];
+        if (task.Priority === 'High') parts.push('High priority');
+        return parts.join(' · ');
+    }
+
+    async searchTasksInternal(rowId, keyword) {
+        this._activeWaitingRowId = rowId;
+        this.waitingSearchKeyword = keyword;
+        this.waitingDropdownStyle = this.computeDropdownStyle(`waiting-search-container-${rowId}`);
+        const requestId = (this.waitingSearchRequestId || 0) + 1;
+        this.waitingSearchRequestId = requestId;
+
+        try {
+            const results = await searchTasksForMatter({ matterId: this.recordId, keyword });
+
+            if (this._activeWaitingRowId !== rowId || requestId !== this.waitingSearchRequestId) return;
+
+            this.waitingResults = results.map(r => ({ ...r, metaLabel: this._taskMetaLabel(r) }));
+        } catch (err) {
+            if (this._activeWaitingRowId === rowId && requestId === this.waitingSearchRequestId) {
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Could not load tasks',
+                    message: err?.body?.message || 'An error occurred while searching tasks.',
+                    variant: 'error'
+                }));
+                this.waitingResults = [];
+            }
+        }
+    }
+
+    selectWaitingOnTask(e) {
+        const rowId = this._activeWaitingRowId;
+        const id = e.currentTarget.dataset.id;
+        const task = this.waitingResults.find(x => x.Id === id);
+
+        if (!task || !rowId) return;
+
+        const label = `${task.Subject} — ${this._taskMetaLabel(task)}`;
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId
+            ? { ...t, waitingOnTaskId: task.Id, waitingOnTaskLabel: label }
+            : t));
+
+        this.closeWaitingSearch();
+    }
+
+    clearWaitingOnTask(e) {
+        const rowId = e.currentTarget.dataset.id;
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId
+            ? { ...t, waitingOnTaskId: undefined, waitingOnTaskLabel: '' }
+            : t));
+    }
+
+    /* -------------------------
        Validation
     -------------------------- */
 
@@ -786,6 +954,15 @@ export default class TaskCreateModalAction extends LightningModal {
             return;
         }
 
+        if (this.draftTasks.some(t => t.status === 'Waiting' && !t.waitingOnTaskId)) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error',
+                message: 'Please select which task each Waiting task is waiting on.',
+                variant: 'error'
+            }));
+            return;
+        }
+
         this.isSaving = true;
         try {
             const results = await Promise.allSettled(this.draftTasks.map(t => saveTask({
@@ -796,7 +973,8 @@ export default class TaskCreateModalAction extends LightningModal {
                 status: t.status,
                 priority: t.priority,
                 description: t.description,
-                reminderTypes: t.selectedReminderTypes
+                reminderTypes: t.selectedReminderTypes,
+                waitingOnTaskId: t.status === 'Waiting' ? (t.waitingOnTaskId || null) : null
             })));
 
             const failedRows   = this.draftTasks.filter((t, i) => results[i].status === 'rejected');
@@ -834,6 +1012,9 @@ export default class TaskCreateModalAction extends LightningModal {
         clearTimeout(this.searchDropdownInteractionTimeout);
         clearTimeout(this.subjectBlurTimeout);
         clearTimeout(this.subjectDropdownInteractionTimeout);
+        clearTimeout(this.waitingSearchTimeout);
+        clearTimeout(this.waitingBlurTimeout);
+        clearTimeout(this.waitingDropdownInteractionTimeout);
     }
 
     handleCancel() {

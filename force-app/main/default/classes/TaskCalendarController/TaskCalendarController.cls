@@ -4,9 +4,7 @@ public with sharing class TaskCalendarController {
     public static List<TaskRow> getTasksForMatter(Id parentId) {
         if (parentId == null) return new List<TaskRow>();
 
-        List<TaskRow> rows = new List<TaskRow>();
-
-        for (Task t : [
+        List<Task> tasks = [
             SELECT Id,
                    Subject,
                    Status,
@@ -19,14 +17,39 @@ public with sharing class TaskCalendarController {
                    Task_Subtype__c,
                    Task_Subtype_If_Other__c,
                    Internal_External_Type__c,
-                   Description
+                   Description,
+                   Waiting_On_Task__c
             FROM Task
             WHERE IsDeleted = false
               AND (WhatId = :parentId OR NEOS_Matter__c = :parentId)
             ORDER BY ActivityDate DESC NULLS LAST, CreatedDate DESC
             LIMIT 200
-        ]) {
-            rows.add(new TaskRow(t));
+        ];
+
+        // Bulk-resolve every referenced "waiting on" task in one query
+        // rather than one per row.
+        Set<String> waitingOnIds = new Set<String>();
+        for (Task t : tasks) {
+            if (String.isNotBlank(t.Waiting_On_Task__c)) {
+                waitingOnIds.add(t.Waiting_On_Task__c);
+            }
+        }
+
+        Map<Id, Task> waitingOnTaskById = new Map<Id, Task>();
+        if (!waitingOnIds.isEmpty()) {
+            waitingOnTaskById = new Map<Id, Task>([
+                SELECT Id, Subject, Owner.Name
+                FROM Task
+                WHERE Id IN :waitingOnIds
+            ]);
+        }
+
+        List<TaskRow> rows = new List<TaskRow>();
+        for (Task t : tasks) {
+            Task waitingOnTask = String.isNotBlank(t.Waiting_On_Task__c)
+                ? waitingOnTaskById.get(t.Waiting_On_Task__c)
+                : null;
+            rows.add(new TaskRow(t, waitingOnTask));
         }
 
         return rows;
@@ -44,8 +67,10 @@ public with sharing class TaskCalendarController {
         @AuraEnabled public String TaskSubtypeIfOther;
         @AuraEnabled public String InternalExternalType;
         @AuraEnabled public String Description;
+        @AuraEnabled public String WaitingOnSubject;
+        @AuraEnabled public String WaitingOnOwnerName;
 
-        public TaskRow(Task t) {
+        public TaskRow(Task t, Task waitingOnTask) {
             Id                  = t.Id;
             Subject             = t.Subject;
             Status              = t.Status;
@@ -57,6 +82,11 @@ public with sharing class TaskCalendarController {
             TaskSubtypeIfOther  = t.Task_Subtype_If_Other__c;
             InternalExternalType = t.Internal_External_Type__c;
             Description         = t.Description;
+
+            if (waitingOnTask != null) {
+                WaitingOnSubject   = waitingOnTask.Subject;
+                WaitingOnOwnerName = (waitingOnTask.Owner == null) ? null : waitingOnTask.Owner.Name;
+            }
         }
     }
 }

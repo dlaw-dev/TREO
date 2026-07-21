@@ -113,10 +113,14 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             const isAssignee = t.OwnerId === CURRENT_USER_ID;
             const isCompleted = t.Status === 'Completed';
             const isWaiting   = t.Status === 'Waiting';
+            const waitingTitle = t.WaitingOnSubject
+                ? `Waiting on "${t.WaitingOnSubject}"${t.WaitingOnOwnerName ? ` (${t.WaitingOnOwnerName})` : ''}`
+                : "Waiting on a prior step in this task's chain";
             return {
                 ...t,
                 isCompleted,
                 isWaiting,
+                waitingTitle,
                 dueLabel:        label,
                 dueBadgeClass:   cls,
                 rowClass:        isCompleted ? 'tasks-row tasks-row--completed' : 'tasks-row',

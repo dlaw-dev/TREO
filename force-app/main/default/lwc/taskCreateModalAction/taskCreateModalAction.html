@@ -168,6 +168,67 @@
                             onchange={handlePriority}>
                         </lightning-combobox>
 
+                        <!-- Status -->
+                        <lightning-combobox
+                            class="slds-m-top_medium"
+                            data-id={t._id}
+                            label="Status"
+                            value={t.status}
+                            options={statusOptions}
+                            onchange={handleStatus}>
+                        </lightning-combobox>
+
+                        <!-- Waiting On Task -->
+                        <template if:true={t.isStatusWaiting}>
+                            <div class="slds-m-top_medium">
+                                <template if:true={t.hasWaitingOnTask}>
+                                    <div class="slds-form-element__label slds-m-bottom_x-small">Waiting On</div>
+                                    <div class="waiting-on-pill">
+                                        <span class="waiting-on-pill-label">{t.waitingOnTaskLabel}</span>
+                                        <button
+                                            type="button"
+                                            class="waiting-on-pill-remove"
+                                            data-id={t._id}
+                                            title="Clear"
+                                            onclick={clearWaitingOnTask}>✕</button>
+                                    </div>
+                                </template>
+
+                                <template if:false={t.hasWaitingOnTask}>
+                                    <div class="search-container" data-id={t.waitingContainerId} onclick={handleSearchAreaClick}>
+                                        <lightning-input
+                                            data-id={t._id}
+                                            type="search"
+                                            label="Waiting On"
+                                            required
+                                            placeholder="Search tasks on this Matter…"
+                                            value={t.waitingSearchKeyword}
+                                            onfocus={handleWaitingFocus}
+                                            onblur={handleWaitingBlur}
+                                            onkeyup={handleWaitingSearch}
+                                            onkeydown={handleWaitingKeydown}>
+                                        </lightning-input>
+
+                                        <template if:true={t.hasWaitingResults}>
+                                            <div class="search-dropdown" style={t.waitingDropdownStyle} onmousedown={handleWaitingDropdownMouseDown}>
+                                                <template for:each={t.waitingResults} for:item="wt">
+                                                    <button
+                                                        key={wt.Id}
+                                                        type="button"
+                                                        class="dropdown-item dropdown-item--task"
+                                                        data-id={wt.Id}
+                                                        onclick={selectWaitingOnTask}>
+                                                        <span class="dropdown-item-title">{wt.Subject}</span>
+                                                        <span class="dropdown-item-meta">{wt.metaLabel}</span>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
                         <!-- Reminder Set -->
                         <lightning-input
                             class="slds-m-top_medium"

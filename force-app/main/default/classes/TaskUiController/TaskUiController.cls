@@ -18,7 +18,8 @@ public with sharing class TaskUiController {
         String taskSubtype,
         String taskSubtypeIfOther,
         String internalExternalType,
-        List<String> reminderTypes
+        List<String> reminderTypes,
+        Id waitingOnTaskId
     ) {
         try {
 
@@ -92,7 +93,8 @@ public with sharing class TaskUiController {
                 Task_Subtype_If_Other__c  = taskSubtypeIfOther,
                 Internal_External_Type__c = internalExternalType,
                 IsReminderSet             = setNativeReminder,
-                ReminderDateTime          = nativeReminderDT
+                ReminderDateTime          = nativeReminderDT,
+                Waiting_On_Task__c        = waitingOnTaskId
             );
 
             insert t;
@@ -135,6 +137,39 @@ public with sharing class TaskUiController {
         } catch (Exception e) {
             throw new AuraHandledException('Error saving Task: ' + e.getMessage());
         }
+    }
+
+    /**
+     * Searches open (non-Completed) tasks on a Matter, for the "Waiting On"
+     * task picker in the New Task modal - lets a manually-created task
+     * reference another task on the same matter it's blocked on.
+     */
+    @AuraEnabled(cacheable=false)
+    public static List<Task> searchTasksForMatter(Id matterId, String keyword) {
+        if (matterId == null) return new List<Task>();
+
+        if (String.isBlank(keyword)) {
+            return [
+                SELECT Id, Subject, Owner.Name, ActivityDate, Priority, Status
+                FROM Task
+                WHERE NEOS_Matter__c = :matterId
+                  AND Status != 'Completed'
+                ORDER BY CreatedDate DESC
+                LIMIT 20
+            ];
+        }
+
+        String k = '%' + keyword.trim() + '%';
+
+        return [
+            SELECT Id, Subject, Owner.Name, ActivityDate, Priority, Status
+            FROM Task
+            WHERE NEOS_Matter__c = :matterId
+              AND Status != 'Completed'
+              AND Subject LIKE :k
+            ORDER BY CreatedDate DESC
+            LIMIT 20
+        ];
     }
 
     /**

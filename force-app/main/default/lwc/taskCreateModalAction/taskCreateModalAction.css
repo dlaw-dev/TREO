@@ -34,6 +34,24 @@
     outline: none;
 }
 
+.dropdown-item--task {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+}
+
+.dropdown-item-title {
+    font-weight: 600;
+    color: var(--lwc-colorTextDefault, #16325c);
+}
+
+.dropdown-item-meta {
+    font-size: 0.75rem;
+    color: var(--lwc-colorTextWeak, #706e6b);
+}
+
 .task-draft-card {
     border: 1px solid var(--lwc-colorBorder, #d8dde6);
     border-radius: 0.5rem;
@@ -93,6 +111,37 @@
 .add-task-row-btn:hover,
 .add-task-row-btn:focus {
     background: var(--lwc-colorBackgroundRowHover, #f3f3f3);
+    outline: none;
+}
+
+.waiting-on-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.3rem 0.3rem 0.65rem;
+    border-radius: 1rem;
+    background: var(--lwc-colorBackgroundRowHover, #f3f3f3);
+    font-size: 0.8125rem;
+}
+
+.waiting-on-pill-label {
+    color: var(--lwc-colorTextDefault, #16325c);
+}
+
+.waiting-on-pill-remove {
+    border: none;
+    background: none;
+    color: var(--lwc-colorTextWeak, #706e6b);
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.2rem 0.35rem;
+    border-radius: 50%;
+}
+
+.waiting-on-pill-remove:hover,
+.waiting-on-pill-remove:focus {
+    color: var(--lwc-colorTextError, #ba0517);
     outline: none;
 }
 

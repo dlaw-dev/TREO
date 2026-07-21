@@ -206,4 +206,42 @@ private class TaskTriggerActionsTest {
         System.assertEquals(master.OwnerId, masterReloaded.OwnerId);
         System.assertEquals(master.ActivityDate, masterReloaded.ActivityDate);
     }
+
+    @IsTest
+    static void testAdHocWaitingTask_activatesWhenBlockerCompletes() {
+        Task blocker = new Task(Subject = 'Blocker Task', Status = 'Open');
+        insert blocker;
+
+        Task dependent = new Task(
+            Subject = 'Dependent Task',
+            Status = 'Waiting',
+            Waiting_On_Task__c = blocker.Id
+        );
+        insert dependent;
+
+        Test.startTest();
+        blocker.Status = 'Completed';
+        update blocker;
+        Test.stopTest();
+
+        Task reloaded = [SELECT Status FROM Task WHERE Id = :dependent.Id];
+        System.assertEquals('Open', reloaded.Status);
+    }
+
+    @IsTest
+    static void testAdHocWaitingTask_unrelatedWaitingTaskUnaffected() {
+        Task blocker = new Task(Subject = 'Blocker Task', Status = 'Open');
+        insert blocker;
+
+        Task unrelatedWaiting = new Task(Subject = 'Unrelated Waiting Task', Status = 'Waiting');
+        insert unrelatedWaiting;
+
+        Test.startTest();
+        blocker.Status = 'Completed';
+        update blocker;
+        Test.stopTest();
+
+        Task reloaded = [SELECT Status FROM Task WHERE Id = :unrelatedWaiting.Id];
+        System.assertEquals('Waiting', reloaded.Status);
+    }
 }

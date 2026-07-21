@@ -85,7 +85,8 @@ private class TaskUiControllerTest {
                 taskSubtypeValue,
                 null,
                 internalExternalTypeValue,
-                reminderTypes
+                reminderTypes,
+                null
             );
         }
         Test.stopTest();
@@ -141,7 +142,8 @@ private class TaskUiControllerTest {
                 taskSubtypeValue,
                 null,
                 internalExternalTypeValue,
-                new List<String>()
+                new List<String>(),
+                null
             );
         }
         Test.stopTest();
@@ -200,6 +202,7 @@ private class TaskUiControllerTest {
                 null,
                 null,
                 getInternalExternalTypeValue(),
+                null,
                 null
             );
         } catch (Exception e) {
@@ -243,7 +246,8 @@ private class TaskUiControllerTest {
                 taskSubtypeValue,
                 null,
                 getInternalExternalTypeValue(),
-                reminderTypes
+                reminderTypes,
+                null
             );
         }
         Test.stopTest();
@@ -323,12 +327,78 @@ private class TaskUiControllerTest {
                     taskSubtypeValue,
                     null,
                     internalExternalTypeValue,
-                    reminderTypes
+                    reminderTypes,
+                    null
                 );
             } catch (Exception e) {
                 // Expected for restricted picklist — ignore
             }
         }
         Test.stopTest();
+    }
+
+    /* =========================================================
+       Positive Test – Waiting On Task
+    ========================================================== */
+
+    @IsTest
+    static void testSaveTask_withWaitingOnTask() {
+
+        NEOS_Matter__c matter = createMatter();
+        User owner = createAllowedUser();
+
+        Task blockerTask = new Task(
+            Subject = 'Blocker Task',
+            Status  = 'Not Started',
+            OwnerId = owner.Id
+        );
+        insert blockerTask;
+
+        Id taskId;
+
+        Test.startTest();
+        System.runAs(owner) {
+            taskId = TaskUiController.saveTask(
+                matter.Id,
+                new List<Id>{ owner.Id },
+                'Waiting Subject',
+                Date.today().addDays(5),
+                'Waiting',
+                'Normal',
+                'Waiting description',
+                null,
+                null,
+                getInternalExternalTypeValue(),
+                null,
+                blockerTask.Id
+            );
+        }
+        Test.stopTest();
+
+        Task t = [SELECT Waiting_On_Task__c FROM Task WHERE Id = :taskId];
+        System.assertEquals(blockerTask.Id, t.Waiting_On_Task__c);
+    }
+
+    /* =========================================================
+       Search Tasks For Matter
+    ========================================================== */
+
+    @IsTest
+    static void testSearchTasksForMatter() {
+
+        NEOS_Matter__c matter = createMatter();
+        User owner = createAllowedUser();
+
+        insert new Task(Subject = 'Draft FAC', Status = 'Not Started', OwnerId = owner.Id, NEOS_Matter__c = matter.Id);
+        insert new Task(Subject = 'Review FAC', Status = 'Completed', OwnerId = owner.Id, NEOS_Matter__c = matter.Id);
+
+        Test.startTest();
+        List<Task> allOpen = TaskUiController.searchTasksForMatter(matter.Id, null);
+        List<Task> filtered = TaskUiController.searchTasksForMatter(matter.Id, 'Draft');
+        Test.stopTest();
+
+        System.assertEquals(1, allOpen.size());
+        System.assertEquals(1, filtered.size());
+        System.assertEquals('Draft FAC', filtered[0].Subject);
     }
 }

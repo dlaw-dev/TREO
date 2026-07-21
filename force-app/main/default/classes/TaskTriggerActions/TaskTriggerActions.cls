@@ -171,6 +171,50 @@ public with sharing class TaskTriggerActions {
         }
     }
 
+    /**
+     * Ad hoc (non-chain) counterpart to AdvanceSubtaskChainAfterComplete:
+     * when ANY task completes, reopens every other task manually marked
+     * Waiting on it via Waiting_On_Task__c (set from the New Task modal).
+     * Unlike chain steps, these already have a concrete owner and due date
+     * from creation, so there's no re-assignment to do - just flip Status
+     * back to Open.
+     */
+    public class ActivateAdHocWaitingTasksAfterComplete implements TaskTriggerAction {
+
+        public void run(List<Task> newRecords, Map<Id, Task> oldMap) {
+            Set<String> completedTaskIds = new Set<String>();
+
+            for (Task t : newRecords) {
+                Task oldTask = oldMap.get(t.Id);
+
+                if (t.Status == 'Completed' && oldTask.Status != 'Completed') {
+                    completedTaskIds.add(t.Id);
+                }
+            }
+
+            if (completedTaskIds.isEmpty()) {
+                return;
+            }
+
+            List<Task> dependents = [
+                SELECT Id, Status
+                FROM Task
+                WHERE Status = 'Waiting'
+                  AND Waiting_On_Task__c IN :completedTaskIds
+            ];
+
+            if (dependents.isEmpty()) {
+                return;
+            }
+
+            for (Task dependent : dependents) {
+                dependent.Status = 'Open';
+            }
+
+            Database.update(dependents, false);
+        }
+    }
+
     /* -------------------------
        Shared helpers
     -------------------------- */

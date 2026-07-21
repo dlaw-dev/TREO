@@ -56,6 +56,11 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
+        <field>Task.Waiting_On_Task__c</field>
+        <editable>true</editable>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
         <field>Task.Subtask_Template_Item__c</field>
         <editable>true</editable>
         <readable>true</readable>
