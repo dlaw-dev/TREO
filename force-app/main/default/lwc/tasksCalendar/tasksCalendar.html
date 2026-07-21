@@ -1,186 +1,85 @@
 <template>
-  <lightning-card>
-    <!-- Header -->
-    <div
-      slot="title"
-      class="slds-grid slds-grid_align-spread slds-p-horizontal_medium slds-p-vertical_xx-small"
-    >
-      <span
-        class="slds-align-middle"
-        style="display: flex; align-items: center;"
-      >
-        <lightning-icon
-          icon-name="standard:task"
-          size="small"
-          class="slds-m-right_small"
-        ></lightning-icon>
-        <span>Tasks</span>
-        <template if:true={hasProgress}>
-          <span class="tasks-progress-badge">{progressLabel}</span>
-        </template>
+  <div class="panel panel--tasks">
+    <div class="panel-header tasks-panel-header">
+      <span class="tc-title">
+        {tasksHeader}
+        <button type="button" class="tc-refresh-btn" onclick={handleRefresh} title="Refresh task list">⟳ Refresh</button>
       </span>
-
-      <div
-        class="slds-grid slds-grid_vertical-align-center slds-m-left_x-large"
-        style="margin-left: 1.5rem;"
-      >
-        <lightning-button
-          variant="brand"
-          label="New Task"
-          title="New Task"
-          onclick={handleNewTask}
-          size="small">
-        </lightning-button>
-
-        <div class="slds-m-left_small slds-align_absolute-center">
-          <lightning-button-icon
-            icon-name="utility:refresh"
-            variant="border-filled"
-            alternative-text="Refresh"
-            onclick={handleRefresh}>
-          </lightning-button-icon>
+      <div class="tc-header-right">
+        <button type="button" class="tc-new-task-btn" onclick={handleNewTask}>+ Task</button>
+        <div class="task-filter-bar task-filter-bar--view">
+          <button type="button" class={groupAllClass}        data-group="all"        onclick={handleGroupFilter}>{groupAllLabel}</button>
+          <button type="button" class={groupUpcomingClass}   data-group="upcoming"   onclick={handleGroupFilter}>{groupUpcomingLabel}</button>
+          <button type="button" class={groupPastClass}       data-group="past"       onclick={handleGroupFilter}>{groupPastLabel}</button>
+          <button type="button" class={groupNoDeadlineClass} data-group="noDeadline" onclick={handleGroupFilter}>{groupNoDeadlineLabel}</button>
+          <button type="button" class={groupCompletedClass}  data-group="completed"  onclick={handleGroupFilter}>{groupCompletedLabel}</button>
         </div>
       </div>
     </div>
 
-    <!-- Tabs -->
-    <lightning-tabset variant="scoped">
+    <div class="type-filter-row">
+      <input type="search" class="task-search-input" placeholder="Search tasks…" oninput={handleSearch}>
+      <select class="type-filter-select" onchange={handlePriorityFilter}>
+        <option value="">All Priorities</option>
+        <template for:each={priorityFilters} for:item="pf">
+          <option key={pf.key} value={pf.key}>{pf.label}</option>
+        </template>
+      </select>
+    </div>
 
-      <!-- All Tasks -->
-      <lightning-tab label={allTabLabel}>
-        <template if:true={isLoading}>
-          <lightning-spinner alternative-text="Loading tasks" size="medium"></lightning-spinner>
+    <template if:true={isLoading}>
+      <lightning-spinner alternative-text="Loading tasks" size="medium"></lightning-spinner>
+    </template>
+    <template if:true={hasError}>
+      <p class="tasks-error">{errorMessage}</p>
+    </template>
+    <template if:false={isLoading}>
+      <template if:false={hasError}>
+        <template if:true={hasTasks}>
+          <div class="tasks-table-wrap">
+            <table class="tasks-table">
+              <thead>
+                <tr>
+                  <th class="tasks-th tasks-th--sortable" data-field="Subject" onclick={handleSort}>Subject{subjectSortIcon}</th>
+                  <th class="tasks-th tasks-th--sortable" data-field="Priority" onclick={handleSort}>Priority{prioritySortIcon}</th>
+                  <th class="tasks-th tasks-th--sortable" data-field="ActivityDate" onclick={handleSort}>Due{dueSortIcon}</th>
+                  <th class="tasks-th tasks-th--sortable" data-field="OwnerName" onclick={handleSort}>Assignee{assigneeSortIcon}</th>
+                  <th class="tasks-th tasks-th--action"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template for:each={displayTasks} for:item="t">
+                  <tr key={t.Id} class={t.rowClass}>
+                    <td class="tasks-td">
+                      <button type="button" class="tasks-subject-link" data-id={t.Id} onclick={handleSubjectClick}>{t.Subject}</button>
+                    </td>
+                    <td class="tasks-td">{t.Priority}</td>
+                    <td class="tasks-td tasks-td--date">
+                      <span class={t.dueBadgeClass}>{t.dueLabel}</span>
+                    </td>
+                    <td class="tasks-td">{t.OwnerName}</td>
+                    <td class="tasks-td tasks-td--action">
+                      <template if:false={t.isCompleted}>
+                        <button type="button" class="task-done-btn" data-id={t.Id} onclick={handleTaskCompleteBtn} title="Mark as complete">Mark Done</button>
+                      </template>
+                      <template if:true={t.isCompleted}>
+                        <span class="task-done-pill">✓ Done</span>
+                      </template>
+                      <button type="button" class="task-dup-btn" data-id={t.Id} onclick={handleDuplicateBtn} title="Duplicate task">Duplicate</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
         </template>
-        <template if:true={hasError}>
-          <p class="tasks-error">{errorMessage}</p>
+        <template if:false={hasTasks}>
+          <div class="panel-empty">
+            <span class="panel-empty__icon">✓</span>
+            <span>{tasksEmptyMessage}</span>
+          </div>
         </template>
-        <template if:false={isLoading}>
-          <template if:false={hasError}>
-            <template if:true={hasAllTasks}>
-              <lightning-datatable
-                key-field="Id"
-                data={allTasksSorted}
-                columns={columns}
-                hide-checkbox-column
-                onrowaction={handleRowAction}
-                density="compact">
-              </lightning-datatable>
-            </template>
-            <template if:false={hasAllTasks}>
-              <p class="tasks-empty">No tasks yet on this Matter.</p>
-            </template>
-          </template>
-        </template>
-      </lightning-tab>
-
-      <!-- Upcoming -->
-      <lightning-tab label={upcomingTabLabel}>
-        <template if:true={isLoading}>
-          <lightning-spinner alternative-text="Loading tasks" size="medium"></lightning-spinner>
-        </template>
-        <template if:true={hasError}>
-          <p class="tasks-error">{errorMessage}</p>
-        </template>
-        <template if:false={isLoading}>
-          <template if:false={hasError}>
-            <template if:true={hasUpcomingTasks}>
-              <lightning-datatable
-                key-field="Id"
-                data={upcomingTasksSorted}
-                columns={columns}
-                hide-checkbox-column
-                onrowaction={handleRowAction}
-                density="compact">
-              </lightning-datatable>
-            </template>
-            <template if:false={hasUpcomingTasks}>
-              <p class="tasks-empty">No upcoming tasks.</p>
-            </template>
-          </template>
-        </template>
-      </lightning-tab>
-
-      <!-- Past -->
-      <lightning-tab label={pastTabLabel}>
-        <template if:true={isLoading}>
-          <lightning-spinner alternative-text="Loading tasks" size="medium"></lightning-spinner>
-        </template>
-        <template if:true={hasError}>
-          <p class="tasks-error">{errorMessage}</p>
-        </template>
-        <template if:false={isLoading}>
-          <template if:false={hasError}>
-            <template if:true={hasPastTasks}>
-              <lightning-datatable
-                key-field="Id"
-                data={pastTasksSorted}
-                columns={columns}
-                hide-checkbox-column
-                onrowaction={handleRowAction}
-                density="compact">
-              </lightning-datatable>
-            </template>
-            <template if:false={hasPastTasks}>
-              <p class="tasks-empty">No past-due tasks.</p>
-            </template>
-          </template>
-        </template>
-      </lightning-tab>
-
-      <!-- No Deadline -->
-      <lightning-tab label={noDeadlineTabLabel}>
-        <template if:true={isLoading}>
-          <lightning-spinner alternative-text="Loading tasks" size="medium"></lightning-spinner>
-        </template>
-        <template if:true={hasError}>
-          <p class="tasks-error">{errorMessage}</p>
-        </template>
-        <template if:false={isLoading}>
-          <template if:false={hasError}>
-            <template if:true={hasNoDeadlineTasks}>
-              <lightning-datatable
-                key-field="Id"
-                data={tasksNoDeadline}
-                columns={columns}
-                hide-checkbox-column
-                onrowaction={handleRowAction}
-                density="compact">
-              </lightning-datatable>
-            </template>
-            <template if:false={hasNoDeadlineTasks}>
-              <p class="tasks-empty">Every task has a due date.</p>
-            </template>
-          </template>
-        </template>
-      </lightning-tab>
-
-      <!-- Completed -->
-      <lightning-tab label={completedTabLabel}>
-        <template if:true={isLoading}>
-          <lightning-spinner alternative-text="Loading tasks" size="medium"></lightning-spinner>
-        </template>
-        <template if:true={hasError}>
-          <p class="tasks-error">{errorMessage}</p>
-        </template>
-        <template if:false={isLoading}>
-          <template if:false={hasError}>
-            <template if:true={hasCompletedTasks}>
-              <lightning-datatable
-                key-field="Id"
-                data={completedTasksSorted}
-                columns={columns}
-                hide-checkbox-column
-                onrowaction={handleRowAction}
-                density="compact">
-              </lightning-datatable>
-            </template>
-            <template if:false={hasCompletedTasks}>
-              <p class="tasks-empty">No completed tasks yet.</p>
-            </template>
-          </template>
-        </template>
-      </lightning-tab>
-
-    </lightning-tabset>
-  </lightning-card>
+      </template>
+    </template>
+  </div>
 </template>

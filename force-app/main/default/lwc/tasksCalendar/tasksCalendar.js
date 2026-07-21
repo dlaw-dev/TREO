@@ -1,37 +1,37 @@
 import { LightningElement, api, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import { loadStyle } from 'lightning/platformResourceLoader';
 import TaskCreateModalAction from 'c/taskCreateModalAction';
 import { refreshApex } from '@salesforce/apex';
 import { subscribe, MessageContext } from 'lightning/messageService';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
-import TASKS_CALENDAR_STYLES from '@salesforce/resourceUrl/tasksCalendarStyles';
 
 import getTasksForMatter from '@salesforce/apex/TaskCalendarController.getTasksForMatter';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
 
-// Base Lightning components (lightning-button, used for the Subject cell)
-// render in their own shadow DOM, so a CSS class from this component can't
-// reach their label text. A combining-character overlay strikes the text
-// itself, so it survives regardless of shadow boundaries.
-const STRIKETHROUGH_COMBINING_CHAR = '\u0336'; // COMBINING LONG STROKE OVERLAY
-
-function strikeThroughText(text) {
-    if (!text) return text;
-    return Array.from(text)
-        .map((ch) => ch + STRIKETHROUGH_COMBINING_CHAR)
-        .join('');
-}
+const GROUP_LABELS = {
+    all:        'All',
+    upcoming:   'Upcoming',
+    past:       'Past',
+    noDeadline: 'No Due Date',
+    completed:  'Completed'
+};
 
 export default class TasksCalendar extends NavigationMixin(LightningElement) {
 
     @api recordId; // NEOS_Matter__c Id
 
     tasks = [];
+    displayTasks = [];
     isLoading = true;
     error;
     wiredResult;
+
+    _activeGroup    = 'all';
+    _searchTerm     = '';
+    _priorityFilter = '';
+    _sortField      = '';
+    _sortDir        = 'asc';
 
     @wire(MessageContext) messageContext;
 
@@ -39,70 +39,7 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         subscribe(this.messageContext, TASK_CHANGED, () => {
             refreshApex(this.wiredResult);
         });
-
-        // cellAttributes.class only ever reaches elements lightning-datatable
-        // itself renders directly - the Subject cell's lightning-button
-        // renders its label in a further-nested shadow root that a scoped
-        // component stylesheet can never select into, no matter the class
-        // name. loadStyle injects this as a genuine unscoped <style> tag,
-        // and CSS custom properties (unlike selectors) inherit through
-        // shadow boundaries, so the button's own styling hooks pick it up.
-        loadStyle(this, TASKS_CALENDAR_STYLES).catch((error) => {
-            // eslint-disable-next-line no-console
-            console.error('Could not load tasksCalendar styles', error);
-        });
     }
-
-    columns = [
-        {
-            label: 'Subject',
-            fieldName: 'Subject',
-            type: 'button',
-            typeAttributes: {
-                label: { fieldName: 'displaySubject' },
-                name: 'open_record',
-                variant: 'base'
-            },
-            cellAttributes: { class: { fieldName: 'subjectDimClass' } }
-        },
-        {
-            label: 'Due Date',
-            fieldName: 'ActivityDate',
-            type: 'date-local',
-            cellAttributes: { class: { fieldName: 'dimCellClass' } }
-        },
-        {
-            label: 'Status',
-            fieldName: 'Status',
-            type: 'text',
-            cellAttributes: { class: { fieldName: 'dimCellClass' } }
-        },
-        {
-            label: 'Priority',
-            fieldName: 'Priority',
-            type: 'text',
-            cellAttributes: { class: { fieldName: 'dimCellClass' } }
-        },
-        {
-            label: 'Assignee',
-            fieldName: 'OwnerName',
-            type: 'text',
-            cellAttributes: { class: { fieldName: 'dimCellClass' } }
-        },
-        {
-            type: 'action',
-            typeAttributes: {
-                rowActions: (row, doneCallback) => {
-                    const actions = [];
-                    if (row.Status !== 'Completed') {
-                        actions.push({ label: 'Complete', name: 'complete' });
-                    }
-                    actions.push({ label: 'Duplicate', name: 'duplicate' });
-                    doneCallback(actions);
-                }
-            }
-        }
-    ];
 
     // ---------- Wire ----------
     @wire(getTasksForMatter, { parentId: '$recordId' })
@@ -120,6 +57,7 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             this.error = error;
             console.error('Error loading tasks', error);
         }
+        this._rebuild();
     }
 
     get hasError() {
@@ -130,23 +68,212 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         return this.error?.body?.message || this.error?.message || 'Something went wrong loading tasks.';
     }
 
-    // ---------- Row Action ----------
-    handleRowAction(event) {
-        const actionName = event.detail.action.name;
-        const row = event.detail.row;
+    // ---------- Date helpers ----------
+    get todayStart() {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
 
-        if (actionName === 'open_record') {
-            this[NavigationMixin.Navigate]({
-                type: 'standard__recordPage',
-                attributes: {
-                    recordId: row.Id,
-                    objectApiName: 'Task',
-                    actionName: 'view'
-                }
-            });
-        } else if (actionName === 'complete') {
+    toLocalDateStart(activityDate) {
+        return activityDate ? new Date(`${activityDate}T00:00:00`) : null;
+    }
+
+    // ---------- Grouping / filtering / sorting ----------
+    _groupTasks(list) {
+        const today = this.todayStart;
+        switch (this._activeGroup) {
+            case 'completed':
+                return list.filter(t => t.Status === 'Completed');
+            case 'noDeadline':
+                return list.filter(t => t.Status !== 'Completed' && !t.ActivityDate);
+            case 'upcoming':
+                return list.filter(t => t.Status !== 'Completed' && t.ActivityDate && this.toLocalDateStart(t.ActivityDate) >= today);
+            case 'past':
+                return list.filter(t => t.Status !== 'Completed' && t.ActivityDate && this.toLocalDateStart(t.ActivityDate) < today);
+            default:
+                return list;
+        }
+    }
+
+    _dueInfo(task, today) {
+        if (task.Status === 'Completed') {
+            return { label: 'Completed', cls: 'due-badge due-badge--done' };
+        }
+        if (!task.ActivityDate) {
+            return { label: 'No Due Date', cls: 'due-badge due-badge--default' };
+        }
+        const due  = this.toLocalDateStart(task.ActivityDate);
+        const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
+        if (diff < 0)   return { label: 'Overdue',         cls: 'due-badge due-badge--overdue' };
+        if (diff === 0) return { label: 'Due Today',       cls: 'due-badge due-badge--today' };
+        if (diff === 1) return { label: 'Due Tomorrow',    cls: 'due-badge due-badge--tomorrow' };
+        if (diff <= 7)  return { label: `Due in ${diff}d`, cls: 'due-badge due-badge--soon' };
+        return {
+            label: `Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+            cls:   'due-badge due-badge--default'
+        };
+    }
+
+    _decorate(list) {
+        const today = this.todayStart;
+        return list.map(t => {
+            const { label, cls } = this._dueInfo(t, today);
+            return {
+                ...t,
+                isCompleted:   t.Status === 'Completed',
+                dueLabel:      label,
+                dueBadgeClass: cls,
+                rowClass:      t.Status === 'Completed' ? 'tasks-row tasks-row--completed' : 'tasks-row'
+            };
+        });
+    }
+
+    _matchesSearch(t) {
+        if (!this._searchTerm) return true;
+        return [t.Subject, t.Priority, t.ActivityDate, t.OwnerName]
+            .some(v => (v || '').toString().toLowerCase().includes(this._searchTerm));
+    }
+
+    _sortList(list) {
+        if (!this._sortField) return list;
+        const field = this._sortField;
+        const dir   = this._sortDir === 'desc' ? -1 : 1;
+        return [...list].sort((a, b) => {
+            if (field === 'ActivityDate') {
+                const av = a.ActivityDate ? this.toLocalDateStart(a.ActivityDate).getTime() : Infinity;
+                const bv = b.ActivityDate ? this.toLocalDateStart(b.ActivityDate).getTime() : Infinity;
+                return (av - bv) * dir;
+            }
+            const av = (a[field] || '').toString().toLowerCase();
+            const bv = (b[field] || '').toString().toLowerCase();
+            if (av < bv) return -1 * dir;
+            if (av > bv) return 1 * dir;
+            return 0;
+        });
+    }
+
+    _rebuild() {
+        const grouped  = this._groupTasks(this.tasks || []);
+        const filtered = grouped
+            .filter(t => !this._priorityFilter || t.Priority === this._priorityFilter)
+            .filter(t => this._matchesSearch(t));
+        this.displayTasks = this._decorate(this._sortList(filtered));
+    }
+
+    get hasTasks() {
+        return this.displayTasks.length > 0;
+    }
+
+    get tasksHeader() {
+        const n = this.displayTasks.length;
+        return `Tasks — ${GROUP_LABELS[this._activeGroup]}${n > 0 ? ` (${n})` : ''}`;
+    }
+
+    get tasksEmptyMessage() {
+        const labels = {
+            all:        'on this Matter',
+            upcoming:   'upcoming',
+            past:       'past due',
+            noDeadline: 'without a due date',
+            completed:  'completed yet'
+        };
+        return `No tasks ${labels[this._activeGroup] || ''}`;
+    }
+
+    get priorityFilters() {
+        const priorities = [...new Set((this.tasks || []).map(t => t.Priority).filter(Boolean))].sort();
+        return priorities.map(p => ({ key: p, label: p }));
+    }
+
+    // ---------- Group filter bar ----------
+    get groupCounts() {
+        const tasks       = this.tasks || [];
+        const today       = this.todayStart;
+        const open        = tasks.filter(t => t.Status !== 'Completed');
+        const withDueDate = open.filter(t => !!t.ActivityDate);
+        return {
+            all:        tasks.length,
+            upcoming:   withDueDate.filter(t => this.toLocalDateStart(t.ActivityDate) >= today).length,
+            past:       withDueDate.filter(t => this.toLocalDateStart(t.ActivityDate) < today).length,
+            noDeadline: open.filter(t => !t.ActivityDate).length,
+            completed:  tasks.filter(t => t.Status === 'Completed').length
+        };
+    }
+
+    get groupAllLabel()        { return `All (${this.groupCounts.all})`; }
+    get groupUpcomingLabel()   { return `Upcoming (${this.groupCounts.upcoming})`; }
+    get groupPastLabel()       { return `Past (${this.groupCounts.past})`; }
+    get groupNoDeadlineLabel() { return `No Due Date (${this.groupCounts.noDeadline})`; }
+    get groupCompletedLabel()  { return `Completed (${this.groupCounts.completed})`; }
+
+    _groupClass(group) {
+        return 'task-filter-btn' + (this._activeGroup === group ? ' task-filter-btn--active' : '');
+    }
+    get groupAllClass()        { return this._groupClass('all'); }
+    get groupUpcomingClass()   { return this._groupClass('upcoming'); }
+    get groupPastClass()       { return this._groupClass('past'); }
+    get groupNoDeadlineClass() { return this._groupClass('noDeadline'); }
+    get groupCompletedClass()  { return this._groupClass('completed'); }
+
+    // ---------- Sort icons ----------
+    _sortIconFor(field) {
+        if (this._sortField !== field) return '';
+        return this._sortDir === 'asc' ? ' ▲' : ' ▼';
+    }
+    get subjectSortIcon()  { return this._sortIconFor('Subject'); }
+    get prioritySortIcon() { return this._sortIconFor('Priority'); }
+    get dueSortIcon()      { return this._sortIconFor('ActivityDate'); }
+    get assigneeSortIcon() { return this._sortIconFor('OwnerName'); }
+
+    // ---------- Handlers ----------
+    handleGroupFilter(event) {
+        this._activeGroup = event.currentTarget.dataset.group;
+        this._rebuild();
+    }
+
+    handleSearch(event) {
+        this._searchTerm = (event.target.value || '').trim().toLowerCase();
+        this._rebuild();
+    }
+
+    handlePriorityFilter(event) {
+        this._priorityFilter = event.target.value;
+        this._rebuild();
+    }
+
+    handleSort(event) {
+        const field = event.currentTarget.dataset.field;
+        if (this._sortField === field) {
+            this._sortDir = this._sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            this._sortField = field;
+            this._sortDir   = 'asc';
+        }
+        this._rebuild();
+    }
+
+    handleSubjectClick(event) {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: {
+                recordId: event.currentTarget.dataset.id,
+                objectApiName: 'Task',
+                actionName: 'view'
+            }
+        });
+    }
+
+    handleTaskCompleteBtn(event) {
+        const row = (this.tasks || []).find(t => t.Id === event.currentTarget.dataset.id);
+        if (row) {
             this.handleCompleteTask(row);
-        } else if (actionName === 'duplicate') {
+        }
+    }
+
+    handleDuplicateBtn(event) {
+        const row = (this.tasks || []).find(t => t.Id === event.currentTarget.dataset.id);
+        if (row) {
             this.handleDuplicateTask(row);
         }
     }
@@ -183,175 +310,6 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         if (result === 'success') {
             await refreshApex(this.wiredResult);
         }
-    }
-
-    // ---------- Date helpers ----------
-    get todayStart() {
-        const d = new Date();
-        d.setHours(0, 0, 0, 0);
-        return d;
-    }
-
-    toLocalDateStart(activityDate) {
-        if (!activityDate) {
-            return null;
-        }
-        return new Date(`${activityDate}T00:00:00`);
-    }
-
-    // ---------- Task groupings ----------
-
-    // Completed tasks get their own tab and are struck through wherever
-    // else they still appear (All Tasks) - Upcoming/Past/No Due Date are
-    // meant to answer "what's still actionable," so completed items are
-    // excluded from those three entirely rather than cluttering them.
-    get decoratedTasks() {
-        return (this.tasks || []).map(t => ({
-            ...t,
-            displaySubject: t.Status === 'Completed' ? strikeThroughText(t.Subject) : t.Subject,
-            // A custom class in this component's own CSS can't reach these
-            // cells - they're rendered deep inside lightning-datatable's own
-            // shadow tree. slds-text-color_weak is a real global SLDS
-            // utility class, so it actually takes effect there.
-            dimCellClass: t.Status === 'Completed' ? 'slds-text-color_weak' : '',
-            // The Subject cell is a nested lightning-button, one shadow root
-            // further in - slds-text-color_weak alone won't reach its label,
-            // so it gets the styling-hook class loaded via tasksCalendarStyles.
-            subjectDimClass: t.Status === 'Completed' ? 'completed-task-subject' : ''
-        }));
-    }
-
-    get openTasks() {
-        return this.decoratedTasks.filter(t => t.Status !== 'Completed');
-    }
-
-    get completedTasks() {
-        return this.decoratedTasks.filter(t => t.Status === 'Completed');
-    }
-
-    get tasksWithDeadline() {
-        return this.openTasks.filter(t => !!t.ActivityDate);
-    }
-
-    get tasksNoDeadline() {
-        return this.openTasks.filter(t => !t.ActivityDate);
-    }
-
-    get upcomingTasks() {
-        const today = this.todayStart;
-        return this.tasksWithDeadline.filter(
-            t => this.toLocalDateStart(t.ActivityDate) >= today
-        );
-    }
-
-    get pastTasks() {
-        const today = this.todayStart;
-        return this.tasksWithDeadline.filter(
-            t => this.toLocalDateStart(t.ActivityDate) < today
-        );
-    }
-
-    // ---------- Sorting ----------
-    sortByDateAsc(list) {
-        return [...list].sort((a, b) =>
-            (a.ActivityDate || '').localeCompare(b.ActivityDate || '')
-        );
-    }
-
-    sortByDateDesc(list) {
-        return [...list].sort((a, b) =>
-            (b.ActivityDate || '').localeCompare(a.ActivityDate || '')
-        );
-    }
-
-    get upcomingTasksSorted() {
-        return this.sortByDateAsc(this.upcomingTasks);
-    }
-
-    get pastTasksSorted() {
-        return this.sortByDateDesc(this.pastTasks);
-    }
-
-    get allTasksSorted() {
-        const allWithDeadline = this.decoratedTasks.filter(t => !!t.ActivityDate);
-        const allNoDeadline = this.decoratedTasks.filter(t => !t.ActivityDate);
-        return [...this.sortByDateAsc(allWithDeadline), ...allNoDeadline];
-    }
-
-    get completedTasksSorted() {
-        return this.sortByDateDesc(this.completedTasks);
-    }
-
-    // ---------- Empty states ----------
-    get hasAllTasks() {
-        return this.allTasksSorted.length > 0;
-    }
-
-    get hasUpcomingTasks() {
-        return this.upcomingTasksSorted.length > 0;
-    }
-
-    get hasPastTasks() {
-        return this.pastTasksSorted.length > 0;
-    }
-
-    get hasNoDeadlineTasks() {
-        return this.tasksNoDeadline.length > 0;
-    }
-
-    get hasCompletedTasks() {
-        return this.completedTasksSorted.length > 0;
-    }
-
-    // ---------- Counts ----------
-    get allCount() {
-        return (this.tasks || []).length;
-    }
-
-    get upcomingCount() {
-        return this.upcomingTasks.length;
-    }
-
-    get pastCount() {
-        return this.pastTasks.length;
-    }
-
-    get noDeadlineCount() {
-        return this.tasksNoDeadline.length;
-    }
-
-    get completedCount() {
-        return this.completedTasks.length;
-    }
-
-    // ---------- Tab Labels ----------
-    get allTabLabel() {
-        return `All Tasks (${this.allCount})`;
-    }
-
-    get upcomingTabLabel() {
-        return `Upcoming Tasks (${this.upcomingCount})`;
-    }
-
-    get pastTabLabel() {
-        return `Past Tasks (${this.pastCount})`;
-    }
-
-    get noDeadlineTabLabel() {
-        return `No Due Date (${this.noDeadlineCount})`;
-    }
-
-    get completedTabLabel() {
-        return `Completed (${this.completedCount})`;
-    }
-
-    // ---------- Progress ----------
-    get hasProgress() {
-        return this.allCount > 0;
-    }
-
-    get progressLabel() {
-        return `${this.completedCount}/${this.allCount} complete`;
     }
 
     // ---------- Actions ----------
