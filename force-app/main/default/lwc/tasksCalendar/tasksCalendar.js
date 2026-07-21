@@ -5,6 +5,7 @@ import TaskCreateModalAction from 'c/taskCreateModalAction';
 import { refreshApex } from '@salesforce/apex';
 import { subscribe, MessageContext } from 'lightning/messageService';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
+import CURRENT_USER_ID from '@salesforce/user/Id';
 
 import getTasksForMatter from '@salesforce/apex/TaskCalendarController.getTasksForMatter';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
@@ -28,6 +29,7 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     wiredResult;
 
     _activeGroup    = 'all';
+    _showCompleted  = false;
     _searchTerm     = '';
     _priorityFilter = '';
     _sortField      = '';
@@ -92,7 +94,7 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             case 'past':
                 return list.filter(t => t.Status !== 'Completed' && t.ActivityDate && this.toLocalDateStart(t.ActivityDate) < today);
             default:
-                return list;
+                return this._showCompleted ? list : list.filter(t => t.Status !== 'Completed');
         }
     }
 
@@ -119,12 +121,20 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         const today = this.todayStart;
         return list.map(t => {
             const { label, cls } = this._dueInfo(t, today);
+            const isAssignee = t.OwnerId === CURRENT_USER_ID;
+            const isCompleted = t.Status === 'Completed';
+            const isWaiting   = t.Status === 'Waiting';
             return {
                 ...t,
-                isCompleted:   t.Status === 'Completed',
-                dueLabel:      label,
-                dueBadgeClass: cls,
-                rowClass:      t.Status === 'Completed' ? 'tasks-row tasks-row--completed' : 'tasks-row'
+                isCompleted,
+                isWaiting,
+                dueLabel:        label,
+                dueBadgeClass:   cls,
+                rowClass:        isCompleted ? 'tasks-row tasks-row--completed' : 'tasks-row',
+                isAssignee,
+                showMarkDone:    !isCompleted && !isWaiting,
+                disableMarkDone: !isAssignee,
+                markDoneTitle:   isAssignee ? 'Mark as complete' : `Only ${t.OwnerName || 'the assignee'} can complete this task`
             };
         });
     }
@@ -193,7 +203,7 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         const open        = tasks.filter(t => t.Status !== 'Completed');
         const withDueDate = open.filter(t => !!t.ActivityDate);
         return {
-            all:        tasks.length,
+            all:        this._showCompleted ? tasks.length : open.length,
             upcoming:   withDueDate.filter(t => this.toLocalDateStart(t.ActivityDate) >= today).length,
             past:       withDueDate.filter(t => this.toLocalDateStart(t.ActivityDate) < today).length,
             noDeadline: open.filter(t => !t.ActivityDate).length,
@@ -215,6 +225,15 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     get groupPastClass()       { return this._groupClass('past'); }
     get groupNoDeadlineClass() { return this._groupClass('noDeadline'); }
     get groupCompletedClass()  { return this._groupClass('completed'); }
+
+    // ---------- Open / All (completed-visibility) toggle ----------
+    get showOpenClass() { return 'task-filter-btn' + (!this._showCompleted ? ' task-filter-btn--active' : ''); }
+    get showAllClass()  { return 'task-filter-btn' + (this._showCompleted  ? ' task-filter-btn--active' : ''); }
+
+    handleToggleShowCompleted() {
+        this._showCompleted = !this._showCompleted;
+        this._rebuild();
+    }
 
     // ---------- Sort icons ----------
     _sortIconFor(field) {
@@ -266,9 +285,14 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
 
     handleTaskCompleteBtn(event) {
         const row = (this.tasks || []).find(t => t.Id === event.currentTarget.dataset.id);
-        if (row) {
-            this.handleCompleteTask(row);
+        if (!row || row.OwnerId !== CURRENT_USER_ID || row.Status === 'Waiting') {
+            return;
         }
+        // eslint-disable-next-line no-alert
+        if (!window.confirm(`Mark "${row.Subject}" as complete?`)) {
+            return;
+        }
+        this.handleCompleteTask(row);
     }
 
     handleDuplicateBtn(event) {

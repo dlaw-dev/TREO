@@ -21,7 +21,7 @@ lightning-textarea {
 /* Larger, smoother icons for central focus */
 lightning-button-icon {
   --slds-c-icon-size: 3rem;
-  --slds-c-icon-color-foreground: #032d60;
+  --slds-c-icon-color-foreground: var(--slds-g-color-accent-1, #032d60);
   margin: 0 1.25rem;
   transition: transform 0.2s ease-in-out;
 }

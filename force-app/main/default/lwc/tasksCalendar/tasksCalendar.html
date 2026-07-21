@@ -8,6 +8,10 @@
       <div class="tc-header-right">
         <button type="button" class="tc-new-task-btn" onclick={handleNewTask}>+ Task</button>
         <div class="task-filter-bar task-filter-bar--view">
+          <button type="button" class={showOpenClass} onclick={handleToggleShowCompleted}>Open</button>
+          <button type="button" class={showAllClass}  onclick={handleToggleShowCompleted}>All</button>
+        </div>
+        <div class="task-filter-bar task-filter-bar--view">
           <button type="button" class={groupAllClass}        data-group="all"        onclick={handleGroupFilter}>{groupAllLabel}</button>
           <button type="button" class={groupUpcomingClass}   data-group="upcoming"   onclick={handleGroupFilter}>{groupUpcomingLabel}</button>
           <button type="button" class={groupPastClass}       data-group="past"       onclick={handleGroupFilter}>{groupPastLabel}</button>
@@ -59,11 +63,14 @@
                     </td>
                     <td class="tasks-td">{t.OwnerName}</td>
                     <td class="tasks-td tasks-td--action">
-                      <template if:false={t.isCompleted}>
-                        <button type="button" class="task-done-btn" data-id={t.Id} onclick={handleTaskCompleteBtn} title="Mark as complete">Mark Done</button>
-                      </template>
                       <template if:true={t.isCompleted}>
                         <span class="task-done-pill">✓ Done</span>
+                      </template>
+                      <template if:true={t.isWaiting}>
+                        <span class="task-waiting-pill" title="Waiting on a prior step in this task's chain">⏳ Waiting</span>
+                      </template>
+                      <template if:true={t.showMarkDone}>
+                        <button type="button" class="task-done-btn" data-id={t.Id} onclick={handleTaskCompleteBtn} disabled={t.disableMarkDone} title={t.markDoneTitle}>Mark Done</button>
                       </template>
                       <button type="button" class="task-dup-btn" data-id={t.Id} onclick={handleDuplicateBtn} title="Duplicate task">Duplicate</button>
                     </td>
