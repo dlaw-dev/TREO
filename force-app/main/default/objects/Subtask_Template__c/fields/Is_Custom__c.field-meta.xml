@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Is_Custom__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>True for templates users build themselves via the New Task modal's template builder; false for admin-curated pre-built templates. Drives which of the two sections (Pre-Built / My Templates) a template shows up in.</description>
+    <externalId>false</externalId>
+    <label>Is Custom</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

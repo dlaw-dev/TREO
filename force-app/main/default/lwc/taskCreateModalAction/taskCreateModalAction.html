@@ -292,74 +292,293 @@
         <template if:true={isUseTemplateTab}>
             <p class="template-tab-subtitle">Automatically creates a sequence of tasks for this Matter - each one activates and gets assigned as soon as the step before it is completed.</p>
 
-            <div class="slds-form-element__label slds-m-bottom_x-small">Choose a template</div>
+            <div class="template-section">
+                <button type="button" class="template-section-toggle" onclick={togglePrebuiltSection} aria-expanded={isPrebuiltSectionOpen}>
+                    <lightning-icon icon-name={prebuiltSectionIcon} size="xx-small"></lightning-icon>
+                    <span>Pre-Built Templates</span>
+                </button>
 
-            <template if:true={isTemplatesLoading}>
-                <lightning-spinner alternative-text="Loading templates" size="small"></lightning-spinner>
-            </template>
+                <template if:true={isPrebuiltSectionOpen}>
+                    <template if:true={isTemplatesLoading}>
+                        <lightning-spinner alternative-text="Loading templates" size="small"></lightning-spinner>
+                    </template>
 
-            <template if:true={hasTemplatesError}>
-                <p class="template-error">{templatesErrorMessage}</p>
-            </template>
+                    <template if:true={hasTemplatesError}>
+                        <p class="template-error">{templatesErrorMessage}</p>
+                    </template>
 
-            <template if:true={hasNoTemplates}>
-                <p class="template-empty">No templates are available yet.</p>
-            </template>
+                    <template if:true={hasNoTemplates}>
+                        <p class="template-empty">No templates are available yet.</p>
+                    </template>
 
-            <div class="template-card-grid">
-                <template for:each={templateCards} for:item="tpl">
-                    <button
-                        key={tpl.id}
-                        type="button"
-                        class={tpl.cardClass}
-                        data-id={tpl.id}
-                        aria-pressed={tpl.pressed}
-                        onclick={handleTemplateCardClick}>
-                        <lightning-icon icon-name={tpl.icon} size="small" class="template-card-icon"></lightning-icon>
-                        <div class="template-card-text">
-                            <span class="template-card-name">{tpl.name}</span>
-                            <span class="template-card-steps">{tpl.stepLabel}</span>
-                        </div>
-                    </button>
+                    <div class="template-card-grid">
+                        <template for:each={templateCards} for:item="tpl">
+                            <button
+                                key={tpl.id}
+                                type="button"
+                                class={tpl.cardClass}
+                                data-id={tpl.id}
+                                aria-pressed={tpl.pressed}
+                                onclick={handleTemplateCardClick}>
+                                <lightning-icon icon-name={tpl.icon} size="small" class="template-card-icon"></lightning-icon>
+                                <div class="template-card-text">
+                                    <span class="template-card-name">{tpl.name}</span>
+                                    <span class="template-card-steps">{tpl.stepLabel}</span>
+                                </div>
+                            </button>
+                        </template>
+                    </div>
+                </template>
+
+                <template if:true={showPrebuiltPreview}>
+                    <div class="slds-form-element__label slds-m-top_medium slds-m-bottom_x-small">Preview</div>
+
+                    <template if:true={isTemplateItemsLoading}>
+                        <lightning-spinner alternative-text="Loading template steps" size="small" class="slds-m-top_medium"></lightning-spinner>
+                    </template>
+
+                    <template if:true={hasTemplateItemsError}>
+                        <p class="template-error slds-m-top_medium">{templateItemsErrorMessage}</p>
+                    </template>
+
+                    <template if:true={templatePreviewSummary}>
+                        <p class="template-preview-summary slds-m-top_medium">{templatePreviewSummary}</p>
+                    </template>
+
+                    <div class="template-timeline slds-m-top_medium">
+                        <template for:each={templateItemRows} for:item="item">
+                            <div key={item.id} class="timeline-step">
+                                <div class="timeline-marker">
+                                    <span class="timeline-circle">{item.displayIndex}</span>
+                                    <template if:false={item.isLast}>
+                                        <span class="timeline-line"></span>
+                                    </template>
+                                </div>
+                                <div class="timeline-content">
+                                    <div class="timeline-subject">{item.subject}</div>
+                                    <template if:true={item.description}>
+                                        <div class="timeline-description">{item.description}</div>
+                                    </template>
+                                    <div class="timeline-pills">
+                                        <span class={item.timingPillClass}>{item.timingLabel}</span>
+                                        <span class={item.assigneePillClass}>{item.assigneeText}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
                 </template>
             </div>
 
-            <template if:true={hasSelectedTemplate}>
-                <template if:true={isTemplateItemsLoading}>
-                    <lightning-spinner alternative-text="Loading template steps" size="small" class="slds-m-top_medium"></lightning-spinner>
-                </template>
+            <div class="template-section slds-m-top_medium">
+                <button type="button" class="template-section-toggle" onclick={toggleMyTemplatesSection} aria-expanded={isMyTemplatesSectionOpen}>
+                    <lightning-icon icon-name={myTemplatesSectionIcon} size="xx-small"></lightning-icon>
+                    <span>My Templates</span>
+                </button>
 
-                <template if:true={hasTemplateItemsError}>
-                    <p class="template-error slds-m-top_medium">{templateItemsErrorMessage}</p>
-                </template>
+                <template if:true={isMyTemplatesSectionOpen}>
+                    <template if:false={isBuildingCustomTemplate}>
+                        <template if:true={isMyTemplatesLoading}>
+                            <lightning-spinner alternative-text="Loading your templates" size="small"></lightning-spinner>
+                        </template>
 
-                <template if:true={templatePreviewSummary}>
-                    <p class="template-preview-summary slds-m-top_medium">{templatePreviewSummary}</p>
-                </template>
+                        <template if:true={hasMyTemplatesError}>
+                            <p class="template-error">{myTemplatesErrorMessage}</p>
+                        </template>
 
-                <div class="template-timeline slds-m-top_medium">
-                    <template for:each={templateItemRows} for:item="item">
-                        <div key={item.id} class="timeline-step">
+                        <template if:true={hasNoMyTemplates}>
+                            <p class="template-empty">You haven't built any templates yet.</p>
+                        </template>
+
+                        <div class="template-card-grid">
+                            <template for:each={myTemplateCards} for:item="tpl">
+                                <div
+                                    key={tpl.id}
+                                    class={tpl.cardClass}
+                                    data-id={tpl.id}
+                                    role="button"
+                                    tabindex="0"
+                                    aria-pressed={tpl.pressed}
+                                    onclick={handleTemplateCardClick}>
+                                    <lightning-icon icon-name={tpl.icon} size="small" class="template-card-icon"></lightning-icon>
+                                    <div class="template-card-text">
+                                        <span class="template-card-name">{tpl.name}</span>
+                                        <span class="template-card-steps">{tpl.stepLabel}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="template-card-delete"
+                                        data-id={tpl.id}
+                                        title="Delete this template"
+                                        onclick={handleDeleteCustomTemplate}>✕</button>
+                                </div>
+                            </template>
+                        </div>
+
+                        <button type="button" class="add-task-row-btn slds-m-top_small" onclick={startBuildingCustomTemplate}>+ Create a Template</button>
+
+                        <template if:true={showMyTemplatesPreview}>
+                            <div class="slds-form-element__label slds-m-top_medium slds-m-bottom_x-small">Preview</div>
+
+                            <template if:true={isTemplateItemsLoading}>
+                                <lightning-spinner alternative-text="Loading template steps" size="small" class="slds-m-top_medium"></lightning-spinner>
+                            </template>
+
+                            <template if:true={hasTemplateItemsError}>
+                                <p class="template-error slds-m-top_medium">{templateItemsErrorMessage}</p>
+                            </template>
+
+                            <template if:true={templatePreviewSummary}>
+                                <p class="template-preview-summary slds-m-top_medium">{templatePreviewSummary}</p>
+                            </template>
+
+                            <div class="template-timeline slds-m-top_medium">
+                                <template for:each={templateItemRows} for:item="item">
+                                    <div key={item.id} class="timeline-step">
+                                        <div class="timeline-marker">
+                                            <span class="timeline-circle">{item.displayIndex}</span>
+                                            <template if:false={item.isLast}>
+                                                <span class="timeline-line"></span>
+                                            </template>
+                                        </div>
+                                        <div class="timeline-content">
+                                            <div class="timeline-subject">{item.subject}</div>
+                                            <template if:true={item.description}>
+                                                <div class="timeline-description">{item.description}</div>
+                                            </template>
+                                            <div class="timeline-pills">
+                                                <span class={item.timingPillClass}>{item.timingLabel}</span>
+                                                <span class={item.assigneePillClass}>{item.assigneeText}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </template>
+
+                    <template if:true={isBuildingCustomTemplate}>
+                        <lightning-input
+                            label="Template Name"
+                            required
+                            value={customTemplateName}
+                            onchange={handleCustomTemplateNameChange}>
+                        </lightning-input>
+
+                        <div class="template-timeline slds-m-top_medium">
+                        <template for:each={displayCustomTemplateSteps} for:item="s">
+                        <div key={s._id} class="timeline-step">
                             <div class="timeline-marker">
-                                <span class="timeline-circle">{item.displayIndex}</span>
-                                <template if:false={item.isLast}>
+                                <span class="timeline-circle">{s.displayIndex}</span>
+                                <template if:false={s.isLast}>
                                     <span class="timeline-line"></span>
                                 </template>
                             </div>
                             <div class="timeline-content">
-                                <div class="timeline-subject">{item.subject}</div>
-                                <template if:true={item.description}>
-                                    <div class="timeline-description">{item.description}</div>
-                                </template>
+                                <div class="timeline-step-header">
+                                    <lightning-input
+                                        data-id={s._id}
+                                        class="timeline-subject-input"
+                                        label="Subject"
+                                        variant="label-hidden"
+                                        placeholder="Step subject…"
+                                        required
+                                        autocomplete="off"
+                                        value={s.subject}
+                                        onchange={handleStepSubjectChange}
+                                        onkeyup={handleStepSubjectChange}>
+                                    </lightning-input>
+                                    <template if:true={s.canRemove}>
+                                        <button
+                                            type="button"
+                                            class="task-draft-remove"
+                                            data-id={s._id}
+                                            title="Remove this step"
+                                            onclick={removeStepRow}>✕</button>
+                                    </template>
+                                </div>
+
                                 <div class="timeline-pills">
-                                    <span class={item.timingPillClass}>{item.timingLabel}</span>
-                                    <span class={item.assigneePillClass}>{item.assigneeText}</span>
+                                    <span class={s.timingPillClass}>{s.timingLabel}</span>
+                                    <span class={s.assigneePillClass}>{s.assigneeDisplayText}</span>
+                                </div>
+
+                                <div class="slds-m-top_small">
+                                    <lightning-combobox
+                                        data-id={s._id}
+                                        label="Assign To"
+                                        variant="label-hidden"
+                                        required
+                                        value={s.assigneeMode}
+                                        options={templateRoleOptions}
+                                        onchange={handleStepAssigneeModeChange}>
+                                    </lightning-combobox>
+
+                                    <template if:true={s.isPersonMode}>
+                                        <template if:true={s.hasSelectedAssignee}>
+                                            <lightning-pill
+                                                class="slds-m-top_x-small"
+                                                label={s.selectedUser.name}
+                                                data-row-id={s._id}
+                                                onremove={removeStepAssignee}>
+                                            </lightning-pill>
+                                        </template>
+
+                                        <template if:false={s.hasSelectedAssignee}>
+                                            <div class="search-container slds-m-top_x-small" data-id={s.assigneeContainerId} onclick={handleSearchAreaClick}>
+                                                <lightning-input
+                                                    data-id={s._id}
+                                                    type="search"
+                                                    label="Assignee"
+                                                    variant="label-hidden"
+                                                    placeholder="Search for a person…"
+                                                    required
+                                                    value={s.userSearchKeyword}
+                                                    onfocus={handleStepAssigneeFocus}
+                                                    onblur={handleStepAssigneeBlur}
+                                                    onkeyup={handleStepAssigneeSearch}
+                                                    onkeydown={handleStepAssigneeKeydown}>
+                                                </lightning-input>
+
+                                                <template if:true={s.hasUserResults}>
+                                                    <div class="search-dropdown" style={s.stepDropdownStyle} onmousedown={handleStepDropdownMouseDown}>
+                                                        <template for:each={s.userResults} for:item="u">
+                                                            <button
+                                                                key={u.Id}
+                                                                type="button"
+                                                                class="dropdown-item"
+                                                                data-id={u.Id}
+                                                                onclick={selectStepAssignee}>
+                                                                {u.Name}
+                                                            </button>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </template>
                                 </div>
                             </div>
                         </div>
+                        </template>
+                        </div>
+
+                        <button type="button" class="add-task-row-btn slds-m-top_small" onclick={addStepRow}>+ Add Step</button>
+
+                        <p style="font-size:0.7rem;color:#ba0517;">DEBUG {debugStepsSummary}</p>
+
+                        <div class="slds-m-top_small">
+                            <lightning-button label="Cancel" onclick={cancelBuildingCustomTemplate}></lightning-button>
+                            <lightning-button
+                                variant="brand"
+                                label="Save Template"
+                                disabled={isSaveTemplateDisabled}
+                                onclick={saveCustomTemplate}>
+                            </lightning-button>
+                        </div>
                     </template>
-                </div>
-            </template>
+                </template>
+            </div>
 
             <template if:true={isApplyingTemplate}>
                 <div class="slds-m-top_medium">

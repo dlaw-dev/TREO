@@ -4,14 +4,19 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { getRecord } from 'lightning/uiRecordApi';
 import { getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
 import { publish, MessageContext } from 'lightning/messageService';
+import { refreshApex } from '@salesforce/apex';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 
 import saveTask from '@salesforce/apex/TaskUiController.saveTask';
 import searchTasksForMatter from '@salesforce/apex/TaskUiController.searchTasksForMatter';
 import searchUsers from '@salesforce/apex/EventAttendeeUiController.searchUsers';
 import getTemplates from '@salesforce/apex/SubtaskTemplateUiController.getTemplates';
+import getMyCustomTemplates from '@salesforce/apex/SubtaskTemplateUiController.getMyCustomTemplates';
 import getTemplateItems from '@salesforce/apex/SubtaskTemplateUiController.getTemplateItems';
+import getMatterRoleAssignees from '@salesforce/apex/SubtaskTemplateUiController.getMatterRoleAssignees';
 import applyTemplateApex from '@salesforce/apex/SubtaskTemplateUiController.applyTemplate';
+import saveCustomTemplateApex from '@salesforce/apex/SubtaskTemplateUiController.saveCustomTemplate';
+import deleteCustomTemplateApex from '@salesforce/apex/SubtaskTemplateUiController.deleteCustomTemplate';
 
 import MATTER_NAME from '@salesforce/schema/NEOS_Matter__c.Name';
 import TASK_OBJECT from '@salesforce/schema/Task';
@@ -43,6 +48,16 @@ const SUBJECT_SUGGESTIONS = [
     'Review Calendar',
     'Review File',
     'Other'
+];
+
+// The only "Dynamic Matter Field" options the self-serve builder exposes -
+// a fixed, friendly picklist of the 3 role lookups on the Matter, instead of
+// the admin-only free-form "any field" capability pre-built templates have.
+const TEMPLATE_ROLE_OPTIONS = [
+    { label: 'Choose a specific person…', value: 'person' },
+    { label: 'Senior Attorney', value: 'Senior_Attorney__c' },
+    { label: 'Associate Attorney', value: 'Associate_Attorney__c' },
+    { label: 'LSS/Paralegal', value: 'LSS_Paralegal__c' }
 ];
 
 const REMINDER_DAY_OF_SORT_BASE = 100000;
@@ -172,6 +187,25 @@ export default class TaskCreateModalAction extends LightningModal {
 
     selectedTemplateId;
     isApplyingTemplate = false;
+
+    isPrebuiltSectionOpen = true;
+    isMyTemplatesSectionOpen = true;
+
+    isBuildingCustomTemplate = false;
+    customTemplateName = '';
+    _stepCounter = 1;
+    @track customTemplateSteps = [{ _id: 'step-1', subject: '', assigneeMode: 'person', selectedUser: null }];
+    isSavingCustomTemplate = false;
+
+    _activeStepId;
+    @track stepUserResults = [];
+    stepSearchKeyword = '';
+    stepDropdownStyle = '';
+    stepSearchTimeout;
+    stepBlurTimeout;
+    stepSearchDropdownInteractionTimeout;
+    _isInteractingWithStepDropdown = false;
+    stepSearchRequestId = 0;
 
     @wire(MessageContext) messageContext;
 
@@ -433,6 +467,20 @@ export default class TaskCreateModalAction extends LightningModal {
         return !!this.selectedTemplateId;
     }
 
+    get isSelectedTemplateCustom() {
+        if (!this.selectedTemplateId) return false;
+        const custom = this.wiredMyTemplatesResult?.data ?? [];
+        return custom.some(t => t.id === this.selectedTemplateId);
+    }
+
+    get showPrebuiltPreview() {
+        return this.hasSelectedTemplate && !this.isSelectedTemplateCustom;
+    }
+
+    get showMyTemplatesPreview() {
+        return this.hasSelectedTemplate && this.isSelectedTemplateCustom;
+    }
+
     get isTemplateItemsLoading() {
         return this.hasSelectedTemplate && !this.wiredTemplateItems?.data && !this.wiredTemplateItems?.error;
     }
@@ -506,6 +554,385 @@ export default class TaskCreateModalAction extends LightningModal {
             }));
         } finally {
             this.isApplyingTemplate = false;
+        }
+    }
+
+    /* -------------------------
+       Collapsible sections
+    -------------------------- */
+
+    get prebuiltSectionIcon() {
+        return this.isPrebuiltSectionOpen ? 'utility:chevrondown' : 'utility:chevronright';
+    }
+    get myTemplatesSectionIcon() {
+        return this.isMyTemplatesSectionOpen ? 'utility:chevrondown' : 'utility:chevronright';
+    }
+    togglePrebuiltSection() {
+        this.isPrebuiltSectionOpen = !this.isPrebuiltSectionOpen;
+    }
+    toggleMyTemplatesSection() {
+        this.isMyTemplatesSectionOpen = !this.isMyTemplatesSectionOpen;
+    }
+
+    /* -------------------------
+       My Templates (custom, user-built)
+    -------------------------- */
+
+    wiredMyTemplatesResult;
+    @wire(getMyCustomTemplates)
+    wiredMyTemplates(result) {
+        this.wiredMyTemplatesResult = result;
+    }
+
+    get isMyTemplatesLoading() {
+        return !this.wiredMyTemplatesResult?.data && !this.wiredMyTemplatesResult?.error;
+    }
+
+    get myTemplatesErrorMessage() {
+        return this.wiredMyTemplatesResult?.error?.body?.message
+            || this.wiredMyTemplatesResult?.error?.message
+            || 'Something went wrong loading your templates.';
+    }
+
+    get hasMyTemplatesError() {
+        return !!this.wiredMyTemplatesResult?.error;
+    }
+
+    get hasNoMyTemplates() {
+        return !this.isMyTemplatesLoading && !this.hasMyTemplatesError && this.myTemplateCards.length === 0;
+    }
+
+    get myTemplateCards() {
+        const templates = this.wiredMyTemplatesResult?.data ?? [];
+        return templates.map(t => ({
+            id: t.id,
+            name: t.name,
+            icon: iconForTemplateName(t.name),
+            stepLabel: `${t.stepCount} step${t.stepCount === 1 ? '' : 's'}`,
+            pressed: t.id === this.selectedTemplateId,
+            cardClass: t.id === this.selectedTemplateId
+                ? 'template-card template-card-selected'
+                : 'template-card'
+        }));
+    }
+
+    async handleDeleteCustomTemplate(event) {
+        event.stopPropagation();
+        const id = event.currentTarget.dataset.id;
+
+        // eslint-disable-next-line no-alert
+        if (!window.confirm('Delete this template? This cannot be undone.')) {
+            return;
+        }
+
+        try {
+            await deleteCustomTemplateApex({ templateId: id });
+            if (this.selectedTemplateId === id) {
+                this.selectedTemplateId = undefined;
+            }
+            await refreshApex(this.wiredMyTemplatesResult);
+        } catch (e) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error',
+                message: e.body?.message || e.message,
+                variant: 'error'
+            }));
+        }
+    }
+
+    /* -------------------------
+       Custom Template Builder
+
+       Deliberately isolated from the New Task tab's own repeater rather
+       than sharing its state - keeps this simple addition from touching
+       already-working code. Subject has no autocomplete here (unlike the
+       New Task tab) since a template step doesn't need ad hoc suggestions.
+    -------------------------- */
+
+    startBuildingCustomTemplate() {
+        this.isBuildingCustomTemplate = true;
+    }
+
+    cancelBuildingCustomTemplate() {
+        this.isBuildingCustomTemplate = false;
+        this.customTemplateName = '';
+        this._stepCounter = 1;
+        this.customTemplateSteps = [{ _id: 'step-1', subject: '', assigneeMode: 'person', selectedUser: null }];
+        this.closeStepSearch();
+    }
+
+    handleCustomTemplateNameChange(e) {
+        this.customTemplateName = e.target.value;
+    }
+
+    handleStepSubjectChange(e) {
+        const rowId = e.currentTarget.dataset.id;
+        const value = e.target.value;
+        this.customTemplateSteps = this.customTemplateSteps.map(s => (s._id === rowId ? { ...s, subject: value } : s));
+    }
+
+    @wire(getMatterRoleAssignees, { matterId: '$recordId' })
+    wiredMatterRoleAssignees;
+
+    get templateRoleOptions() {
+        return TEMPLATE_ROLE_OPTIONS;
+    }
+
+    _roleLabel(mode) {
+        const found = TEMPLATE_ROLE_OPTIONS.find(o => o.value === mode);
+        return found ? found.label : mode;
+    }
+
+    _roleAssigneeName(mode) {
+        const data = this.wiredMatterRoleAssignees?.data;
+        if (!data) return null;
+        if (mode === 'Senior_Attorney__c') return data.seniorAttorneyName;
+        if (mode === 'Associate_Attorney__c') return data.associateAttorneyName;
+        if (mode === 'LSS_Paralegal__c') return data.lssParalegalName;
+        return null;
+    }
+
+    get displayCustomTemplateSteps() {
+        return this.customTemplateSteps.map((s, index) => {
+            const isActive = this._activeStepId === s._id;
+            const isPersonMode = s.assigneeMode === 'person';
+            const isFirst = index === 0;
+            const previousSubject = isFirst ? null : this.customTemplateSteps[index - 1].subject;
+
+            let assigneeDisplayText;
+            let assigneePillClass;
+            if (isPersonMode) {
+                assigneeDisplayText = s.selectedUser ? s.selectedUser.name : 'Choose an assignee';
+                assigneePillClass = 'timeline-pill timeline-pill-fixed';
+            } else {
+                const roleName = this._roleAssigneeName(s.assigneeMode);
+                const roleLabel = this._roleLabel(s.assigneeMode);
+                assigneeDisplayText = roleName ? `${roleName} (${roleLabel})` : `${roleLabel} (not yet set on this Matter)`;
+                assigneePillClass = 'timeline-pill timeline-pill-auto';
+            }
+
+            return {
+                ...s,
+                displayIndex: index + 1,
+                isLast: index === this.customTemplateSteps.length - 1,
+                canRemove: this.customTemplateSteps.length > 1,
+                assigneeContainerId: `step-assignee-search-container-${s._id}`,
+                isPersonMode,
+                hasSelectedAssignee: !!s.selectedUser,
+                hasUserResults: isActive && this.stepUserResults.length > 0,
+                userResults: isActive ? this.stepUserResults : [],
+                userSearchKeyword: isActive ? this.stepSearchKeyword : '',
+                stepDropdownStyle: this.stepDropdownStyle,
+                timingLabel: isFirst ? 'Starts immediately' : `Waits for "${previousSubject || '…'}"`,
+                timingPillClass: isFirst ? 'timeline-pill timeline-pill-immediate' : 'timeline-pill timeline-pill-waiting',
+                assigneeDisplayText,
+                assigneePillClass
+            };
+        });
+    }
+
+    _isStepIncomplete(s) {
+        if (!s.subject || !s.subject.trim()) return true;
+        if (s.assigneeMode === 'person') return !s.selectedUser;
+        return false;
+    }
+
+    get isSaveTemplateDisabled() {
+        return this.isSavingCustomTemplate
+            || !this.customTemplateName || !this.customTemplateName.trim()
+            || this.customTemplateSteps.some(s => this._isStepIncomplete(s));
+    }
+
+    handleStepAssigneeModeChange(e) {
+        const rowId = e.currentTarget.dataset.id;
+        const value = e.detail.value;
+        this.customTemplateSteps = this.customTemplateSteps.map(s => (s._id === rowId
+            ? { ...s, assigneeMode: value, selectedUser: value === 'person' ? s.selectedUser : null }
+            : s));
+    }
+
+    addStepRow() {
+        this._stepCounter++;
+        this.customTemplateSteps = [...this.customTemplateSteps, {
+            _id: `step-${this._stepCounter}`,
+            subject: '',
+            assigneeMode: 'person',
+            selectedUser: null
+        }];
+    }
+
+    removeStepRow(event) {
+        const rowId = event.currentTarget.dataset.id;
+        this.customTemplateSteps = this.customTemplateSteps.filter(s => s._id !== rowId);
+        if (this.customTemplateSteps.length === 0) {
+            this.addStepRow();
+        }
+    }
+
+    handleStepAssigneeFocus(e) {
+        const rowId = e.currentTarget.dataset.id;
+        clearTimeout(this.stepBlurTimeout);
+        const keyword = this._activeStepId === rowId ? (this.stepSearchKeyword || '') : '';
+        this.searchUsersForStep(rowId, keyword);
+    }
+
+    handleStepAssigneeBlur() {
+        if (this._isInteractingWithStepDropdown) return;
+
+        clearTimeout(this.stepBlurTimeout);
+        this.stepBlurTimeout = setTimeout(() => {
+            this.closeStepSearch();
+        }, SEARCH_BLUR_CLOSE_DELAY_MS);
+    }
+
+    handleStepDropdownMouseDown() {
+        this._isInteractingWithStepDropdown = true;
+        clearTimeout(this.stepSearchDropdownInteractionTimeout);
+        this.stepSearchDropdownInteractionTimeout = setTimeout(() => {
+            this._isInteractingWithStepDropdown = false;
+        }, 0);
+    }
+
+    handleStepAssigneeSearch(e) {
+        const rowId = e.currentTarget.dataset.id;
+        clearTimeout(this.stepSearchTimeout);
+
+        const val = e.target.value;
+        this.stepSearchKeyword = val || '';
+        this._activeStepId = rowId;
+
+        this.stepSearchTimeout = setTimeout(() => {
+            this.searchUsersForStep(rowId, val || '');
+        }, 300);
+    }
+
+    handleStepAssigneeKeydown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const rowId = e.currentTarget.dataset.id;
+            const keyword = e.target.value || '';
+            this.stepSearchKeyword = keyword;
+            this.searchUsersForStep(rowId, keyword);
+        }
+    }
+
+    async searchUsersForStep(rowId, keyword) {
+        this._activeStepId = rowId;
+        this.stepSearchKeyword = keyword;
+        this.stepDropdownStyle = this.computeDropdownStyle(`step-assignee-search-container-${rowId}`);
+        const requestId = (this.stepSearchRequestId || 0) + 1;
+        this.stepSearchRequestId = requestId;
+
+        try {
+            const results = await searchUsers({ keyword });
+
+            if (this._activeStepId !== rowId || requestId !== this.stepSearchRequestId) return;
+
+            this.stepUserResults = results;
+        } catch (err) {
+            if (this._activeStepId === rowId && requestId === this.stepSearchRequestId) {
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Could not load users',
+                    message: err?.body?.message || 'An error occurred while searching users.',
+                    variant: 'error'
+                }));
+                this.stepUserResults = [];
+            }
+        }
+    }
+
+    selectStepAssignee(e) {
+        const rowId = this._activeStepId;
+        const id = e.currentTarget.dataset.id;
+        const u = this.stepUserResults.find(x => x.Id === id);
+
+        if (!u || !rowId) return;
+
+        this.customTemplateSteps = this.customTemplateSteps.map(s => (s._id === rowId
+            ? { ...s, selectedUser: { id: u.Id, name: u.Name } }
+            : s));
+
+        this.closeStepSearch();
+    }
+
+    removeStepAssignee(e) {
+        const rowId = e.target.dataset.rowId;
+        this.customTemplateSteps = this.customTemplateSteps.map(s => (s._id === rowId ? { ...s, selectedUser: null } : s));
+    }
+
+    closeStepSearch() {
+        this._activeStepId = undefined;
+        this.stepSearchRequestId = (this.stepSearchRequestId || 0) + 1;
+        this.stepUserResults = [];
+        this.stepSearchKeyword = '';
+        clearTimeout(this.stepSearchTimeout);
+    }
+
+    get debugStepsSummary() {
+        return this.customTemplateSteps
+            .map((s, i) => `#${i + 1} id=${s._id} subject=[${s.subject}] user=${s.selectedUser ? s.selectedUser.name : 'none'}`)
+            .join(' | ');
+    }
+
+    async saveCustomTemplate() {
+        if (this.isSavingCustomTemplate) return;
+
+        if (!this.customTemplateName || !this.customTemplateName.trim()) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error',
+                message: 'Please give the template a name.',
+                variant: 'error'
+            }));
+            return;
+        }
+
+        for (let i = 0; i < this.customTemplateSteps.length; i++) {
+            const s = this.customTemplateSteps[i];
+            if (!s.subject || !s.subject.trim()) {
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Error',
+                    message: `Step ${i + 1} needs a subject. [DEBUG raw=${JSON.stringify(s.subject)} type=${typeof s.subject} stepsLen=${this.customTemplateSteps.length} rawStep=${JSON.stringify(s)}]`,
+                    variant: 'error'
+                }));
+                return;
+            }
+            if (s.assigneeMode === 'person' && !s.selectedUser) {
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Error',
+                    message: `Step ${i + 1} needs an assignee.`,
+                    variant: 'error'
+                }));
+                return;
+            }
+        }
+
+        this.isSavingCustomTemplate = true;
+
+        try {
+            await saveCustomTemplateApex({
+                name: this.customTemplateName,
+                steps: this.customTemplateSteps.map(s => ({
+                    subject: s.subject,
+                    assigneeType: s.assigneeMode === 'person' ? 'Static User' : 'Dynamic Matter Field',
+                    assigneeId: s.assigneeMode === 'person' ? s.selectedUser?.id : null,
+                    dynamicField: s.assigneeMode === 'person' ? null : s.assigneeMode
+                }))
+            });
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Success',
+                message: 'Template saved',
+                variant: 'success'
+            }));
+            await refreshApex(this.wiredMyTemplatesResult);
+            this.cancelBuildingCustomTemplate();
+        } catch (e) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error',
+                message: e.body?.message || e.message,
+                variant: 'error'
+            }));
+        } finally {
+            this.isSavingCustomTemplate = false;
         }
     }
 
@@ -709,6 +1136,7 @@ export default class TaskCreateModalAction extends LightningModal {
         this.closeUserSearch();
         this.closeSubjectSearch();
         this.closeWaitingSearch();
+        this.closeStepSearch();
     }
 
     handleUserSearch(e) {
@@ -1015,6 +1443,9 @@ export default class TaskCreateModalAction extends LightningModal {
         clearTimeout(this.waitingSearchTimeout);
         clearTimeout(this.waitingBlurTimeout);
         clearTimeout(this.waitingDropdownInteractionTimeout);
+        clearTimeout(this.stepSearchTimeout);
+        clearTimeout(this.stepBlurTimeout);
+        clearTimeout(this.stepSearchDropdownInteractionTimeout);
     }
 
     handleCancel() {

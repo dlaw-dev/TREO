@@ -36,6 +36,11 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
+        <field>Subtask_Template__c.Is_Custom__c</field>
+        <editable>true</editable>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
         <field>Subtask_Template_Item__c.Description__c</field>
         <editable>true</editable>
         <readable>true</readable>

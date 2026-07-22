@@ -169,6 +169,62 @@
     outline: none;
 }
 
+.template-section {
+    border: 1px solid var(--lwc-colorBorder, #d8dde6);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+}
+
+.template-section-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--lwc-colorTextDefault, #16325c);
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+}
+
+.template-section-toggle:hover,
+.template-section-toggle:focus {
+    text-decoration: underline;
+    outline: none;
+}
+
+.timeline-step-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+}
+
+.timeline-subject-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.template-card-delete {
+    margin-left: auto;
+    flex: 0 0 auto;
+    border: none;
+    background: none;
+    color: var(--lwc-colorTextWeak, #706e6b);
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.2rem 0.35rem;
+    border-radius: 50%;
+}
+
+.template-card-delete:hover,
+.template-card-delete:focus {
+    color: var(--lwc-colorTextError, #ba0517);
+    outline: none;
+}
+
 .reminder-options-grid {
     display: flex;
     gap: 1rem;
