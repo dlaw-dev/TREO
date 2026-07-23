@@ -145,6 +145,23 @@
     outline: none;
 }
 
+.waiting-draft-options {
+    border: 1px solid var(--lwc-colorBorder, #d8dde6);
+    border-radius: 0.25rem;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+}
+
+.waiting-draft-options-label {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--lwc-colorTextWeak, #706e6b);
+    background: var(--lwc-colorBackgroundRowHover, #f3f3f3);
+}
+
 .more-details-section {
     border-top: 1px solid var(--lwc-colorBorder, #d8dde6);
     padding-top: 0.75rem;

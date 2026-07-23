@@ -15,7 +15,7 @@ import getMyCustomTemplates from '@salesforce/apex/SubtaskTemplateUiController.g
 import getTemplateItems from '@salesforce/apex/SubtaskTemplateUiController.getTemplateItems';
 import getMatterRoleAssignees from '@salesforce/apex/SubtaskTemplateUiController.getMatterRoleAssignees';
 import applyTemplateApex from '@salesforce/apex/SubtaskTemplateUiController.applyTemplate';
-import saveCustomTemplateApex from '@salesforce/apex/SubtaskTemplateUiController.saveCustomTemplate';
+import saveCustomTemplateApex from '@salesforce/apex/SubtaskTemplateUiController.saveCustomTemplateFromUi';
 import deleteCustomTemplateApex from '@salesforce/apex/SubtaskTemplateUiController.deleteCustomTemplate';
 
 import MATTER_NAME from '@salesforce/schema/NEOS_Matter__c.Name';
@@ -117,6 +117,7 @@ function blankTaskRow(id) {
         isReminderSet: false,
         isMoreDetailsOpen: false,
         waitingOnTaskId: undefined,
+        waitingOnDraftId: undefined,
         waitingOnTaskLabel: ''
     };
 }
@@ -339,11 +340,22 @@ export default class TaskCreateModalAction extends LightningModal {
                 userSearchKeyword: isAssigneeActive ? this.userSearchKeyword : '',
                 assigneeDropdownStyle: this.assigneeDropdownStyle,
                 isStatusWaiting: t.status === 'Waiting',
-                hasWaitingOnTask: !!t.waitingOnTaskId,
+                hasWaitingOnTask: !!t.waitingOnTaskId || !!t.waitingOnDraftId,
                 hasWaitingResults: isWaitingActive && this.waitingResults.length > 0,
                 waitingResults: isWaitingActive ? this.waitingResults : [],
                 waitingSearchKeyword: isWaitingActive ? this.waitingSearchKeyword : '',
                 waitingDropdownStyle: this.waitingDropdownStyle,
+                // Earlier rows in this same batch aren't saved yet, so they can't
+                // be found via searchTasksForMatter - offer them directly instead.
+                // Only rows ABOVE this one are eligible, since saveAll() saves
+                // top to bottom and a row needs its dependency's real Id already
+                // resolved by the time it's its turn to save.
+                otherDraftOptions: this.draftTasks.slice(0, index).map((ot, oi) => ({
+                    _id: ot._id,
+                    title: `Task ${oi + 1}${ot.subject ? ': ' + ot.subject : ''}`,
+                    metaLabel: this._draftMetaLabel(ot)
+                })),
+                hasOtherDraftOptions: index > 0,
                 reminderOptionColumnLeft: reminderRows.slice(0, Math.ceil(reminderRows.length / 2)),
                 reminderOptionColumnRight: reminderRows.slice(Math.ceil(reminderRows.length / 2))
             };
@@ -371,7 +383,11 @@ export default class TaskCreateModalAction extends LightningModal {
 
     removeTaskRow(event) {
         const rowId = event.currentTarget.dataset.id;
-        this.draftTasks = this.draftTasks.filter(t => t._id !== rowId);
+        this.draftTasks = this.draftTasks
+            .filter(t => t._id !== rowId)
+            .map(t => (t.waitingOnDraftId === rowId
+                ? { ...t, waitingOnDraftId: undefined, waitingOnTaskLabel: '' }
+                : t));
         if (this.draftTasks.length === 0) {
             this.addTaskRow();
         }
@@ -868,12 +884,6 @@ export default class TaskCreateModalAction extends LightningModal {
         clearTimeout(this.stepSearchTimeout);
     }
 
-    get debugStepsSummary() {
-        return this.customTemplateSteps
-            .map((s, i) => `#${i + 1} id=${s._id} subject=[${s.subject}] user=${s.selectedUser ? s.selectedUser.name : 'none'}`)
-            .join(' | ');
-    }
-
     async saveCustomTemplate() {
         if (this.isSavingCustomTemplate) return;
 
@@ -891,7 +901,7 @@ export default class TaskCreateModalAction extends LightningModal {
             if (!s.subject || !s.subject.trim()) {
                 this.dispatchEvent(new ShowToastEvent({
                     title: 'Error',
-                    message: `Step ${i + 1} needs a subject. [DEBUG raw=${JSON.stringify(s.subject)} type=${typeof s.subject} stepsLen=${this.customTemplateSteps.length} rawStep=${JSON.stringify(s)}]`,
+                    message: `Step ${i + 1} needs a subject.`,
                     variant: 'error'
                 }));
                 return;
@@ -911,12 +921,12 @@ export default class TaskCreateModalAction extends LightningModal {
         try {
             await saveCustomTemplateApex({
                 name: this.customTemplateName,
-                steps: this.customTemplateSteps.map(s => ({
+                stepsJson: JSON.stringify(this.customTemplateSteps.map(s => ({
                     subject: s.subject,
                     assigneeType: s.assigneeMode === 'person' ? 'Static User' : 'Dynamic Matter Field',
                     assigneeId: s.assigneeMode === 'person' ? s.selectedUser?.id : null,
                     dynamicField: s.assigneeMode === 'person' ? null : s.assigneeMode
-                }))
+                })))
             });
             this.dispatchEvent(new ShowToastEvent({
                 title: 'Success',
@@ -1050,6 +1060,7 @@ export default class TaskCreateModalAction extends LightningModal {
             const updated = { ...t, status: value };
             if (value !== 'Waiting') {
                 updated.waitingOnTaskId = undefined;
+                updated.waitingOnDraftId = undefined;
                 updated.waitingOnTaskLabel = '';
             }
             return updated;
@@ -1301,6 +1312,16 @@ export default class TaskCreateModalAction extends LightningModal {
         return parts.join(' · ');
     }
 
+    // Same shape as _taskMetaLabel(), but for an in-progress draft row rather
+    // than an already-saved Task record.
+    _draftMetaLabel(draft) {
+        const owner = draft.selectedUsers && draft.selectedUsers.length > 0 ? draft.selectedUsers[0].name : 'Unassigned';
+        const due = draft.activityDate ? `Due ${this._formatShortDate(draft.activityDate)}` : 'No due date';
+        const parts = [owner, due];
+        if (draft.priority === 'High') parts.push('High priority');
+        return parts.join(' · ');
+    }
+
     async searchTasksInternal(rowId, keyword) {
         this._activeWaitingRowId = rowId;
         this.waitingSearchKeyword = keyword;
@@ -1335,7 +1356,26 @@ export default class TaskCreateModalAction extends LightningModal {
 
         const label = `${task.Subject} — ${this._taskMetaLabel(task)}`;
         this.draftTasks = this.draftTasks.map(t => (t._id === rowId
-            ? { ...t, waitingOnTaskId: task.Id, waitingOnTaskLabel: label }
+            ? { ...t, waitingOnTaskId: task.Id, waitingOnDraftId: undefined, waitingOnTaskLabel: label }
+            : t));
+
+        this.closeWaitingSearch();
+    }
+
+    // Lets a row wait on another draft task in the same batch, which won't
+    // have a real Id yet - see saveAll() for how this gets resolved on save.
+    selectWaitingOnDraft(e) {
+        const rowId = e.currentTarget.dataset.id;
+        const draftId = e.currentTarget.dataset.draftId;
+        const index = this.draftTasks.findIndex(t => t._id === draftId);
+        const target = index >= 0 ? this.draftTasks[index] : null;
+
+        if (!target) return;
+
+        const title = `Task ${index + 1}${target.subject ? ': ' + target.subject : ''}`;
+        const label = `${title} — ${this._draftMetaLabel(target)}`;
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId
+            ? { ...t, waitingOnDraftId: draftId, waitingOnTaskId: undefined, waitingOnTaskLabel: label }
             : t));
 
         this.closeWaitingSearch();
@@ -1344,7 +1384,7 @@ export default class TaskCreateModalAction extends LightningModal {
     clearWaitingOnTask(e) {
         const rowId = e.currentTarget.dataset.id;
         this.draftTasks = this.draftTasks.map(t => (t._id === rowId
-            ? { ...t, waitingOnTaskId: undefined, waitingOnTaskLabel: '' }
+            ? { ...t, waitingOnTaskId: undefined, waitingOnDraftId: undefined, waitingOnTaskLabel: '' }
             : t));
     }
 
@@ -1382,7 +1422,7 @@ export default class TaskCreateModalAction extends LightningModal {
             return;
         }
 
-        if (this.draftTasks.some(t => t.status === 'Waiting' && !t.waitingOnTaskId)) {
+        if (this.draftTasks.some(t => t.status === 'Waiting' && !t.waitingOnTaskId && !t.waitingOnDraftId)) {
             this.dispatchEvent(new ShowToastEvent({
                 title: 'Error',
                 message: 'Please select which task each Waiting task is waiting on.',
@@ -1393,17 +1433,40 @@ export default class TaskCreateModalAction extends LightningModal {
 
         this.isSaving = true;
         try {
-            const results = await Promise.allSettled(this.draftTasks.map(t => saveTask({
-                relatedId: this.recordId,
-                ownerIds: t.selectedUsers.map(u => u.id),
-                subject: t.subject,
-                dueDate: t.activityDate,
-                status: t.status,
-                priority: t.priority,
-                description: t.description,
-                reminderTypes: t.selectedReminderTypes,
-                waitingOnTaskId: t.status === 'Waiting' ? (t.waitingOnTaskId || null) : null
-            })));
+            // Saved one at a time, top to bottom, rather than in parallel -
+            // a task waiting on another draft task earlier in this same batch
+            // needs that task's real Id, which only exists once it's saved.
+            const savedIdByDraftId = new Map();
+            const results = [];
+
+            for (const t of this.draftTasks) {
+                if (t.status === 'Waiting' && t.waitingOnDraftId && !savedIdByDraftId.has(t.waitingOnDraftId)) {
+                    results.push({ status: 'rejected', reason: { message: 'The task it depends on could not be created.' } });
+                    continue;
+                }
+
+                const waitingOnTaskId = t.status === 'Waiting'
+                    ? (t.waitingOnDraftId ? savedIdByDraftId.get(t.waitingOnDraftId) : (t.waitingOnTaskId || null))
+                    : null;
+
+                try {
+                    const newId = await saveTask({
+                        relatedId: this.recordId,
+                        ownerIds: t.selectedUsers.map(u => u.id),
+                        subject: t.subject,
+                        dueDate: t.activityDate,
+                        status: t.status,
+                        priority: t.priority,
+                        description: t.description,
+                        reminderTypes: t.selectedReminderTypes,
+                        waitingOnTaskId
+                    });
+                    savedIdByDraftId.set(t._id, newId);
+                    results.push({ status: 'fulfilled', value: newId });
+                } catch (e) {
+                    results.push({ status: 'rejected', reason: e });
+                }
+            }
 
             const failedRows   = this.draftTasks.filter((t, i) => results[i].status === 'rejected');
             const successCount = results.length - failedRows.length;

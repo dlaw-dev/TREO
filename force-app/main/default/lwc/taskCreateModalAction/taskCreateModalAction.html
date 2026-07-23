@@ -195,6 +195,23 @@
                                 </template>
 
                                 <template if:false={t.hasWaitingOnTask}>
+                                    <template if:true={t.hasOtherDraftOptions}>
+                                        <div class="waiting-draft-options">
+                                            <div class="waiting-draft-options-label">In this batch</div>
+                                            <template for:each={t.otherDraftOptions} for:item="opt">
+                                                <button
+                                                    key={opt._id}
+                                                    type="button"
+                                                    class="dropdown-item dropdown-item--task"
+                                                    data-id={t._id}
+                                                    data-draft-id={opt._id}
+                                                    onclick={selectWaitingOnDraft}>
+                                                    <span class="dropdown-item-title">{opt.title}</span>
+                                                    <span class="dropdown-item-meta">{opt.metaLabel}</span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </template>
                                     <div class="search-container" data-id={t.waitingContainerId} onclick={handleSearchAreaClick}>
                                         <lightning-input
                                             data-id={t._id}
@@ -564,8 +581,6 @@
                         </div>
 
                         <button type="button" class="add-task-row-btn slds-m-top_small" onclick={addStepRow}>+ Add Step</button>
-
-                        <p style="font-size:0.7rem;color:#ba0517;">DEBUG {debugStepsSummary}</p>
 
                         <div class="slds-m-top_small">
                             <lightning-button label="Cancel" onclick={cancelBuildingCustomTemplate}></lightning-button>
