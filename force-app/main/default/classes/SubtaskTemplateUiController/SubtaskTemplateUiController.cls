@@ -113,6 +113,25 @@ public with sharing class SubtaskTemplateUiController {
     }
 
     /**
+     * Called from the New Task modal's template builder. Steps are passed as
+     * a JSON string rather than List<TemplateStepInput> directly - Aura's
+     * parameter deserialization for a List of a custom Apex type comes back
+     * with every field null when invoked imperatively from LWC, even though
+     * the same shape deserializes fine via JSON.deserialize. Decoding it
+     * ourselves sidesteps that.
+     */
+    @AuraEnabled
+    public static Id saveCustomTemplateFromUi(String name, String stepsJson) {
+        List<TemplateStepInput> steps;
+        try {
+            steps = (List<TemplateStepInput>) JSON.deserialize(stepsJson, List<TemplateStepInput>.class);
+        } catch (Exception e) {
+            throw new AuraHandledException('Could not read the template steps.');
+        }
+        return saveCustomTemplate(name, steps);
+    }
+
+    /**
      * Builds a simple custom template: a name plus an ordered list of steps.
      * Each step is assigned either to a specific person (Static User) or to
      * whoever currently holds one of 3 Matter roles (Senior Attorney/
@@ -121,7 +140,6 @@ public with sharing class SubtaskTemplateUiController {
      * Structurally identical to a pre-built template either way, so
      * getTemplateItems()/applyTemplate() need no changes to support it.
      */
-    @AuraEnabled
     public static Id saveCustomTemplate(String name, List<TemplateStepInput> steps) {
         if (String.isBlank(name)) {
             throw new AuraHandledException('Please give the template a name.');
@@ -132,9 +150,7 @@ public with sharing class SubtaskTemplateUiController {
         for (Integer i = 0; i < steps.size(); i++) {
             TemplateStepInput s = steps[i];
             if (String.isBlank(s.subject)) {
-                throw new AuraHandledException('Step ' + (i + 1) + ' needs a subject. [APEX DEBUG received subject=' + s.subject
-                    + ' assigneeType=' + s.assigneeType + ' assigneeId=' + s.assigneeId + ' dynamicField=' + s.dynamicField
-                    + ' stepsSize=' + steps.size() + ' name=' + name + ']');
+                throw new AuraHandledException('Step ' + (i + 1) + ' needs a subject.');
             }
             if (s.assigneeType == 'Dynamic Matter Field') {
                 if (!ALLOWED_DYNAMIC_FIELDS.contains(s.dynamicField)) {

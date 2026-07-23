@@ -256,6 +256,45 @@ private class SubtaskTemplateUiControllerTest {
     }
 
     @IsTest
+    static void testSaveCustomTemplateFromUi_decodesJsonStepsCorrectly() {
+        User owner = [SELECT Id FROM User WHERE Name = 'David Yeremian' AND IsActive = true LIMIT 1];
+        String stepsJson = JSON.serialize(new List<Map<String, Object>>{
+            new Map<String, Object>{ 'subject' => 'First Step', 'assigneeType' => 'Static User', 'assigneeId' => owner.Id, 'dynamicField' => null },
+            new Map<String, Object>{ 'subject' => 'Second Step', 'assigneeType' => 'Static User', 'assigneeId' => owner.Id, 'dynamicField' => null }
+        });
+
+        Test.startTest();
+        Id templateId = SubtaskTemplateUiController.saveCustomTemplateFromUi('UI Template', stepsJson);
+        Test.stopTest();
+
+        List<Subtask_Template_Item__c> items = [
+            SELECT Sequence_Order__c, Subject__c, Assignee_Type__c, Static_Assignee__c
+            FROM Subtask_Template_Item__c
+            WHERE Subtask_Template__c = :templateId
+            ORDER BY Sequence_Order__c ASC
+        ];
+        System.assertEquals(2, items.size());
+        System.assertEquals('First Step', items[0].Subject__c);
+        System.assertEquals(owner.Id, items[0].Static_Assignee__c);
+        System.assertEquals('Second Step', items[1].Subject__c);
+    }
+
+    @IsTest
+    static void testSaveCustomTemplateFromUi_rejectsUnparseableJson() {
+        Boolean threw = false;
+
+        Test.startTest();
+        try {
+            SubtaskTemplateUiController.saveCustomTemplateFromUi('Bad JSON Template', 'not valid json');
+        } catch (AuraHandledException e) {
+            threw = true;
+        }
+        Test.stopTest();
+
+        System.assert(threw, 'Unparseable steps JSON should be rejected.');
+    }
+
+    @IsTest
     static void testSaveCustomTemplate_resultIsApplyCompatible() {
         User owner = [SELECT Id FROM User WHERE Name = 'David Yeremian' AND IsActive = true LIMIT 1];
         NEOS_Matter__c matter = new NEOS_Matter__c(Name = 'Test Matter', Case_Title__c = 'Test Case');
