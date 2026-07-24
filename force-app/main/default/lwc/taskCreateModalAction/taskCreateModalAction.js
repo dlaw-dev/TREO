@@ -12,6 +12,7 @@ import searchTasksForMatter from '@salesforce/apex/TaskUiController.searchTasksF
 import searchUsers from '@salesforce/apex/EventAttendeeUiController.searchUsers';
 import getTemplates from '@salesforce/apex/SubtaskTemplateUiController.getTemplates';
 import getMyCustomTemplates from '@salesforce/apex/SubtaskTemplateUiController.getMyCustomTemplates';
+import isCurrentUserAdmin from '@salesforce/apex/SubtaskTemplateUiController.isCurrentUserAdmin';
 import getTemplateItems from '@salesforce/apex/SubtaskTemplateUiController.getTemplateItems';
 import getMatterRoleAssignees from '@salesforce/apex/SubtaskTemplateUiController.getMatterRoleAssignees';
 import applyTemplateApex from '@salesforce/apex/SubtaskTemplateUiController.applyTemplate';
@@ -25,8 +26,10 @@ import TASK_REMINDER_OBJECT from '@salesforce/schema/Task_Reminder__c';
 import REMINDER_TYPE_FIELD from '@salesforce/schema/Task_Reminder__c.Reminder_Type__c';
 
 const SEARCH_FOCUS_CLICK_WINDOW_MS = 200;
-const SEARCH_BLUR_CLOSE_DELAY_MS = 150;
-const DROPDOWN_VERTICAL_OFFSET_PX = 4;
+// Matches .search-dropdown's max-height in CSS.
+const DROPDOWN_MAX_HEIGHT_PX = 200;
+const DROPDOWN_EDGE_MARGIN_PX = 8;
+const DROPDOWN_MIN_HEIGHT_PX = 60;
 
 const SUBJECT_SUGGESTIONS = [
     'Call Client',
@@ -166,22 +169,13 @@ export default class TaskCreateModalAction extends LightningModal {
     isSaving = false;
 
     _activeSubjectRowId;
-    subjectDropdownStyle = '';
-    subjectBlurTimeout;
-    subjectDropdownInteractionTimeout;
-    _isInteractingWithSubjectDropdown = false;
 
     _activeAssigneeRowId;
-    assigneeDropdownStyle = '';
 
     _activeWaitingRowId;
-    waitingDropdownStyle = '';
     waitingSearchTimeout;
     waitingSearchKeyword = '';
     waitingSearchRequestId = 0;
-    waitingBlurTimeout;
-    waitingDropdownInteractionTimeout;
-    _isInteractingWithWaitingDropdown = false;
     @track waitingResults = [];
 
     activeTab = 'newTask';
@@ -201,14 +195,120 @@ export default class TaskCreateModalAction extends LightningModal {
     _activeStepId;
     @track stepUserResults = [];
     stepSearchKeyword = '';
-    stepDropdownStyle = '';
     stepSearchTimeout;
-    stepBlurTimeout;
-    stepSearchDropdownInteractionTimeout;
-    _isInteractingWithStepDropdown = false;
     stepSearchRequestId = 0;
 
     @wire(MessageContext) messageContext;
+
+    /* -------------------------
+       Dropdown Portal
+
+       Search dropdowns (Subject/Assignee/Waiting On/step-assignee) render
+       into a single node moved to document.body - the same technique
+       Salesforce's own base components (e.g. the Due Date picker) use to
+       escape lightning-modal-body's clipping. LWC doesn't manage this
+       node's children (lwc:dom="manual" in the template), so we build/
+       tear down its content by hand instead of through the template.
+    -------------------------- */
+
+    _portalEl;
+    _portalMounted = false;
+    _portalScrollListener;
+
+    renderedCallback() {
+        this._mountPortal();
+    }
+
+    _mountPortal() {
+        if (this._portalMounted) return;
+        this._portalEl = this.template.querySelector('.dropdown-portal');
+        if (!this._portalEl) return;
+        document.body.appendChild(this._portalEl);
+        // Prevent mousedown anywhere in the dropdown (buttons, padding,
+        // scrollbar) from blurring the field that opened it - selection
+        // itself is handled by each item's own click listener.
+        this._portalEl.addEventListener('mousedown', (evt) => evt.preventDefault());
+        this._portalMounted = true;
+    }
+
+    _unmountPortal() {
+        if (this._portalEl && this._portalEl.parentNode) {
+            this._portalEl.parentNode.removeChild(this._portalEl);
+        }
+        this._portalMounted = false;
+        this._detachPortalScrollGuard();
+    }
+
+    // dataId: the search-container's data-id, used to find the field to anchor to.
+    // items: array of arbitrary result objects.
+    // buildItem(buttonEl, item): populate the button's content for one item.
+    // onSelect(item): called when an item is chosen.
+    _showPortal(dataId, items, buildItem, onSelect) {
+        this._mountPortal();
+        const el = this._portalEl;
+        const container = this.template.querySelector(`[data-id="${dataId}"]`);
+        if (!el || !container || !items || items.length === 0) {
+            this._hidePortal();
+            return;
+        }
+
+        const rect = container.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom - DROPDOWN_EDGE_MARGIN_PX;
+        const spaceAbove = rect.top - DROPDOWN_EDGE_MARGIN_PX;
+        const flipUp = spaceBelow < DROPDOWN_MAX_HEIGHT_PX && spaceAbove > spaceBelow;
+        const available = flipUp ? spaceAbove : spaceBelow;
+        const maxHeight = Math.max(DROPDOWN_MIN_HEIGHT_PX, Math.min(DROPDOWN_MAX_HEIGHT_PX, available));
+
+        el.innerHTML = '';
+        el.style.position = 'fixed';
+        el.style.left = `${rect.left}px`;
+        el.style.width = `${rect.width}px`;
+        el.style.maxHeight = `${maxHeight}px`;
+        if (flipUp) {
+            el.style.top = 'auto';
+            el.style.bottom = `${window.innerHeight - rect.top + DROPDOWN_EDGE_MARGIN_PX}px`;
+        } else {
+            el.style.bottom = 'auto';
+            el.style.top = `${rect.bottom + DROPDOWN_EDGE_MARGIN_PX}px`;
+        }
+        el.style.display = 'block';
+
+        items.forEach((item) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'dropdown-item';
+            buildItem(btn, item);
+            btn.addEventListener('click', () => onSelect(item));
+            el.appendChild(btn);
+        });
+
+        this._attachPortalScrollGuard();
+    }
+
+    _hidePortal() {
+        if (this._portalEl) {
+            this._portalEl.style.display = 'none';
+            this._portalEl.innerHTML = '';
+        }
+        this._detachPortalScrollGuard();
+    }
+
+    // A portaled dropdown can't move with the field if the modal body
+    // scrolls underneath it, so just close it - matches how most native
+    // and combobox-library dropdowns behave on scroll.
+    _attachPortalScrollGuard() {
+        if (this._portalScrollListener) return;
+        this._portalScrollListener = () => this.handleModalOutsideSearchClick();
+        window.addEventListener('scroll', this._portalScrollListener, true);
+        window.addEventListener('resize', this._portalScrollListener);
+    }
+
+    _detachPortalScrollGuard() {
+        if (!this._portalScrollListener) return;
+        window.removeEventListener('scroll', this._portalScrollListener, true);
+        window.removeEventListener('resize', this._portalScrollListener);
+        this._portalScrollListener = undefined;
+    }
 
     _patchFirstRow(patch) {
         this.draftTasks = this.draftTasks.map((t, i) => (i === 0 ? { ...t, ...patch } : t));
@@ -316,8 +416,6 @@ export default class TaskCreateModalAction extends LightningModal {
 
     get displayTasks() {
         return this.draftTasks.map((t, index) => {
-            const suggestions = this._suggestionsFor(t.subject);
-            const isSubjectActive = this._activeSubjectRowId === t._id;
             const isAssigneeActive = this._activeAssigneeRowId === t._id;
             const isWaitingActive = this._activeWaitingRowId === t._id;
             const reminderRows = this._reminderOptionRowsFor(t.selectedReminderTypes);
@@ -332,19 +430,10 @@ export default class TaskCreateModalAction extends LightningModal {
                 hasSelectedAssignee: t.selectedUsers.length > 0,
                 isReminderDisabled: !t.activityDate,
                 moreDetailsIcon: t.isMoreDetailsOpen ? 'utility:chevrondown' : 'utility:chevronright',
-                filteredSubjectSuggestions: suggestions,
-                hasSubjectSuggestions: isSubjectActive && suggestions.length > 0,
-                subjectDropdownStyle: this.subjectDropdownStyle,
-                hasUserResults: isAssigneeActive && this.userResults.length > 0,
-                userResults: isAssigneeActive ? this.userResults : [],
                 userSearchKeyword: isAssigneeActive ? this.userSearchKeyword : '',
-                assigneeDropdownStyle: this.assigneeDropdownStyle,
                 isStatusWaiting: t.status === 'Waiting',
                 hasWaitingOnTask: !!t.waitingOnTaskId || !!t.waitingOnDraftId,
-                hasWaitingResults: isWaitingActive && this.waitingResults.length > 0,
-                waitingResults: isWaitingActive ? this.waitingResults : [],
                 waitingSearchKeyword: isWaitingActive ? this.waitingSearchKeyword : '',
-                waitingDropdownStyle: this.waitingDropdownStyle,
                 // Earlier rows in this same batch aren't saved yet, so they can't
                 // be found via searchTasksForMatter - offer them directly instead.
                 // Only rows ABOVE this one are eligible, since saveAll() saves
@@ -591,8 +680,18 @@ export default class TaskCreateModalAction extends LightningModal {
     }
 
     /* -------------------------
-       My Templates (custom, user-built)
+       My Templates (custom, user-built) - admin-only
     -------------------------- */
+
+    wiredIsAdminResult;
+    @wire(isCurrentUserAdmin)
+    wiredIsAdmin(result) {
+        this.wiredIsAdminResult = result;
+    }
+
+    get isAdmin() {
+        return this.wiredIsAdminResult?.data === true;
+    }
 
     wiredMyTemplatesResult;
     @wire(getMyCustomTemplates)
@@ -735,10 +834,7 @@ export default class TaskCreateModalAction extends LightningModal {
                 assigneeContainerId: `step-assignee-search-container-${s._id}`,
                 isPersonMode,
                 hasSelectedAssignee: !!s.selectedUser,
-                hasUserResults: isActive && this.stepUserResults.length > 0,
-                userResults: isActive ? this.stepUserResults : [],
                 userSearchKeyword: isActive ? this.stepSearchKeyword : '',
-                stepDropdownStyle: this.stepDropdownStyle,
                 timingLabel: isFirst ? 'Starts immediately' : `Waits for "${previousSubject || '…'}"`,
                 timingPillClass: isFirst ? 'timeline-pill timeline-pill-immediate' : 'timeline-pill timeline-pill-waiting',
                 assigneeDisplayText,
@@ -787,26 +883,12 @@ export default class TaskCreateModalAction extends LightningModal {
 
     handleStepAssigneeFocus(e) {
         const rowId = e.currentTarget.dataset.id;
-        clearTimeout(this.stepBlurTimeout);
         const keyword = this._activeStepId === rowId ? (this.stepSearchKeyword || '') : '';
         this.searchUsersForStep(rowId, keyword);
     }
 
     handleStepAssigneeBlur() {
-        if (this._isInteractingWithStepDropdown) return;
-
-        clearTimeout(this.stepBlurTimeout);
-        this.stepBlurTimeout = setTimeout(() => {
-            this.closeStepSearch();
-        }, SEARCH_BLUR_CLOSE_DELAY_MS);
-    }
-
-    handleStepDropdownMouseDown() {
-        this._isInteractingWithStepDropdown = true;
-        clearTimeout(this.stepSearchDropdownInteractionTimeout);
-        this.stepSearchDropdownInteractionTimeout = setTimeout(() => {
-            this._isInteractingWithStepDropdown = false;
-        }, 0);
+        this.closeStepSearch();
     }
 
     handleStepAssigneeSearch(e) {
@@ -835,7 +917,6 @@ export default class TaskCreateModalAction extends LightningModal {
     async searchUsersForStep(rowId, keyword) {
         this._activeStepId = rowId;
         this.stepSearchKeyword = keyword;
-        this.stepDropdownStyle = this.computeDropdownStyle(`step-assignee-search-container-${rowId}`);
         const requestId = (this.stepSearchRequestId || 0) + 1;
         this.stepSearchRequestId = requestId;
 
@@ -845,6 +926,7 @@ export default class TaskCreateModalAction extends LightningModal {
             if (this._activeStepId !== rowId || requestId !== this.stepSearchRequestId) return;
 
             this.stepUserResults = results;
+            this._refreshStepPortal(rowId);
         } catch (err) {
             if (this._activeStepId === rowId && requestId === this.stepSearchRequestId) {
                 this.dispatchEvent(new ShowToastEvent({
@@ -853,21 +935,24 @@ export default class TaskCreateModalAction extends LightningModal {
                     variant: 'error'
                 }));
                 this.stepUserResults = [];
+                this._refreshStepPortal(rowId);
             }
         }
     }
 
-    selectStepAssignee(e) {
-        const rowId = this._activeStepId;
-        const id = e.currentTarget.dataset.id;
-        const u = this.stepUserResults.find(x => x.Id === id);
+    _refreshStepPortal(rowId) {
+        this._showPortal(
+            `step-assignee-search-container-${rowId}`,
+            this.stepUserResults,
+            (btn, u) => { btn.textContent = u.Name; },
+            (u) => this._selectStepAssignee(rowId, u)
+        );
+    }
 
-        if (!u || !rowId) return;
-
+    _selectStepAssignee(rowId, u) {
         this.customTemplateSteps = this.customTemplateSteps.map(s => (s._id === rowId
             ? { ...s, selectedUser: { id: u.Id, name: u.Name } }
             : s));
-
         this.closeStepSearch();
     }
 
@@ -882,6 +967,7 @@ export default class TaskCreateModalAction extends LightningModal {
         this.stepUserResults = [];
         this.stepSearchKeyword = '';
         clearTimeout(this.stepSearchTimeout);
+        this._hidePortal();
     }
 
     async saveCustomTemplate() {
@@ -947,33 +1033,17 @@ export default class TaskCreateModalAction extends LightningModal {
     }
 
     /* -------------------------
-       Dropdown Positioning
-
-       Search dropdowns render fixed-position so they escape
-       lightning-modal-body's internal scroll clipping.
-    -------------------------- */
-
-    computeDropdownStyle(dataId) {
-        const container = this.template.querySelector(`[data-id="${dataId}"]`);
-        if (!container) return '';
-
-        const rect = container.getBoundingClientRect();
-        return `position:fixed; top:${rect.bottom + DROPDOWN_VERTICAL_OFFSET_PX}px; left:${rect.left}px; width:${rect.width}px;`;
-    }
-
-    /* -------------------------
        Subject Suggestions
     -------------------------- */
 
     openSubjectSearch(rowId) {
-        clearTimeout(this.subjectBlurTimeout);
         this._activeSubjectRowId = rowId;
-        this.subjectDropdownStyle = this.computeDropdownStyle(`subject-search-container-${rowId}`);
+        this._refreshSubjectPortal(rowId);
     }
 
     closeSubjectSearch() {
         this._activeSubjectRowId = undefined;
-        clearTimeout(this.subjectBlurTimeout);
+        this._hidePortal();
     }
 
     handleSubjectFocus(e) {
@@ -981,34 +1051,28 @@ export default class TaskCreateModalAction extends LightningModal {
     }
 
     handleSubjectBlur() {
-        if (this._isInteractingWithSubjectDropdown) return;
-
-        clearTimeout(this.subjectBlurTimeout);
-        this.subjectBlurTimeout = setTimeout(() => {
-            this.closeSubjectSearch();
-        }, SEARCH_BLUR_CLOSE_DELAY_MS);
+        this.closeSubjectSearch();
     }
 
-    handleSubjectDropdownMouseDown() {
-        this._isInteractingWithSubjectDropdown = true;
-        clearTimeout(this.subjectDropdownInteractionTimeout);
-        this.subjectDropdownInteractionTimeout = setTimeout(() => {
-            this._isInteractingWithSubjectDropdown = false;
-        }, 0);
+    _refreshSubjectPortal(rowId) {
+        const row = this.draftTasks.find(t => t._id === rowId);
+        const suggestions = this._suggestionsFor(row ? row.subject : '');
+        this._showPortal(
+            `subject-search-container-${rowId}`,
+            suggestions,
+            (btn, s) => { btn.textContent = s; },
+            (s) => this._selectSubjectSuggestion(rowId, s)
+        );
     }
 
-    selectSubjectSuggestion(e) {
-        const rowId = this._activeSubjectRowId;
-        const value = e.currentTarget.dataset.value;
-        if (!rowId) return;
-
+    _selectSubjectSuggestion(rowId, value) {
         this.draftTasks = this.draftTasks.map(t => (t._id === rowId ? { ...t, subject: value } : t));
         this.closeSubjectSearch();
 
-        // The input blurs (while still empty) just before this click handler
-        // fills in the value, so lightning-input flags itself invalid on that
-        // blur. Re-check validity once the new value has rendered so the
-        // error clears without the user needing to click back into the field.
+        // The input blurs (while still empty) just before this fills in the
+        // value, so lightning-input flags itself invalid on that blur.
+        // Re-check validity once the new value has rendered so the error
+        // clears without the user needing to click back into the field.
         Promise.resolve().then(() => {
             this.template.querySelector(`lightning-input[data-role="subject-input"][data-id="${rowId}"]`)?.reportValidity();
         });
@@ -1023,6 +1087,7 @@ export default class TaskCreateModalAction extends LightningModal {
         const value = e.target.value;
         this._activeSubjectRowId = rowId;
         this.draftTasks = this.draftTasks.map(t => (t._id === rowId ? { ...t, subject: value } : t));
+        this._refreshSubjectPortal(rowId);
     }
 
     handleDueDate(e) {
@@ -1083,9 +1148,6 @@ export default class TaskCreateModalAction extends LightningModal {
     userSearchKeyword = '';
 
     userSearchRequestId = 0;
-    userBlurTimeout;
-    searchDropdownInteractionTimeout;
-    _isInteractingWithSearchDropdown = false;
     _skipNextUserFocus = false;
     _lastUserFocusSearchAt = 0;
 
@@ -1099,7 +1161,6 @@ export default class TaskCreateModalAction extends LightningModal {
             this._skipNextUserFocus = false;
             return;
         }
-        clearTimeout(this.userBlurTimeout);
         this._lastUserFocusSearchAt = Date.now();
         const keyword = this._activeAssigneeRowId === rowId ? (this.userSearchKeyword || '') : '';
         this.searchUsersInternal(rowId, keyword);
@@ -1107,7 +1168,6 @@ export default class TaskCreateModalAction extends LightningModal {
 
     handleUserClick(e) {
         const rowId = e.currentTarget.dataset.id;
-        clearTimeout(this.userBlurTimeout);
         this._skipNextUserFocus = false;
 
         if (
@@ -1123,20 +1183,7 @@ export default class TaskCreateModalAction extends LightningModal {
     }
 
     handleUserBlur() {
-        if (this._isInteractingWithSearchDropdown) return;
-
-        clearTimeout(this.userBlurTimeout);
-        this.userBlurTimeout = setTimeout(() => {
-            this.closeUserSearch();
-        }, SEARCH_BLUR_CLOSE_DELAY_MS);
-    }
-
-    handleSearchDropdownMouseDown() {
-        this._isInteractingWithSearchDropdown = true;
-        clearTimeout(this.searchDropdownInteractionTimeout);
-        this.searchDropdownInteractionTimeout = setTimeout(() => {
-            this._isInteractingWithSearchDropdown = false;
-        }, 0);
+        this.closeUserSearch();
     }
 
     handleSearchAreaClick(e) {
@@ -1176,7 +1223,6 @@ export default class TaskCreateModalAction extends LightningModal {
     async searchUsersInternal(rowId, keyword) {
         this._activeAssigneeRowId = rowId;
         this.userSearchKeyword = keyword;
-        this.assigneeDropdownStyle = this.computeDropdownStyle(`assignee-search-container-${rowId}`);
         const requestId = (this.userSearchRequestId || 0) + 1;
         this.userSearchRequestId = requestId;
 
@@ -1188,6 +1234,7 @@ export default class TaskCreateModalAction extends LightningModal {
             const row = this.draftTasks.find(t => t._id === rowId);
             const selectedIds = row ? row.selectedUserIds : new Set();
             this.userResults = results.filter(user => !selectedIds.has(user.Id));
+            this._refreshAssigneePortal(rowId);
         } catch (err) {
             if (this._activeAssigneeRowId === rowId && requestId === this.userSearchRequestId) {
                 this.dispatchEvent(new ShowToastEvent({
@@ -1196,8 +1243,18 @@ export default class TaskCreateModalAction extends LightningModal {
                     variant: 'error'
                 }));
                 this.userResults = [];
+                this._refreshAssigneePortal(rowId);
             }
         }
+    }
+
+    _refreshAssigneePortal(rowId) {
+        this._showPortal(
+            `assignee-search-container-${rowId}`,
+            this.userResults,
+            (btn, u) => { btn.textContent = u.Name; },
+            (u) => this._addUser(rowId, u)
+        );
     }
 
     closeUserSearch() {
@@ -1206,19 +1263,14 @@ export default class TaskCreateModalAction extends LightningModal {
         this.userResults = [];
         this.userSearchKeyword = '';
         clearTimeout(this.userSearchTimeout);
+        this._hidePortal();
     }
 
     /* -------------------------
        Attendee Selection
     -------------------------- */
 
-    addUser(e) {
-        const rowId = this._activeAssigneeRowId;
-        const id = e.currentTarget.dataset.id;
-        const u = this.userResults.find(x => x.Id === id);
-
-        if (!u || !rowId) return;
-
+    _addUser(rowId, u) {
         this.draftTasks = this.draftTasks.map(t => (t._id === rowId
             ? { ...t, selectedUserIds: new Set([u.Id]), selectedUsers: [{ id: u.Id, name: u.Name }] }
             : t));
@@ -1238,10 +1290,10 @@ export default class TaskCreateModalAction extends LightningModal {
        Waiting On Task (only shown when a row's Status = Waiting)
     -------------------------- */
 
+    // Dead entry point kept as-is (pre-existing, unused) - handleWaitingFocus
+    // calls searchTasksInternal directly instead.
     openWaitingSearch(rowId) {
-        clearTimeout(this.waitingBlurTimeout);
         this._activeWaitingRowId = rowId;
-        this.waitingDropdownStyle = this.computeDropdownStyle(`waiting-search-container-${rowId}`);
     }
 
     closeWaitingSearch() {
@@ -1250,30 +1302,17 @@ export default class TaskCreateModalAction extends LightningModal {
         this.waitingResults = [];
         this.waitingSearchKeyword = '';
         clearTimeout(this.waitingSearchTimeout);
+        this._hidePortal();
     }
 
     handleWaitingFocus(e) {
         const rowId = e.currentTarget.dataset.id;
-        clearTimeout(this.waitingBlurTimeout);
         const keyword = this._activeWaitingRowId === rowId ? (this.waitingSearchKeyword || '') : '';
         this.searchTasksInternal(rowId, keyword);
     }
 
     handleWaitingBlur() {
-        if (this._isInteractingWithWaitingDropdown) return;
-
-        clearTimeout(this.waitingBlurTimeout);
-        this.waitingBlurTimeout = setTimeout(() => {
-            this.closeWaitingSearch();
-        }, SEARCH_BLUR_CLOSE_DELAY_MS);
-    }
-
-    handleWaitingDropdownMouseDown() {
-        this._isInteractingWithWaitingDropdown = true;
-        clearTimeout(this.waitingDropdownInteractionTimeout);
-        this.waitingDropdownInteractionTimeout = setTimeout(() => {
-            this._isInteractingWithWaitingDropdown = false;
-        }, 0);
+        this.closeWaitingSearch();
     }
 
     handleWaitingSearch(e) {
@@ -1325,7 +1364,6 @@ export default class TaskCreateModalAction extends LightningModal {
     async searchTasksInternal(rowId, keyword) {
         this._activeWaitingRowId = rowId;
         this.waitingSearchKeyword = keyword;
-        this.waitingDropdownStyle = this.computeDropdownStyle(`waiting-search-container-${rowId}`);
         const requestId = (this.waitingSearchRequestId || 0) + 1;
         this.waitingSearchRequestId = requestId;
 
@@ -1335,6 +1373,7 @@ export default class TaskCreateModalAction extends LightningModal {
             if (this._activeWaitingRowId !== rowId || requestId !== this.waitingSearchRequestId) return;
 
             this.waitingResults = results.map(r => ({ ...r, metaLabel: this._taskMetaLabel(r) }));
+            this._refreshWaitingPortal(rowId);
         } catch (err) {
             if (this._activeWaitingRowId === rowId && requestId === this.waitingSearchRequestId) {
                 this.dispatchEvent(new ShowToastEvent({
@@ -1343,18 +1382,32 @@ export default class TaskCreateModalAction extends LightningModal {
                     variant: 'error'
                 }));
                 this.waitingResults = [];
+                this._refreshWaitingPortal(rowId);
             }
         }
     }
 
-    selectWaitingOnTask(e) {
-        const rowId = this._activeWaitingRowId;
-        const id = e.currentTarget.dataset.id;
-        const task = this.waitingResults.find(x => x.Id === id);
+    _refreshWaitingPortal(rowId) {
+        this._showPortal(
+            `waiting-search-container-${rowId}`,
+            this.waitingResults,
+            (btn, task) => {
+                btn.classList.add('dropdown-item--task');
+                const title = document.createElement('span');
+                title.className = 'dropdown-item-title';
+                title.textContent = task.Subject;
+                const meta = document.createElement('span');
+                meta.className = 'dropdown-item-meta';
+                meta.textContent = task.metaLabel;
+                btn.appendChild(title);
+                btn.appendChild(meta);
+            },
+            (task) => this._selectWaitingOnTask(rowId, task)
+        );
+    }
 
-        if (!task || !rowId) return;
-
-        const label = `${task.Subject} — ${this._taskMetaLabel(task)}`;
+    _selectWaitingOnTask(rowId, task) {
+        const label = `${task.Subject} — ${task.metaLabel}`;
         this.draftTasks = this.draftTasks.map(t => (t._id === rowId
             ? { ...t, waitingOnTaskId: task.Id, waitingOnDraftId: undefined, waitingOnTaskLabel: label }
             : t));
@@ -1499,16 +1552,9 @@ export default class TaskCreateModalAction extends LightningModal {
 
     disconnectedCallback() {
         clearTimeout(this.userSearchTimeout);
-        clearTimeout(this.userBlurTimeout);
-        clearTimeout(this.searchDropdownInteractionTimeout);
-        clearTimeout(this.subjectBlurTimeout);
-        clearTimeout(this.subjectDropdownInteractionTimeout);
         clearTimeout(this.waitingSearchTimeout);
-        clearTimeout(this.waitingBlurTimeout);
-        clearTimeout(this.waitingDropdownInteractionTimeout);
         clearTimeout(this.stepSearchTimeout);
-        clearTimeout(this.stepBlurTimeout);
-        clearTimeout(this.stepSearchDropdownInteractionTimeout);
+        this._unmountPortal();
     }
 
     handleCancel() {

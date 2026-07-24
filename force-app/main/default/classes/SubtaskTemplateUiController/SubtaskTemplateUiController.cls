@@ -53,6 +53,16 @@ public with sharing class SubtaskTemplateUiController {
         return result;
     }
 
+    /**
+     * Gates the self-serve "My Templates" builder in the New Task modal to
+     * admins only, consistent with pre-built templates already being
+     * admin-curated (see getTemplates() vs. getMyCustomTemplates() above).
+     */
+    @AuraEnabled(cacheable=true)
+    public static Boolean isCurrentUserAdmin() {
+        return [SELECT Name FROM Profile WHERE Id = :UserInfo.getProfileId()].Name == 'System Administrator';
+    }
+
     @AuraEnabled(cacheable=true)
     public static List<TemplateDto> getTemplates() {
         List<Subtask_Template__c> templates = [

@@ -51,21 +51,6 @@
                             onchange={handleSubject}
                             onkeyup={handleSubject}>
                         </lightning-input>
-
-                        <template if:true={t.hasSubjectSuggestions}>
-                            <div class="search-dropdown" style={t.subjectDropdownStyle} onmousedown={handleSubjectDropdownMouseDown}>
-                                <template for:each={t.filteredSubjectSuggestions} for:item="s">
-                                    <button
-                                        key={s}
-                                        type="button"
-                                        class="dropdown-item"
-                                        data-value={s}
-                                        onclick={selectSubjectSuggestion}>
-                                        {s}
-                                    </button>
-                                </template>
-                            </div>
-                        </template>
                     </div>
                 </div>
 
@@ -101,21 +86,6 @@
                                 onkeyup={handleUserSearch}
                                 onkeydown={handleUserKeydown}>
                             </lightning-input>
-
-                            <template if:true={t.hasUserResults}>
-                                <div class="search-dropdown" style={t.assigneeDropdownStyle} onmousedown={handleSearchDropdownMouseDown}>
-                                    <template for:each={t.userResults} for:item="u">
-                                        <button
-                                            key={u.Id}
-                                            type="button"
-                                            class="dropdown-item"
-                                            data-id={u.Id}
-                                            onclick={addUser}>
-                                            {u.Name}
-                                        </button>
-                                    </template>
-                                </div>
-                            </template>
                         </div>
                     </template>
                 </div>
@@ -158,25 +128,24 @@
                             onchange={handleDescription}>
                         </lightning-textarea>
 
-                        <!-- Priority -->
-                        <lightning-combobox
-                            class="slds-m-top_medium"
-                            data-id={t._id}
-                            label="Priority"
-                            value={t.priority}
-                            options={priorityOptions}
-                            onchange={handlePriority}>
-                        </lightning-combobox>
+                        <!-- Priority / Status -->
+                        <div class="priority-status-grid slds-m-top_medium">
+                            <lightning-combobox
+                                data-id={t._id}
+                                label="Priority"
+                                value={t.priority}
+                                options={priorityOptions}
+                                onchange={handlePriority}>
+                            </lightning-combobox>
 
-                        <!-- Status -->
-                        <lightning-combobox
-                            class="slds-m-top_medium"
-                            data-id={t._id}
-                            label="Status"
-                            value={t.status}
-                            options={statusOptions}
-                            onchange={handleStatus}>
-                        </lightning-combobox>
+                            <lightning-combobox
+                                data-id={t._id}
+                                label="Status"
+                                value={t.status}
+                                options={statusOptions}
+                                onchange={handleStatus}>
+                            </lightning-combobox>
+                        </div>
 
                         <!-- Waiting On Task -->
                         <template if:true={t.isStatusWaiting}>
@@ -225,22 +194,6 @@
                                             onkeyup={handleWaitingSearch}
                                             onkeydown={handleWaitingKeydown}>
                                         </lightning-input>
-
-                                        <template if:true={t.hasWaitingResults}>
-                                            <div class="search-dropdown" style={t.waitingDropdownStyle} onmousedown={handleWaitingDropdownMouseDown}>
-                                                <template for:each={t.waitingResults} for:item="wt">
-                                                    <button
-                                                        key={wt.Id}
-                                                        type="button"
-                                                        class="dropdown-item dropdown-item--task"
-                                                        data-id={wt.Id}
-                                                        onclick={selectWaitingOnTask}>
-                                                        <span class="dropdown-item-title">{wt.Subject}</span>
-                                                        <span class="dropdown-item-meta">{wt.metaLabel}</span>
-                                                    </button>
-                                                </template>
-                                            </div>
-                                        </template>
                                     </div>
                                 </template>
                             </div>
@@ -387,6 +340,7 @@
                 </template>
             </div>
 
+            <template if:true={isAdmin}>
             <div class="template-section slds-m-top_medium">
                 <button type="button" class="template-section-toggle" onclick={toggleMyTemplatesSection} aria-expanded={isMyTemplatesSectionOpen}>
                     <lightning-icon icon-name={myTemplatesSectionIcon} size="xx-small"></lightning-icon>
@@ -556,21 +510,6 @@
                                                     onkeyup={handleStepAssigneeSearch}
                                                     onkeydown={handleStepAssigneeKeydown}>
                                                 </lightning-input>
-
-                                                <template if:true={s.hasUserResults}>
-                                                    <div class="search-dropdown" style={s.stepDropdownStyle} onmousedown={handleStepDropdownMouseDown}>
-                                                        <template for:each={s.userResults} for:item="u">
-                                                            <button
-                                                                key={u.Id}
-                                                                type="button"
-                                                                class="dropdown-item"
-                                                                data-id={u.Id}
-                                                                onclick={selectStepAssignee}>
-                                                                {u.Name}
-                                                            </button>
-                                                        </template>
-                                                    </div>
-                                                </template>
                                             </div>
                                         </template>
                                     </template>
@@ -594,6 +533,7 @@
                     </template>
                 </template>
             </div>
+            </template>
 
             <template if:true={isApplyingTemplate}>
                 <div class="slds-m-top_medium">
@@ -628,4 +568,14 @@
             </lightning-button>
         </template>
     </lightning-modal-footer>
+
+    <!--
+        Search dropdowns (Subject/Assignee/Waiting On/step-assignee) render
+        into this single node, which JS moves to document.body - the same
+        technique Salesforce's own base components (e.g. the Due Date
+        picker above) use to escape lightning-modal-body's clipping.
+        lwc:dom="manual" tells LWC not to manage its children; we build/
+        tear them down by hand in JS instead of through this template.
+    -->
+    <div class="dropdown-portal search-dropdown" lwc:dom="manual"></div>
 </template>

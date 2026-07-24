@@ -1,8 +1,11 @@
-.search-container {
-    position: relative;
-}
-
+/*
+   .search-dropdown is rendered into a portal moved to document.body (see
+   taskCreateModalAction.js _showPortal) so it can escape lightning-modal-body's
+   clipping - position/left/top/bottom/width/max-height are all set inline by
+   JS per-field, not here.
+*/
 .search-dropdown {
+    display: none;
     background: var(--lwc-colorBackgroundAlt, #ffffff);
     border: 1px solid var(--lwc-colorBorder, #d8dde6);
     border-radius: 0.25rem;
@@ -240,6 +243,16 @@
 .template-card-delete:focus {
     color: var(--lwc-colorTextError, #ba0517);
     outline: none;
+}
+
+.priority-status-grid {
+    display: flex;
+    gap: 1rem;
+}
+
+.priority-status-grid > lightning-combobox {
+    flex: 1 1 0;
+    min-width: 0;
 }
 
 .reminder-options-grid {
