@@ -1,0 +1,36 @@
+.tt-popout {
+  padding: 0.75rem;
+  font-family: inherit;
+}
+
+.tt-popout-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.tt-popout-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.tt-popout-matter {
+  font-weight: 600;
+  margin: 0;
+}
+
+.tt-popout-elapsed {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.tt-popout-controls {
+  margin-bottom: 0.5rem;
+}
+
+.tt-popout-empty {
+  color: #706e6b;
+  font-size: 0.85rem;
+}

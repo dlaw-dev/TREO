@@ -1,5 +1,12 @@
 <template>
   <lightning-card title="Timer">
+    <lightning-button-icon
+      slot="actions"
+      icon-name="utility:new_window"
+      alternative-text="Pop out timer"
+      title="Pop out timer"
+      onclick={handlePopOut}>
+    </lightning-button-icon>
     <div class="slds-p-around_small">
       <template if:true={active}>
         <p class="slds-text-heading_small">
@@ -40,6 +47,10 @@
 
       <template if:false={active}>
         <p>No active timer</p>
+      </template>
+
+      <template if:true={hasHistory}>
+        <c-timer-history-list groups={historyGroups} onrestart={handleRestart}></c-timer-history-list>
       </template>
     </div>
   </lightning-card>

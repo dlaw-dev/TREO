@@ -1,0 +1,54 @@
+.tt-history-group {
+  margin-top: 0.75rem;
+}
+
+.tt-history-group-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #514f4d;
+  padding: 0.25rem 0.5rem;
+  text-transform: uppercase;
+}
+
+.tt-history-entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tt-history-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-top: 1px solid #e5e5e5;
+}
+
+.tt-history-entry-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tt-history-entry-matter {
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tt-history-entry-notes {
+  font-size: 0.75rem;
+  color: #706e6b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tt-history-entry-duration {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  flex: 0 0 auto;
+}

@@ -1,8 +1,9 @@
 public with sharing class TimeTrackerController {
 
-    // ===== DTO returned to LWC (unchanged shape) =====
+    // ===== DTO returned to LWC =====
     public class TimeEntryDTO {
         @AuraEnabled public Id        id;
+        @AuraEnabled public Id        matterId;
         @AuraEnabled public Datetime  startTime;
         @AuraEnabled public Datetime  endTime;
         @AuraEnabled public Boolean   isRunning;
@@ -12,6 +13,26 @@ public with sharing class TimeTrackerController {
         @AuraEnabled public Integer   durationSeconds;   // net seconds when stopped
         @AuraEnabled public String    durationFormatted; // "MM:SS" when stopped
         @AuraEnabled public Datetime  serverNow;
+    }
+
+    // ===== History DTOs (Today / This Week) =====
+    public class TimeEntrySummaryDTO {
+        @AuraEnabled public Id       id;
+        @AuraEnabled public Id       matterId;
+        @AuraEnabled public String   matterName;
+        @AuraEnabled public String   notes;
+        @AuraEnabled public Datetime startTime;
+        @AuraEnabled public Datetime endTime;
+        @AuraEnabled public Integer  durationSeconds;
+        @AuraEnabled public String   durationFormatted;
+        @AuraEnabled public Date     entryDate;
+    }
+
+    public class HistoryGroupDTO {
+        @AuraEnabled public String label; // 'Today' | 'This Week'
+        @AuraEnabled public Integer totalSeconds;
+        @AuraEnabled public String  totalFormatted;
+        @AuraEnabled public List<TimeEntrySummaryDTO> entries;
     }
 
     // ===== Utilities =====
@@ -35,6 +56,7 @@ public with sharing class TimeTrackerController {
     private static TimeEntryDTO toDTO(Time_Entry__c t, Boolean treatAsRunningIfNoEnd) {
         TimeEntryDTO dto  = new TimeEntryDTO();
         dto.id            = t.Id;
+        dto.matterId      = t.NEOS_matter__c;
         dto.startTime     = t.Start_time__c;
         dto.endTime       = t.end_time__c;
         dto.pausedStart   = t.Paused_Start__c;
@@ -72,14 +94,29 @@ public with sharing class TimeTrackerController {
     // ===== Queries =====
     @AuraEnabled(cacheable=true)
     public static TimeEntryDTO getActiveEntry(Id matterId) {
-        List<Time_Entry__c> rows = [
-            SELECT Id, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
-            FROM   Time_Entry__c
-            WHERE  OwnerId = :uid()
-            AND    NEOS_matter__c = :matterId
-            AND    end_time__c = NULL
-            LIMIT  1
-        ];
+        // NOTE: a bind variable compared with `=` against null matches only rows where the
+        // field itself is null, so `matterId == null` must be its own query, not a filter
+        // that gets "skipped" — otherwise this always returns zero rows for that case.
+        List<Time_Entry__c> rows;
+        if (matterId == null) {
+            rows = [
+                SELECT Id, NEOS_matter__c, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
+                FROM   Time_Entry__c
+                WHERE  OwnerId = :uid()
+                AND    end_time__c = NULL
+                ORDER  BY Start_time__c DESC
+                LIMIT  1
+            ];
+        } else {
+            rows = [
+                SELECT Id, NEOS_matter__c, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
+                FROM   Time_Entry__c
+                WHERE  OwnerId = :uid()
+                AND    NEOS_matter__c = :matterId
+                AND    end_time__c = NULL
+                LIMIT  1
+            ];
+        }
         return rows.isEmpty() ? null : toDTO(rows[0], true);
     }
 
@@ -88,7 +125,7 @@ public with sharing class TimeTrackerController {
     public static TimeEntryDTO start(Id matterId) {
         // Idempotent: return running if already exists
         List<Time_Entry__c> existing = [
-            SELECT Id, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
+            SELECT Id, NEOS_matter__c, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
             FROM   Time_Entry__c
             WHERE  OwnerId = :uid()
             AND    NEOS_matter__c = :matterId
@@ -111,7 +148,7 @@ public with sharing class TimeTrackerController {
     @AuraEnabled
     public static TimeEntryDTO pause(Id timeEntryId) {
         Time_Entry__c t = [
-            SELECT Id, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
+            SELECT Id, NEOS_matter__c, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
             FROM   Time_Entry__c
             WHERE  Id = :timeEntryId
             FOR UPDATE
@@ -129,7 +166,7 @@ public with sharing class TimeTrackerController {
     @AuraEnabled
     public static TimeEntryDTO resume(Id timeEntryId) {
         Time_Entry__c t = [
-            SELECT Id, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
+            SELECT Id, NEOS_matter__c, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
             FROM   Time_Entry__c
             WHERE  Id = :timeEntryId
             FOR UPDATE
@@ -149,7 +186,7 @@ public with sharing class TimeTrackerController {
     @AuraEnabled
     public static TimeEntryDTO stop(Id timeEntryId) {
         Time_Entry__c t = [
-            SELECT Id, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
+            SELECT Id, NEOS_matter__c, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
             FROM   Time_Entry__c
             WHERE  Id = :timeEntryId
             FOR UPDATE
@@ -187,7 +224,7 @@ public with sharing class TimeTrackerController {
 
         // Requery to return fresh DTO
         t = [
-            SELECT Id, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
+            SELECT Id, NEOS_matter__c, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
             FROM   Time_Entry__c
             WHERE  Id = :timeEntryId
         ];
@@ -215,7 +252,7 @@ public with sharing class TimeTrackerController {
         }
 
         Time_Entry__c t = [
-            SELECT Id, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c, Notes__c
+            SELECT Id, NEOS_matter__c, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c, Notes__c
             FROM   Time_Entry__c
             WHERE  Id = :timeEntryId
             FOR UPDATE
@@ -303,10 +340,72 @@ public with sharing class TimeTrackerController {
 
         // Return fresh DTO
         t = [
-            SELECT Id, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
+            SELECT Id, NEOS_matter__c, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
             FROM   Time_Entry__c
             WHERE  Id = :timeEntryId
         ];
         return toDTO(t, false);
+    }
+
+    // ===== History (Today / This Week) =====
+    @AuraEnabled(cacheable=true)
+    public static List<HistoryGroupDTO> getRecentEntries(Integer daysBack) {
+        Integer lookback = (daysBack == null || daysBack <= 0) ? 7 : daysBack;
+        Datetime rangeStart = Datetime.now().addDays(-lookback);
+        Date today = Date.today();
+
+        List<Time_Entry__c> rows = [
+            SELECT Id, NEOS_matter__c, NEOS_matter__r.Name, Notes__c,
+                   Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
+            FROM   Time_Entry__c
+            WHERE  OwnerId = :uid()
+            AND    Start_time__c >= :rangeStart
+            AND    end_time__c != null
+            ORDER  BY Start_time__c DESC
+            LIMIT  100
+        ];
+
+        List<TimeEntrySummaryDTO> todayEntries = new List<TimeEntrySummaryDTO>();
+        List<TimeEntrySummaryDTO> weekEntries   = new List<TimeEntrySummaryDTO>();
+        Integer todayTotal = 0;
+        Integer weekTotal  = 0;
+
+        for (Time_Entry__c t : rows) {
+            TimeEntryDTO dto = toDTO(t, false);
+
+            TimeEntrySummaryDTO s = new TimeEntrySummaryDTO();
+            s.id                = t.Id;
+            s.matterId          = t.NEOS_matter__c;
+            s.matterName        = t.NEOS_matter__r != null ? t.NEOS_matter__r.Name : null;
+            s.notes             = t.Notes__c;
+            s.startTime         = t.Start_time__c;
+            s.endTime           = t.end_time__c;
+            s.durationSeconds   = dto.durationSeconds;
+            s.durationFormatted = dto.durationFormatted;
+            s.entryDate         = t.Start_time__c != null ? t.Start_time__c.date() : null;
+
+            Integer secs = dto.durationSeconds == null ? 0 : dto.durationSeconds;
+            if (s.entryDate == today) {
+                todayEntries.add(s);
+                todayTotal += secs;
+            } else {
+                weekEntries.add(s);
+                weekTotal += secs;
+            }
+        }
+
+        HistoryGroupDTO todayGroup = new HistoryGroupDTO();
+        todayGroup.label          = 'Today';
+        todayGroup.totalSeconds   = todayTotal;
+        todayGroup.totalFormatted = formatMmSs(todayTotal);
+        todayGroup.entries        = todayEntries;
+
+        HistoryGroupDTO weekGroup = new HistoryGroupDTO();
+        weekGroup.label          = 'This Week';
+        weekGroup.totalSeconds   = weekTotal;
+        weekGroup.totalFormatted = formatMmSs(weekTotal);
+        weekGroup.entries        = weekEntries;
+
+        return new List<HistoryGroupDTO>{ todayGroup, weekGroup };
     }
 }

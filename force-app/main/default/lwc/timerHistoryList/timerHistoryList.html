@@ -1,0 +1,33 @@
+<template>
+  <template if:true={hasEntries}>
+    <template for:each={displayGroups} for:item="group">
+      <div key={group.label} class="tt-history-group">
+        <div class="tt-history-group-header">
+          <span class="tt-history-group-label">{group.label}</span>
+          <span class="tt-history-group-total">{group.totalFormatted}</span>
+        </div>
+        <ul class="tt-history-entries">
+          <template for:each={group.entries} for:item="entry">
+            <li key={entry.id} class="tt-history-entry">
+              <div class="tt-history-entry-text">
+                <div class="tt-history-entry-matter">{entry.matterName}</div>
+                <template if:true={entry.notes}>
+                  <div class="tt-history-entry-notes">{entry.notes}</div>
+                </template>
+              </div>
+              <div class="tt-history-entry-duration">{entry.durationFormatted}</div>
+              <lightning-button-icon
+                icon-name="utility:play"
+                variant="brand"
+                alternative-text="Restart timer for this matter"
+                title="Restart timer for this matter"
+                data-matter-id={entry.matterId}
+                onclick={handleRestartClick}
+              ></lightning-button-icon>
+            </li>
+          </template>
+        </ul>
+      </div>
+    </template>
+  </template>
+</template>

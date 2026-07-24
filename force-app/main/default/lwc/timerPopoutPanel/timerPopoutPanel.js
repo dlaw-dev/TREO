@@ -1,6 +1,4 @@
-import { LightningElement, track, wire } from 'lwc';
-import { subscribe, unsubscribe, APPLICATION_SCOPE, MessageContext, publish } from 'lightning/messageService';
-import TIMER from '@salesforce/messageChannel/timer__c';
+import { LightningElement, track } from 'lwc';
 import getActiveEntry from '@salesforce/apex/TimeTrackerController.getActiveEntry';
 import startApex from '@salesforce/apex/TimeTrackerController.start';
 import stopApex from '@salesforce/apex/TimeTrackerController.stop';
@@ -16,16 +14,16 @@ import {
   crossWindowStateToDTO
 } from 'c/timerCore';
 
-// timerUtility lives in the Console utility bar and stays mounted across primary-tab
-// swaps (unlike the record-page timeTracker, which gets torn down/rebuilt on every
-// swap). That makes this component the natural single owner of the live clock and the
-// only component that polls Apex on an interval — everything else mirrors it.
-const POLL_INTERVAL_MS = 30000;
+// Hosted inside the timerPopout Aura standalone app (see force-app/main/default/aura/timerPopout),
+// opened via window.open() as a genuinely separate browser window. Lightning Message Service does
+// NOT bridge to a separate window, so this component syncs with the main Salesforce tab purely via
+// localStorage + the native 'storage' event (see timerCore's cross-window helpers), plus its own
+// direct Apex polling as a slower fallback.
+const POLL_INTERVAL_MS = 15000;
 const HISTORY_REFRESH_MS = 60000;
-const STATE_RESPONSE_DELAY_MS = 0; // respond synchronously from in-memory state
 
-export default class TimerUtility extends LightningElement {
-  @track active = null; // TimeEntryDTO | null
+export default class TimerPopoutPanel extends LightningElement {
+  @track active = null;
   @track historyGroups = [];
   heartbeat = 0;
 
@@ -33,21 +31,19 @@ export default class TimerUtility extends LightningElement {
   tickHandle;
   pollHandle;
   historyHandle;
-  subscription = null;
   _storageListener;
 
-  @wire(MessageContext) messageContext;
-
   connectedCallback() {
-    this.subscription = subscribe(
-      this.messageContext,
-      TIMER,
-      (message) => this.handleMessage(message),
-      { scope: APPLICATION_SCOPE }
-    );
-
     this._storageListener = (evt) => this.handleStorageEvent(evt);
     window.addEventListener('storage', this._storageListener);
+
+    // Prime immediately from whatever the main tab last wrote, then confirm with Apex.
+    const cached = readCrossWindowState();
+    if (cached) {
+      this._clockOffsetMs = cached.clockOffsetMs || 0;
+      this.active = crossWindowStateToDTO(cached);
+      this.resetTicking();
+    }
 
     this.loadActive();
     this.loadHistory();
@@ -56,14 +52,6 @@ export default class TimerUtility extends LightningElement {
   }
 
   disconnectedCallback() {
-    if (this.subscription) {
-      try {
-        unsubscribe(this.subscription);
-      } catch (e) {
-        /* ignore */
-      }
-      this.subscription = null;
-    }
     if (this._storageListener) {
       window.removeEventListener('storage', this._storageListener);
       this._storageListener = null;
@@ -73,59 +61,25 @@ export default class TimerUtility extends LightningElement {
     this._tickOff();
   }
 
-  /* ---- LMS ---- */
-  handleMessage(message) {
-    if (!message) return;
-    const { type, matterId, dto, action } = message;
-    if (type === 'getState') {
-      this.respondToStateRequest(matterId);
-      return;
-    }
-    if (type === 'actionOccurred') {
-      // Another surface (timeTracker's own Apex call, or the pop-out window) made a
-      // change; adopt it immediately instead of waiting on our own poll.
-      this.adoptDTO(dto);
-      if (action === 'start' || action === 'stop' || action === 'save') {
-        this.loadHistory();
-      }
-    }
-  }
-
-  respondToStateRequest(matterId) {
-    // We are the clock owner and already hold the freshest known state, so answer
-    // synchronously from memory rather than re-querying Apex.
-    const dto = !matterId || this.active?.matterId === matterId ? this.active : null;
-    setTimeout(() => {
-      publish(this.messageContext, TIMER, {
-        type: 'stateResponse',
-        matterId,
-        dto,
-        clockOffsetMs: this._clockOffsetMs
-      });
-    }, STATE_RESPONSE_DELAY_MS);
-  }
-
-  /* ---- Cross-window sync ---- */
   handleStorageEvent(evt) {
-    if (!evt || evt.key !== 'treo:timer:state') return;
+    if (evt && evt.key && evt.key !== 'treo:timer:state') return;
     const payload = readCrossWindowState();
     if (!payload) {
-      // Another window cleared the timer (explicit stop)
       this.active = null;
-      this._resetTicking();
+      this.resetTicking();
       return;
     }
     this._clockOffsetMs = payload.clockOffsetMs || 0;
-    this.adoptDTO(crossWindowStateToDTO(payload), { skipPersist: true });
+    this.active = crossWindowStateToDTO(payload);
+    this.resetTicking();
   }
 
-  /* ---- data ---- */
   async loadActive() {
     try {
       const dto = await getActiveEntry({ matterId: null });
       if (dto) this._clockOffsetMs = computeClockOffsetMs(dto.serverNow);
       this.active = dto || null;
-      this._resetTicking();
+      this.resetTicking();
     } catch (e) {
       /* keep showing last known state on transient errors */
     }
@@ -139,27 +93,17 @@ export default class TimerUtility extends LightningElement {
     }
   }
 
-  adoptDTO(dto, opts = {}) {
+  adopt(dto) {
     this.active = dto || null;
-    this._resetTicking();
-    if (!opts.skipPersist) {
-      writeCrossWindowState(this.active, this._clockOffsetMs, this.matterName);
-    }
+    this.resetTicking();
+    writeCrossWindowState(this.active, this._clockOffsetMs, this.matterName);
   }
 
-  /* ---- getters ---- */
   get isRunning() {
     return !!this.active?.isRunning && !this.active?.isPaused;
   }
   get isPaused() {
     return !!this.active?.isRunning && !!this.active?.isPaused;
-  }
-  get isStopped() {
-    return !this.active || !this.active?.isRunning;
-  }
-
-  get startDisabled() {
-    return this.isRunning || !this.active?.matterId;
   }
   get pauseDisabled() {
     return !this.isRunning;
@@ -170,12 +114,11 @@ export default class TimerUtility extends LightningElement {
   get stopDisabled() {
     return !this.active?.isRunning;
   }
-
   get matterName() {
     return this.active?.matterName || '—';
   }
-  get matterUrl() {
-    return this.active?.matterId ? `/lightning/r/${this.active.matterId}/view` : '#';
+  get hasHistory() {
+    return (this.historyGroups || []).some((g) => g.entries && g.entries.length);
   }
 
   get elapsedLabel() {
@@ -187,31 +130,12 @@ export default class TimerUtility extends LightningElement {
     return this.active.isRunning ? `Elapsed: ${formatHMS(netSeconds)}` : this.active.durationSeconds != null ? `Last: ${formatHMS(this.active.durationSeconds)}` : '';
   }
 
-  get hasHistory() {
-    return (this.historyGroups || []).some((g) => g.entries && g.entries.length);
-  }
-
-  /* ---- actions ---- */
-  async handleStart() {
-    const matterId = this.active?.matterId;
-    if (!matterId) return;
-    try {
-      const dto = await startApex({ matterId });
-      this._clockOffsetMs = computeClockOffsetMs(dto.serverNow);
-      this.adoptDTO(dto);
-      this.notify('start', matterId, dto);
-    } catch (e) {
-      /* ignore */
-    }
-  }
-
   async handlePause() {
     if (!this.active?.id) return;
     try {
       const dto = await pauseApex({ timeEntryId: this.active.id });
       this._clockOffsetMs = computeClockOffsetMs(dto.serverNow);
-      this.adoptDTO(dto);
-      this.notify('pause', dto.matterId, dto);
+      this.adopt(dto);
     } catch (e) {
       /* ignore */
     }
@@ -222,8 +146,7 @@ export default class TimerUtility extends LightningElement {
     try {
       const dto = await resumeApex({ timeEntryId: this.active.id });
       this._clockOffsetMs = computeClockOffsetMs(dto.serverNow);
-      this.adoptDTO(dto);
-      this.notify('resume', dto.matterId, dto);
+      this.adopt(dto);
     } catch (e) {
       /* ignore */
     }
@@ -234,8 +157,7 @@ export default class TimerUtility extends LightningElement {
     try {
       const dto = await stopApex({ timeEntryId: this.active.id });
       this._clockOffsetMs = computeClockOffsetMs(dto.serverNow);
-      this.adoptDTO({ ...dto, isRunning: false });
-      this.notify('stop', dto.matterId, dto);
+      this.adopt({ ...dto, isRunning: false });
       this.loadHistory();
     } catch (e) {
       /* ignore */
@@ -248,29 +170,14 @@ export default class TimerUtility extends LightningElement {
     try {
       const dto = await startApex({ matterId });
       this._clockOffsetMs = computeClockOffsetMs(dto.serverNow);
-      this.adoptDTO(dto);
-      this.notify('start', matterId, dto);
-    } catch (e) {
-      /* ignore */
-    }
-  }
-
-  handlePopOut() {
-    // Chromeless standalone Aura app hosting timerPopoutPanel; see timerPopout.app.
-    // Must be called synchronously from this click handler to avoid popup blockers.
-    window.open('/c/timerPopout.app', 'treoTimerPopout', 'width=340,height=560,resizable=yes,scrollbars=yes');
-  }
-
-  notify(action, matterId, dto) {
-    try {
-      publish(this.messageContext, TIMER, { type: 'actionOccurred', action, matterId, dto });
+      this.adopt(dto);
     } catch (e) {
       /* ignore */
     }
   }
 
   /* ---- ticking ---- */
-  _resetTicking() {
+  resetTicking() {
     this._tickOff();
     if (this.active?.isRunning && !this.active?.isPaused) {
       this.tickHandle = setInterval(() => {
