@@ -17,6 +17,7 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     tasks = [];
     displayTasks = [];
     isLoading = true;
+    isRefreshing = false;
     error;
     wiredResult;
 
@@ -263,13 +264,6 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         this.handleCompleteTask(row);
     }
 
-    handleDuplicateBtn(event) {
-        const row = (this.tasks || []).find(t => t.Id === event.currentTarget.dataset.id);
-        if (row) {
-            this.handleDuplicateTask(row);
-        }
-    }
-
     async handleCompleteTask(row) {
         try {
             await completeTask({ taskId: row.Id });
@@ -288,25 +282,18 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         }
     }
 
-    async handleDuplicateTask(row) {
-        const result = await TaskCreateModalAction.open({
-            size: 'medium',
-            recordId: this.recordId,
-            initialSubject:              row.Subject,
-            initialDueDate:              row.ActivityDate,
-            initialPriority:             row.Priority,
-            initialDescription:          row.Description,
-            initialAssignees:            row.OwnerId ? [{ id: row.OwnerId, name: row.OwnerName }] : []
-        });
-
-        if (result === 'success') {
-            await refreshApex(this.wiredResult);
-        }
+    // ---------- Actions ----------
+    get refreshBtnLabel() {
+        return this.isRefreshing ? '…' : '↻';
     }
 
-    // ---------- Actions ----------
     async handleRefresh() {
-        await refreshApex(this.wiredResult);
+        this.isRefreshing = true;
+        try {
+            await refreshApex(this.wiredResult);
+        } finally {
+            this.isRefreshing = false;
+        }
     }
 
     async handleNewTask() {

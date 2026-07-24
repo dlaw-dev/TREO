@@ -71,19 +71,20 @@
 }
 
 .tc-refresh-btn {
-    padding: 3px 10px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: none;
-    letter-spacing: 0;
-    color: var(--slds-g-color-on-surface-1, #3e3e3c);
-    background: var(--slds-g-color-surface-1, #fff);
-    border: 1px solid var(--slds-g-color-border-1, #dddbda);
+    padding: 0.3rem 0.6rem;
+    border: 1px solid #dddbda;
     border-radius: 4px;
+    background: #fff;
+    font-size: 1rem;
+    color: #3e3e3c;
     cursor: pointer;
-    line-height: 1.6;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
-.tc-refresh-btn:hover { color: var(--slds-g-color-accent-1, #2e844a); border-color: var(--slds-g-color-accent-1, #2e844a); }
+.tc-refresh-btn:hover:not(:disabled) { background: #f3f2f2; border-color: #c9c7c5; }
+.tc-refresh-btn:active:not(:disabled) { transform: scale(0.92); }
+.tc-refresh-btn:disabled { opacity: 0.5; cursor: default; }
 
 /* ── Filter bar ── */
 .task-filter-bar {
@@ -244,19 +245,6 @@
     white-space: nowrap;
     margin-right: 4px;
 }
-
-.task-dup-btn {
-    padding: 2px 8px;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    color: var(--slds-g-color-on-surface-2, #706e6b);
-    background: var(--slds-g-color-surface-1, #fff);
-    border: 1px solid var(--slds-g-color-border-1, #dddbda);
-    border-radius: 3px;
-    cursor: pointer;
-    white-space: nowrap;
-}
-.task-dup-btn:hover { background: var(--slds-g-color-surface-2, #f3f2f2); border-color: var(--slds-g-color-border-1, #706e6b); }
 
 .due-badge {
     font-size: 0.6875rem;

@@ -3,7 +3,8 @@
     <div class="panel-header tasks-panel-header">
       <span class="tc-title">
         {tasksHeader}
-        <button type="button" class="tc-refresh-btn" onclick={handleRefresh} title="Refresh task list">⟳ Refresh</button>
+        <button type="button" class="tc-refresh-btn" onclick={handleRefresh}
+                title="Refresh task list" aria-label="Refresh task list" disabled={isRefreshing}>{refreshBtnLabel}</button>
       </span>
       <div class="tc-header-right">
         <button type="button" class="tc-new-task-btn" onclick={handleNewTask}>+ Task</button>
@@ -73,7 +74,6 @@
                       <template if:true={t.showMarkDone}>
                         <button type="button" class="task-done-btn" data-id={t.Id} onclick={handleTaskCompleteBtn} disabled={t.disableMarkDone} title={t.markDoneTitle}>Mark Done</button>
                       </template>
-                      <button type="button" class="task-dup-btn" data-id={t.Id} onclick={handleDuplicateBtn} title="Duplicate task">Duplicate</button>
                     </td>
                   </tr>
                 </template>
