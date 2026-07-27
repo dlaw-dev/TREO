@@ -208,8 +208,10 @@ private class TaskDueReminderControllerTest {
     }
 
     @IsTest
-    static void testGetMyDueTasks_excludesSnoozedInFuture_includesSnoozeExpired() {
+    static void testGetMyDueTasks_includesSnoozedTasksFlagged_expiredSnoozeNotFlagged() {
 
+        // Snoozed tasks stay in the list (dimmed with a "Snoozed" label in
+        // the UI) rather than disappearing entirely - see IsSnoozed below.
         Task snoozedIntoFuture = new Task(
             Subject          = 'Snoozed Task',
             Status           = 'Not Started',
@@ -232,13 +234,16 @@ private class TaskDueReminderControllerTest {
         List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getMyDueTasks();
         Test.stopTest();
 
-        Set<Id> returnedIds = new Set<Id>();
+        Map<Id, TaskDueReminderController.DueTask> byId = new Map<Id, TaskDueReminderController.DueTask>();
         for (TaskDueReminderController.DueTask dt : results) {
-            returnedIds.add(dt.Id);
+            byId.put(dt.Id, dt);
         }
 
-        System.assert(!returnedIds.contains(snoozedIntoFuture.Id));
-        System.assert(returnedIds.contains(snoozeExpired.Id));
+        System.assert(byId.containsKey(snoozedIntoFuture.Id));
+        System.assertEquals(true, byId.get(snoozedIntoFuture.Id).IsSnoozed);
+
+        System.assert(byId.containsKey(snoozeExpired.Id));
+        System.assertEquals(false, byId.get(snoozeExpired.Id).IsSnoozed);
     }
 
     @IsTest

@@ -1,0 +1,65 @@
+<template>
+    <lightning-modal-header label="Log Time for This Task"></lightning-modal-header>
+
+    <lightning-modal-body>
+        <div class="lte-panel">
+
+            <!-- ── Fill View ── -->
+            <template if:true={isFillView}>
+                <p class="lte-subtitle">Task marked complete. Optionally log the time you spent on it.</p>
+
+                <div class="lte-card">
+                    <div class="lte-field">
+                        <label class="lte-label"><abbr class="lte-required" title="required">*</abbr> Hours</label>
+                        <input type="number" class="lte-input lte-input--hours"
+                               min="0" max="24" step="0.1" placeholder="0.0"
+                               value={hours} oninput={handleHoursChange}>
+                        <div class="lte-chip-row">
+                            <template for:each={hoursChips} for:item="chip">
+                                <button
+                                    key={chip.value}
+                                    type="button"
+                                    class={chip.cls}
+                                    data-hours={chip.value}
+                                    onclick={handleQuickHours}
+                                >{chip.value}</button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="lte-field">
+                        <label class="lte-label"><abbr class="lte-required" title="required">*</abbr> Notes</label>
+                        <lightning-textarea
+                            variant="label-hidden"
+                            value={noteValue}
+                            onchange={handleNoteChange}
+                            placeholder="Describe what you did">
+                        </lightning-textarea>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ── Success View ── -->
+            <template if:true={isSuccessView}>
+                <div class="lte-success">
+                    <div class="lte-success-icon">✓</div>
+                    <div class="lte-success-title">Time Logged!</div>
+                    <div class="lte-success-count">{loggedHoursLabel} recorded to this Matter</div>
+                </div>
+            </template>
+
+        </div>
+    </lightning-modal-body>
+
+    <lightning-modal-footer>
+        <template if:true={isFillView}>
+            <lightning-button label="Skip" onclick={handleSkip}></lightning-button>
+            <button type="button" class="lte-save-btn" disabled={isSaveDisabled} onclick={handleSave}>
+                Save Time Entry
+            </button>
+        </template>
+        <template if:true={isSuccessView}>
+            <button type="button" class="lte-success-btn" onclick={handleDone}>Done</button>
+        </template>
+    </lightning-modal-footer>
+</template>

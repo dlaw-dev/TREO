@@ -2,8 +2,9 @@ import { LightningElement, api, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import TaskCreateModalAction from 'c/taskCreateModalAction';
+import LogTimeEntryModal from 'c/logTimeEntryModal';
 import { refreshApex } from '@salesforce/apex';
-import { subscribe, MessageContext } from 'lightning/messageService';
+import { subscribe, publish, MessageContext } from 'lightning/messageService';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 import CURRENT_USER_ID from '@salesforce/user/Id';
 
@@ -140,7 +141,20 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     }
 
     _sortList(list) {
-        if (!this._sortField) return list;
+        if (!this._sortField) {
+            // Default order (no column header clicked yet): upcoming tasks
+            // first, soonest due date at top, with completed tasks pushed
+            // to the bottom rather than interleaved among open ones.
+            return [...list].sort((a, b) => {
+                const aDone = a.Status === 'Completed';
+                const bDone = b.Status === 'Completed';
+                if (aDone !== bDone) return aDone ? 1 : -1;
+
+                const av = a.ActivityDate ? this.toLocalDateStart(a.ActivityDate).getTime() : Infinity;
+                const bv = b.ActivityDate ? this.toLocalDateStart(b.ActivityDate).getTime() : Infinity;
+                return av - bv;
+            });
+        }
         const field = this._sortField;
         const dir   = this._sortDir === 'desc' ? -1 : 1;
         return [...list].sort((a, b) => {
@@ -272,7 +286,18 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
                 message: 'Task marked as Completed',
                 variant: 'success'
             }));
+            // Notifies other surfaces (e.g. the Task Hub utility) so they
+            // refresh too instead of showing a now-stale task list.
+            publish(this.messageContext, TASK_CHANGED, {});
             await refreshApex(this.wiredResult);
+
+            // Optional, skippable prompt to log time against this Matter
+            // for the work just finished.
+            await LogTimeEntryModal.open({
+                size: 'small',
+                matterId: this.recordId,
+                taskSubject: row.Subject
+            });
         } catch (e) {
             this.dispatchEvent(new ShowToastEvent({
                 title: 'Error',

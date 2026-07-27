@@ -102,7 +102,7 @@ public with sharing class TimeTrackerController {
             rows = [
                 SELECT Id, NEOS_matter__c, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
                 FROM   Time_Entry__c
-                WHERE  OwnerId = :uid()
+                WHERE  Staff__c = :uid()
                 AND    end_time__c = NULL
                 ORDER  BY Start_time__c DESC
                 LIMIT  1
@@ -111,7 +111,7 @@ public with sharing class TimeTrackerController {
             rows = [
                 SELECT Id, NEOS_matter__c, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
                 FROM   Time_Entry__c
-                WHERE  OwnerId = :uid()
+                WHERE  Staff__c = :uid()
                 AND    NEOS_matter__c = :matterId
                 AND    end_time__c = NULL
                 LIMIT  1
@@ -127,7 +127,7 @@ public with sharing class TimeTrackerController {
         List<Time_Entry__c> existing = [
             SELECT Id, NEOS_matter__c, Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
             FROM   Time_Entry__c
-            WHERE  OwnerId = :uid()
+            WHERE  Staff__c = :uid()
             AND    NEOS_matter__c = :matterId
             AND    end_time__c = NULL
             LIMIT  1
@@ -138,6 +138,7 @@ public with sharing class TimeTrackerController {
 
         Time_Entry__c t = new Time_Entry__c(
             NEOS_matter__c    = matterId,
+            Staff__c          = uid(),
             Start_time__c     = System.now(),
             Paused_Seconds__c = 0
         );
@@ -358,7 +359,7 @@ public with sharing class TimeTrackerController {
             SELECT Id, NEOS_matter__c, NEOS_matter__r.Name, Notes__c,
                    Start_time__c, end_time__c, Paused_Start__c, Paused_Seconds__c
             FROM   Time_Entry__c
-            WHERE  OwnerId = :uid()
+            WHERE  Staff__c = :uid()
             AND    Start_time__c >= :rangeStart
             AND    end_time__c != null
             ORDER  BY Start_time__c DESC
@@ -407,5 +408,44 @@ public with sharing class TimeTrackerController {
         weekGroup.entries        = weekEntries;
 
         return new List<HistoryGroupDTO>{ todayGroup, weekGroup };
+    }
+
+    // ===== Log-after-the-fact entry (no active/running timer involved) =====
+
+    /**
+     * Inserts a fully-formed, already-stopped Time_Entry__c directly - used
+     * when someone marks a task complete and optionally logs time for it,
+     * as opposed to the live start()/pause()/stop() flow which requires an
+     * actively running entry. `hours` is stored as-entered in Submit_Hours__c
+     * (the org's "Duration (in decimals)" field) rather than round-tripped
+     * through a seconds conversion, so it matches exactly what was typed.
+     */
+    @AuraEnabled
+    public static Id logCompletedEntry(Id matterId, String notes, Decimal hours) {
+        if (matterId == null) {
+            throw new AuraHandledException('A Matter is required to log time.');
+        }
+        if (String.isBlank(notes)) {
+            throw new AuraHandledException('Please enter a note before saving.');
+        }
+        if (hours == null || hours <= 0) {
+            throw new AuraHandledException('Enter a valid duration (greater than 0 hours).');
+        }
+
+        Integer seconds = Integer.valueOf(Math.round(hours * 3600));
+        Datetime endTime = System.now();
+
+        Time_Entry__c t = new Time_Entry__c(
+            NEOS_matter__c    = matterId,
+            Staff__c          = uid(),
+            Start_time__c     = endTime.addSeconds(-seconds),
+            end_time__c       = endTime,
+            Paused_Seconds__c = 0,
+            Notes__c          = notes,
+            Entry_Date__c     = Date.today(),
+            Submit_Hours__c   = hours
+        );
+        insert t;
+        return t.Id;
     }
 }

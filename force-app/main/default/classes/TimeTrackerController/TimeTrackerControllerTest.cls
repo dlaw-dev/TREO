@@ -200,6 +200,7 @@ public class TimeTrackerControllerTest {
 
         Time_Entry__c today = new Time_Entry__c(
             NEOS_matter__c    = m.Id,
+            Staff__c          = UserInfo.getUserId(),
             Start_time__c     = Datetime.now().addHours(-2),
             end_time__c       = Datetime.now().addHours(-1),
             Paused_Seconds__c = 0,
@@ -207,6 +208,7 @@ public class TimeTrackerControllerTest {
         );
         Time_Entry__c earlier = new Time_Entry__c(
             NEOS_matter__c    = m.Id,
+            Staff__c          = UserInfo.getUserId(),
             Start_time__c     = Datetime.now().addDays(-2).addHours(-2),
             end_time__c       = Datetime.now().addDays(-2).addHours(-1),
             Paused_Seconds__c = 0,
@@ -243,5 +245,70 @@ public class TimeTrackerControllerTest {
         for (TimeTrackerController.HistoryGroupDTO g : groups) {
             System.assertEquals(0, g.entries.size(), 'A still-running entry should not appear in history');
         }
+    }
+
+    @IsTest
+    static void logCompletedEntry_insertsStoppedEntryWithGivenDuration() {
+        NEOS_Matter__c m = createMatter();
+
+        Test.startTest();
+        Id entryId = TimeTrackerController.logCompletedEntry(m.Id, 'Completed: Draft Complaint', 0.5);
+        Test.stopTest();
+
+        Time_Entry__c row = [
+            SELECT NEOS_matter__c, Staff__c, Notes__c, Start_time__c, end_time__c, Entry_Date__c, Submit_Hours__c
+            FROM Time_Entry__c
+            WHERE Id = :entryId
+        ];
+        System.assertEquals(m.Id, row.NEOS_matter__c);
+        System.assertEquals(UserInfo.getUserId(), row.Staff__c);
+        System.assertEquals('Completed: Draft Complaint', row.Notes__c);
+        System.assertNotEquals(null, row.end_time__c, 'Log-after-the-fact entries should already be stopped');
+        System.assertEquals(Date.today(), row.Entry_Date__c);
+        System.assertEquals(0.5, row.Submit_Hours__c, 'Submit_Hours__c should store exactly what was entered, not a seconds round-trip');
+
+        Long deltaMs = row.end_time__c.getTime() - row.Start_time__c.getTime();
+        System.assertEquals(1800000L, deltaMs);
+    }
+
+    @IsTest
+    static void logCompletedEntry_nullMatterId_throws() {
+        Boolean threw = false;
+        Test.startTest();
+        try {
+            TimeTrackerController.logCompletedEntry(null, 'Notes', 1);
+        } catch (AuraHandledException e) {
+            threw = true;
+        }
+        Test.stopTest();
+        System.assert(threw, 'A null Matter should throw');
+    }
+
+    @IsTest
+    static void logCompletedEntry_blankNotes_throws() {
+        NEOS_Matter__c m = createMatter();
+        Boolean threw = false;
+        Test.startTest();
+        try {
+            TimeTrackerController.logCompletedEntry(m.Id, '  ', 1);
+        } catch (AuraHandledException e) {
+            threw = true;
+        }
+        Test.stopTest();
+        System.assert(threw, 'Blank notes should throw');
+    }
+
+    @IsTest
+    static void logCompletedEntry_zeroOrNegativeHours_throws() {
+        NEOS_Matter__c m = createMatter();
+        Boolean threw = false;
+        Test.startTest();
+        try {
+            TimeTrackerController.logCompletedEntry(m.Id, 'Notes', 0);
+        } catch (AuraHandledException e) {
+            threw = true;
+        }
+        Test.stopTest();
+        System.assert(threw, 'Zero (or negative) hours should throw');
     }
 }

@@ -26,7 +26,7 @@
                 onclick={handleTabClick}
             >Waiting<span class="tab-count">{waitingCount}</span></button>
         </div>
-        <template if:true={hasTasks}>
+        <template if:true={showToolbar}>
             <div class="panel-toolbar">
                 <template if:true={hasTodayProgress}>
                     <div class="progress-summary">
@@ -41,8 +41,12 @@
                 <template if:true={waitingSummaryLabel}>
                     <span class="waiting-summary-label">{waitingSummaryLabel}</span>
                 </template>
-                <button type="button" class="toggle-all-button" onclick={handleToggleAll}>{collapseAllLabel}</button>
+                <template if:true={hasTasks}>
+                    <button type="button" class="toggle-all-button" onclick={handleToggleAll}>{collapseAllLabel}</button>
+                </template>
             </div>
+        </template>
+        <template if:true={hasTasks}>
             <template for:each={groups} for:item="group">
                 <div key={group.key} class="reminder-section">
                     <div
@@ -69,7 +73,7 @@
                                     <div class="reminder-item-row">
                                         <div class="reminder-item-main">
                                             <div class="reminder-item-top">
-                                                <template if:true={task.Priority}>
+                                                <template if:true={task.showPriorityPill}>
                                                     <span class={task.priorityClass}>{task.Priority}</span>
                                                 </template>
                                                 <span class="reminder-subject">{task.Subject}</span>
@@ -95,7 +99,7 @@
                                             </template>
                                         </div>
                                         <div class="reminder-item-side">
-                                            <template if:true={task.showActions}>
+                                            <template if:true={task.showComplete}>
                                                 <lightning-button-icon
                                                     icon-name="utility:check"
                                                     variant="success"
@@ -105,6 +109,8 @@
                                                     data-id={task.Id}
                                                     onclick={handleComplete}
                                                 ></lightning-button-icon>
+                                            </template>
+                                            <template if:true={task.showSnoozeButton}>
                                                 <button
                                                     type="button"
                                                     class="snooze-pill"
@@ -113,7 +119,10 @@
                                                     onclick={toggleSnoozeMenu}
                                                 >Snooze <span class="snooze-caret">{task.snoozeCaret}</span></button>
                                             </template>
-                                            <template if:false={task.showActions}>
+                                            <template if:true={task.isSnoozed}>
+                                                <span class="snoozed-pill" title={task.snoozedUntilLabel}>💤 Snoozed</span>
+                                            </template>
+                                            <template if:true={task.showOwnerOrStatusPills}>
                                                 <template if:true={task.showOwnerPill}>
                                                     <span class="assignee-pill">{task.OwnerName}</span>
                                                 </template>

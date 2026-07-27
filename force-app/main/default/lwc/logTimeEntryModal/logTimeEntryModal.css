@@ -1,0 +1,162 @@
+/*
+   Visual language matches matterTimeEntryPanel (TREO_Dashboard_Build repo)
+   for consistency across the org's time-entry UIs: card style, hours-chip
+   picker, green submit button, checkmark success view.
+*/
+
+.lte-panel {
+    font-family: 'Salesforce Sans', Arial, sans-serif;
+    font-size: 0.875rem;
+    color: #3e3e3c;
+}
+
+.lte-subtitle {
+    color: #706e6b;
+    font-size: 0.8rem;
+    margin-bottom: 0.75rem;
+}
+
+.lte-card {
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    background: #fff;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.lte-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.lte-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #3e3e3c;
+}
+
+.lte-required {
+    color: #ba0517;
+    text-decoration: none;
+    font-style: normal;
+    margin-right: 2px;
+}
+
+.lte-input {
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.875rem;
+    color: #3e3e3c;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.lte-input:focus {
+    outline: none;
+    border-color: #0176d3;
+}
+
+.lte-input--hours {
+    max-width: 100px;
+}
+
+.lte-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.25rem;
+}
+
+.lte-chip {
+    background: #f3f2f2;
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    cursor: pointer;
+    color: #3e3e3c;
+}
+
+.lte-chip:hover {
+    border-color: #0176d3;
+    color: #0176d3;
+    background: #e8f4fd;
+}
+
+.lte-chip--active {
+    border-color: #0176d3;
+    color: #ffffff;
+    background: #0176d3;
+}
+
+.lte-save-btn {
+    background: #2e844a;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.01em;
+}
+
+.lte-save-btn:hover:not(:disabled) {
+    background: #1e5c34;
+}
+
+.lte-save-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.lte-success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 1.5rem 1rem;
+    text-align: center;
+}
+
+.lte-success-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #2e844a;
+    color: #fff;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lte-success-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #3e3e3c;
+}
+
+.lte-success-count {
+    font-size: 0.875rem;
+    color: #706e6b;
+}
+
+.lte-success-btn {
+    background: #0176d3;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 0.5rem 1.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.lte-success-btn:hover {
+    background: #014486;
+}

@@ -230,6 +230,15 @@
     pointer-events: none;
 }
 
+.reminder-item-snoozed {
+    opacity: 0.55;
+    background-color: transparent;
+}
+
+.reminder-item-snoozed:hover {
+    background-color: transparent;
+}
+
 .reminder-item-row {
     display: flex;
     align-items: center;
@@ -391,6 +400,21 @@
     color: #514f4d;
 }
 
+.snoozed-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 1.5rem;
+    padding: 0 0.6rem;
+    border-radius: 1rem;
+    background-color: transparent;
+    border: 1px dashed #c9c7c5;
+    color: #706e6b;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
 .waiting-pill {
     display: inline-flex;
     align-items: center;
@@ -441,8 +465,8 @@
 }
 
 .priority-high {
-    background-color: #fde8e8;
-    color: #ba0517;
+    background-color: #ba0517;
+    color: #ffffff;
 }
 
 .priority-normal {

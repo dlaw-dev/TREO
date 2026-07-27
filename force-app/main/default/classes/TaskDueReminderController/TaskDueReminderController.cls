@@ -1,5 +1,23 @@
 public with sharing class TaskDueReminderController {
 
+    /**
+     * Server-authoritative "done today" count for the progress ring - not
+     * derived from a client-side counter, since a task can be completed
+     * from more than one surface (Task Hub itself, the Matter's task list,
+     * etc.) and only the server sees all of them.
+     */
+    @AuraEnabled(cacheable=false)
+    public static Integer getCompletedTodayCount() {
+        Id currentUserId = UserInfo.getUserId();
+        return [
+            SELECT COUNT()
+            FROM Task
+            WHERE OwnerId = :currentUserId
+              AND Status = 'Completed'
+              AND LastModifiedDate = TODAY
+        ];
+    }
+
     @AuraEnabled(cacheable=false)
     public static List<DueTask> getMyDueTasks() {
 
@@ -22,18 +40,18 @@ public with sharing class TaskDueReminderController {
                    WhatId,
                    What.Name,
                    OwnerId,
-                   Owner.Name
+                   Owner.Name,
+                   Snoozed_Until__c
             FROM Task
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
               AND ActivityDate != null
               AND ActivityDate <= :upperBound
-              AND (Snoozed_Until__c = null OR Snoozed_Until__c <= :nowDt)
             ORDER BY ActivityDate ASC
             LIMIT 150
         ]) {
-            results.add(new DueTask(t, todayDate));
+            results.add(new DueTask(t, todayDate, nowDt));
         }
 
         for (Task t : [
@@ -48,17 +66,17 @@ public with sharing class TaskDueReminderController {
                    WhatId,
                    What.Name,
                    OwnerId,
-                   Owner.Name
+                   Owner.Name,
+                   Snoozed_Until__c
             FROM Task
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
               AND ActivityDate = null
-              AND (Snoozed_Until__c = null OR Snoozed_Until__c <= :nowDt)
             ORDER BY CreatedDate DESC
             LIMIT 20
         ]) {
-            results.add(new DueTask(t, todayDate));
+            results.add(new DueTask(t, todayDate, nowDt));
         }
 
         return results;
@@ -313,6 +331,8 @@ public with sharing class TaskDueReminderController {
         @AuraEnabled public String  OwnerName;
         @AuraEnabled public String  WaitingOnSubject;
         @AuraEnabled public String  WaitingOnOwnerName;
+        @AuraEnabled public Datetime SnoozedUntil;
+        @AuraEnabled public Boolean IsSnoozed;
 
         public DueTask(Task t, Date todayDate) {
             Id           = t.Id;
@@ -341,6 +361,15 @@ public with sharing class TaskDueReminderController {
 
             MatterId   = isMatter ? matterCandidateId : null;
             MatterName = isMatter ? matterCandidateName : null;
+        }
+
+        // Used where a snoozed-but-still-owned task needs to stay visible
+        // (dimmed, with a "Snoozed" label) instead of just disappearing -
+        // see getMyDueTasks().
+        public DueTask(Task t, Date todayDate, Datetime nowDt) {
+            this(t, todayDate);
+            SnoozedUntil = t.Snoozed_Until__c;
+            IsSnoozed    = SnoozedUntil != null && SnoozedUntil > nowDt;
         }
     }
 }

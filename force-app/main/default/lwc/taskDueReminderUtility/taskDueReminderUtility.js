@@ -3,10 +3,12 @@ import { NavigationMixin } from 'lightning/navigation';
 import { subscribe, publish, MessageContext } from 'lightning/messageService';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { EnclosingUtilityId, open, updateUtility, getInfo } from 'lightning/platformUtilityBarApi';
+import LogTimeEntryModal from 'c/logTimeEntryModal';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 import getMyDueTasks from '@salesforce/apex/TaskDueReminderController.getMyDueTasks';
 import getTasksAssignedByMe from '@salesforce/apex/TaskDueReminderController.getTasksAssignedByMe';
 import getMyWaitingTasks from '@salesforce/apex/TaskDueReminderController.getMyWaitingTasks';
+import getCompletedTodayCount from '@salesforce/apex/TaskDueReminderController.getCompletedTodayCount';
 import snoozeTask from '@salesforce/apex/TaskDueReminderController.snoozeTask';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
 
@@ -30,6 +32,14 @@ function priorityClassFor(priority) {
         return 'priority-low';
     }
     return 'priority-normal';
+}
+
+function snoozedUntilLabelFor(snoozedUntil) {
+    if (!snoozedUntil) {
+        return null;
+    }
+    const d = new Date(snoozedUntil);
+    return `Snoozed until ${d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`;
 }
 
 function dueLabelFor(daysUntil) {
@@ -163,7 +173,10 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             ...t,
             dueLabel: dueLabelFor(t.DaysUntil),
             priorityClass: priorityClassFor(t.Priority),
+            showPriorityPill: !!t.Priority && t.Priority !== 'Normal',
             isWaiting: t.Status === 'Waiting',
+            isSnoozed: !!t.IsSnoozed,
+            snoozedUntilLabel: snoozedUntilLabelFor(t.SnoozedUntil),
             showOwnerPill: t.Status !== 'Waiting' && !!t.OwnerName,
             waitingOnLabel: t.Status === 'Waiting' && t.WaitingOnOwnerName
                 ? `Waiting on ${t.WaitingOnOwnerName} to finish "${t.WaitingOnSubject}"`
@@ -172,14 +185,23 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     async refreshTasks() {
-        // The three lists are independent - fetch them concurrently instead
+        // The four calls are independent - fetch them concurrently instead
         // of one after another so a refresh takes as long as the slowest
-        // call, not the sum of all three.
-        const [dueOutcome, delegatedOutcome, waitingOutcome] = await Promise.allSettled([
+        // call, not the sum of all four.
+        const [dueOutcome, delegatedOutcome, waitingOutcome, completedTodayOutcome] = await Promise.allSettled([
             getMyDueTasks(),
             getTasksAssignedByMe(),
-            getMyWaitingTasks()
+            getMyWaitingTasks(),
+            getCompletedTodayCount()
         ]);
+
+        // Server-authoritative - a task can be completed from more than one
+        // surface (this panel, the Matter's task list, etc.), so a local
+        // counter that only increments on this component's own Complete
+        // button would under-count completions made elsewhere.
+        if (completedTodayOutcome.status === 'fulfilled') {
+            this.completedToday = completedTodayOutcome.value;
+        }
 
         if (dueOutcome.status === 'fulfilled') {
             this.tasks = this.decorateTasks(dueOutcome.value);
@@ -332,23 +354,28 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
 
     get urgentTasks() {
         return this.tasks.filter(
-            (t) => t.DaysUntil != null && t.DaysUntil <= 0 && !this.removingIds.has(t.Id)
+            (t) => t.DaysUntil != null && t.DaysUntil <= 0 && !this.removingIds.has(t.Id) && !t.isSnoozed
         );
     }
 
     withMenuState(list) {
-        const showActions = this.isAssignedToMeTab;
+        const isAssignedToMe = this.isAssignedToMeTab;
         return list.map((t) => {
             const isOpen = this.openSnoozeMenuId === t.Id;
+            const classes = ['reminder-item'];
+            if (this.removingIds.has(t.Id)) classes.push('reminder-item-removing');
+            if (t.isSnoozed) classes.push('reminder-item-snoozed');
             return {
                 ...t,
                 isSnoozeMenuOpen: isOpen,
                 snoozeCaret: isOpen ? '▴' : '▾',
                 snoozeOptions: this.snoozeOptions,
-                showActions,
-                itemClass: this.removingIds.has(t.Id)
-                    ? 'reminder-item reminder-item-removing'
-                    : 'reminder-item'
+                // Completing is still allowed on a snoozed task - only the
+                // "Snooze" action itself is hidden once it's already snoozed.
+                showComplete: isAssignedToMe,
+                showSnoozeButton: isAssignedToMe && !t.isSnoozed,
+                showOwnerOrStatusPills: !isAssignedToMe,
+                itemClass: classes.join(' ')
             };
         });
     }
@@ -426,6 +453,12 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
 
     get hasTasks() {
         return this.currentTasks.length > 0;
+    }
+
+    // Keeps the toolbar (and its progress ring) visible even once every
+    // task is done, instead of disappearing along with the now-empty list.
+    get showToolbar() {
+        return this.hasTasks || this.hasTodayProgress;
     }
 
     get emptyStateTitle() {
@@ -585,6 +618,9 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     async handleComplete(event) {
         event.stopPropagation();
         const taskId = event.currentTarget.dataset.id;
+        // Captured before scheduleRemoval() triggers a refetch that drops
+        // this task from this.tasks entirely.
+        const task = this.tasks.find((t) => t.Id === taskId);
 
         try {
             const finishedChain = await completeTask({ taskId });
@@ -609,6 +645,16 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                           }
                 )
             );
+
+            // Optional, skippable prompt to log time - only when this task
+            // is actually linked to a Matter (Time_Entry__c requires one).
+            if (task?.MatterId) {
+                await LogTimeEntryModal.open({
+                    size: 'small',
+                    matterId: task.MatterId,
+                    taskSubject: task.Subject
+                });
+            }
         } catch (error) {
             this.dispatchEvent(
                 new ShowToastEvent({
