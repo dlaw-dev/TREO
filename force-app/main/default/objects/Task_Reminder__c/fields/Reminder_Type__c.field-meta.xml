@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Reminder_Type__c</fullName>
+    <label>Reminder Type</label>
+    <required>true</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>180 Days Before</fullName>
+                <default>false</default>
+                <label>180 Days Before</label>
+            </value>
+            <value>
+                <fullName>90 Days Before</fullName>
+                <default>false</default>
+                <label>90 Days Before</label>
+            </value>
+            <value>
+                <fullName>60 Days Before</fullName>
+                <default>false</default>
+                <label>60 Days Before</label>
+            </value>
+            <value>
+                <fullName>45 Days Before</fullName>
+                <default>false</default>
+                <label>45 Days Before</label>
+            </value>
+            <value>
+                <fullName>30 Days Before</fullName>
+                <default>false</default>
+                <label>30 Days Before</label>
+            </value>
+            <value>
+                <fullName>15 Days Before</fullName>
+                <default>false</default>
+                <label>15 Days Before</label>
+            </value>
+            <value>
+                <fullName>10 Days Before</fullName>
+                <default>false</default>
+                <label>10 Days Before</label>
+            </value>
+            <value>
+                <fullName>7 Days Before</fullName>
+                <default>false</default>
+                <label>7 Days Before</label>
+            </value>
+            <value>
+                <fullName>5 Days Before</fullName>
+                <default>false</default>
+                <label>5 Days Before</label>
+            </value>
+            <value>
+                <fullName>4 Days Before</fullName>
+                <default>false</default>
+                <label>4 Days Before</label>
+            </value>
+            <value>
+                <fullName>3 Days Before</fullName>
+                <default>false</default>
+                <label>3 Days Before</label>
+            </value>
+            <value>
+                <fullName>2 Days Before</fullName>
+                <default>false</default>
+                <label>2 Days Before</label>
+            </value>
+            <value>
+                <fullName>1 Day Before</fullName>
+                <default>false</default>
+                <label>1 Day Before</label>
+            </value>
+            <value>
+                <fullName>1 Week Before</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>1 Week Before</label>
+            </value>
+            <value>
+                <fullName>10:00 AM Day Of</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>10:00 AM Day Of</label>
+            </value>
+            <value>
+                <fullName>11:00 AM Day Of</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>11:00 AM Day Of</label>
+            </value>
+            <value>
+                <fullName>12:00 PM Day Of</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>12:00 PM Day Of</label>
+            </value>
+            <value>
+                <fullName>1:00 PM Day Of</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>1:00 PM Day Of</label>
+            </value>
+            <value>
+                <fullName>2:00 PM Day Of</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>2:00 PM Day Of</label>
+            </value>
+            <value>
+                <fullName>3:00 PM Day Of</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>3:00 PM Day Of</label>
+            </value>
+            <value>
+                <fullName>4:00 PM Day Of</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>4:00 PM Day Of</label>
+            </value>
+            <value>
+                <fullName>5:00 PM Day Of</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>5:00 PM Day Of</label>
+            </value>
+            <value>
+                <fullName>6 Days Before</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>6 Days Before</label>
+            </value>
+            <value>
+                <fullName>6:00 AM Day Of</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>6:00 AM Day Of</label>
+            </value>
+            <value>
+                <fullName>6:00 PM Day Of</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>6:00 PM Day Of</label>
+            </value>
+            <value>
+                <fullName>7:00 AM Day Of</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>7:00 AM Day Of</label>
+            </value>
+            <value>
+                <fullName>8:00 AM Day Of</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>8:00 AM Day Of</label>
+            </value>
+            <value>
+                <fullName>9:00 AM Day Of</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>9:00 AM Day Of</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

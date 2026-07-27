@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Duration__c</fullName>
+    <externalId>false</externalId>
+    <formula>IF(
+    /* --- PATH 1: Use manual hours only when &gt; 0 --- */
+    Submit_Hours__c &gt; 0,
+
+    /* Convert manual hours → H MM */
+    TEXT(
+        FLOOR( Submit_Hours__c )
+    ) &amp;
+    &quot; H &quot; &amp;
+    RIGHT(
+        &quot;00&quot; &amp;
+        TEXT(
+            ROUND(
+                MOD( Submit_Hours__c * 60, 60 ),
+                0
+            )
+        ),
+        2
+    ) &amp;
+    &quot;M&quot;,
+
+    /* --- PATH 2: Your original Start/End formula --- */
+    IF(
+        ISBLANK(End_Time__c),
+        &quot;&quot;,
+        TEXT(
+            FLOOR(
+                MAX(
+                    0,
+                    ROUND(
+                        ((End_Time__c - Start_Time__c) * 1440) - (Paused_Seconds__c / 60),
+                        0
+                    )
+                ) / 60
+            )
+        ) &amp;
+        &quot; H &quot; &amp;
+        RIGHT(
+            &quot;00&quot; &amp;
+            TEXT(
+                MOD(
+                    MAX(
+                        0,
+                        ROUND(
+                            ((End_Time__c - Start_Time__c) * 1440) - (Paused_Seconds__c / 60),
+                            0
+                        )
+                    ),
+                    60
+                )
+            )
+        ,
+        2
+        ) &amp;
+        &quot;M&quot;
+    )
+)</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>Duration</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

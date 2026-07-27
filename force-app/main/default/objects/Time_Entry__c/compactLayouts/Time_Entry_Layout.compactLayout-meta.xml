@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CompactLayout xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Time_Entry_Layout</fullName>
+    <fields>Name</fields>
+    <fields>NEOS_Matter__c</fields>
+    <fields>Entry_Date__c</fields>
+    <fields>Duration__c</fields>
+    <fields>Staff__c</fields>
+    <label>Time Entry Layout</label>
+</CompactLayout>
