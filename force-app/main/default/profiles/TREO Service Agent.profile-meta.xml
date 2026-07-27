@@ -12,6 +12,10 @@
         <apexClass>TaskDueReminderController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>TimeTrackerController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <objectPermissions>
         <object>Subtask_Template__c</object>
         <allowCreate>true</allowCreate>
@@ -30,6 +34,11 @@
         <modifyAllRecords>false</modifyAllRecords>
         <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
+    <fieldPermissions>
+        <field>Task.Snoozed_Until__c</field>
+        <editable>true</editable>
+        <readable>true</readable>
+    </fieldPermissions>
     <fieldPermissions>
         <field>Subtask_Template__c.Active__c</field>
         <editable>true</editable>
