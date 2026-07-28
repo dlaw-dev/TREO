@@ -210,6 +210,32 @@
 }
 .tasks-subject-link:hover { text-decoration: underline; }
 
+.attachment-clip-btn {
+    background: none;
+    border: none;
+    padding: 0 0 0 4px;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    line-height: 1;
+    vertical-align: middle;
+}
+.attachment-clip-btn:hover { opacity: 0.7; }
+
+/* Rendered inline (not a floating popover) so it can never get clipped by
+   the table's scroll container - just grows the row when open. */
+.attachment-menu {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 4px 8px;
+    background: var(--slds-g-color-surface-2, #f9f9f9);
+    border: 1px solid var(--slds-g-color-border-1, #dddbda);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    white-space: normal;
+}
+.attachment-menu li { padding: 2px 0; }
+.attachment-menu a { color: #0176d3; text-decoration: underline; }
+
 .task-done-btn {
     padding: 2px 8px;
     font-size: 0.6875rem;
@@ -230,6 +256,19 @@
     cursor: not-allowed;
 }
 
+.task-reassign-btn {
+    padding: 2px 8px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--slds-g-color-brand-base-50, #0176d3);
+    background: #f0f7ff;
+    border: 1px solid #9fc9f5;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.task-reassign-btn:hover { background: #d9ecff; border-color: var(--slds-g-color-brand-base-50, #0176d3); }
+
 .task-done-pill {
     font-size: 0.6875rem;
     font-weight: 600;
@@ -245,6 +284,28 @@
     white-space: nowrap;
     margin-right: 4px;
 }
+
+.task-skipped-pill {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--slds-g-color-on-surface-2, #706e6b);
+    white-space: nowrap;
+    margin-right: 4px;
+}
+
+.task-skip-btn {
+    padding: 2px 8px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #706e6b;
+    background: #f3f2f2;
+    border: 1px solid #c9c7c5;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-right: 4px;
+}
+.task-skip-btn:hover { background: #e5e5e5; border-color: #969492; }
 
 .due-badge {
     font-size: 0.6875rem;

@@ -429,4 +429,40 @@ private class TaskDueReminderControllerTest {
 
         System.assertEquals(true, exceptionThrown);
     }
+
+    @IsTest
+    static void testGetMyDueTasks_returnsAttachmentsAndOwnerCreatedByIds() {
+        Task t = new Task(
+            Subject      = 'Task With File',
+            Status       = 'Not Started',
+            ActivityDate = Date.today(),
+            OwnerId      = UserInfo.getUserId()
+        );
+        insert t;
+
+        ContentVersion cv = new ContentVersion(
+            Title = 'due-task-file.pdf',
+            PathOnClient = 'due-task-file.pdf',
+            VersionData = Blob.valueOf('file contents'),
+            FirstPublishLocationId = t.Id
+        );
+        insert cv;
+
+        Test.startTest();
+        List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getMyDueTasks();
+        Test.stopTest();
+
+        TaskDueReminderController.DueTask dueTask;
+        for (TaskDueReminderController.DueTask dt : results) {
+            if (dt.Id == t.Id) dueTask = dt;
+        }
+
+        System.assertNotEquals(null, dueTask);
+        System.assertEquals(UserInfo.getUserId(), dueTask.OwnerId);
+        System.assertEquals(UserInfo.getUserId(), dueTask.CreatedById);
+        System.assertEquals(1, dueTask.AttachmentDtos.size());
+        System.assertEquals('due-task-file.pdf', dueTask.AttachmentDtos[0].title);
+        System.assertEquals(false, dueTask.IsChainStep);
+        System.assertEquals(false, dueTask.IsBypassed);
+    }
 }

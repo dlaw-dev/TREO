@@ -148,6 +148,18 @@
     outline: none;
 }
 
+/* Read-only - a chain step's predecessor isn't user-editable here */
+.waiting-on-pill--chain {
+    background: #f3f2f2;
+    border: 1px dashed #c9c7c5;
+    padding: 0.3rem 0.65rem;
+}
+
+.waiting-on-pill--chain .waiting-on-pill-label {
+    color: var(--lwc-colorTextWeak, #706e6b);
+    font-style: italic;
+}
+
 .waiting-draft-options {
     border: 1px solid var(--lwc-colorBorder, #d8dde6);
     border-radius: 0.25rem;
@@ -472,4 +484,116 @@
 .timeline-pill-auto {
     background-color: #f2e8fb;
     color: #6b3fa0;
+}
+
+/* ── Attachment drop zone (same pattern as eventCreateModalActionRefactor) ── */
+.drop-zone {
+    border: 2px dashed #c9c7c5;
+    border-radius: 6px;
+    padding: 24px 16px;
+    text-align: center;
+    cursor: pointer;
+    background: #fafaf9;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+}
+
+.drop-zone:hover,
+.drop-zone--active {
+    border-color: #0176d3;
+    background: #f0f7ff;
+}
+
+.drop-zone__icon {
+    display: block;
+    margin: 0 auto 8px;
+}
+
+.drop-zone__text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #3e3e3c;
+    margin: 0 0 4px;
+}
+
+.drop-zone__sub {
+    font-size: 12px;
+    color: #706e6b;
+    margin: 0;
+}
+
+.drop-zone__browse {
+    color: #0176d3;
+    text-decoration: underline;
+}
+
+/* ── Attachment success banner ── */
+.attach-banner {
+    background: #eaf5ea;
+    border: 1px solid #2e844a;
+    border-radius: 4px;
+    padding: 8px 12px;
+}
+
+.attach-banner__header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    color: #2e844a;
+}
+
+.attach-banner__list {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+}
+
+.attach-banner__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 0;
+    font-size: 12px;
+    color: #1d4620;
+}
+
+.attach-banner__item a {
+    color: #0176d3;
+    text-decoration: underline;
+}
+
+.attach-banner__remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #2e844a;
+    font-size: 12px;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.attach-banner__remove:hover {
+    color: #c23934;
+}
+
+/* ── Existing attachments (Edit/Reassign mode) ── */
+.existing-attach-list {
+    list-style: none;
+    margin: 4px 0 8px;
+    padding: 0;
+}
+
+.existing-attach-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 2px 0;
+}
+
+.existing-attach-item a {
+    color: #0176d3;
+    text-decoration: underline;
 }

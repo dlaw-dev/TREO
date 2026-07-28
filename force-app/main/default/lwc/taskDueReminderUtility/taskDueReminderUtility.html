@@ -80,7 +80,19 @@
                                                 <template if:true={task.isWaiting}>
                                                     <span class="waiting-pill">Waiting</span>
                                                 </template>
+                                                <template if:true={task.hasAttachments}>
+                                                    <button type="button" class="attachment-clip-btn" data-id={task.Id} onclick={handleAttachmentClick} title={task.attachmentTitle}>📎</button>
+                                                </template>
                                             </div>
+                                            <template if:true={task.isAttachmentMenuOpen}>
+                                                <ul class="attachment-menu">
+                                                    <template for:each={task.attachments} for:item="a">
+                                                        <li key={a.contentDocumentId}>
+                                                            <a href={a.viewUrl} target="_blank" rel="noopener" onclick={stopClickPropagation}>{a.title}</a>
+                                                        </li>
+                                                    </template>
+                                                </ul>
+                                            </template>
                                             <div class="reminder-item-meta">
                                                 <template if:true={task.MatterName}>
                                                     <button
@@ -108,6 +120,28 @@
                                                     title="Mark complete"
                                                     data-id={task.Id}
                                                     onclick={handleComplete}
+                                                ></lightning-button-icon>
+                                            </template>
+                                            <template if:true={task.showSkip}>
+                                                <lightning-button-icon
+                                                    icon-name="utility:forward"
+                                                    variant="border"
+                                                    size="small"
+                                                    alternative-text="Skip step"
+                                                    title="Skip this step without completing it"
+                                                    data-id={task.Id}
+                                                    onclick={handleBypass}
+                                                ></lightning-button-icon>
+                                            </template>
+                                            <template if:true={task.canReassign}>
+                                                <lightning-button-icon
+                                                    icon-name="utility:edit"
+                                                    variant="brand"
+                                                    size="small"
+                                                    alternative-text="Edit or reassign task"
+                                                    title="Edit/Reassign"
+                                                    data-id={task.Id}
+                                                    onclick={handleReassign}
                                                 ></lightning-button-icon>
                                             </template>
                                             <template if:true={task.showSnoozeButton}>

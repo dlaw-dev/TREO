@@ -4,6 +4,7 @@ import { subscribe, publish, MessageContext } from 'lightning/messageService';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { EnclosingUtilityId, open, updateUtility, getInfo } from 'lightning/platformUtilityBarApi';
 import LogTimeEntryModal from 'c/logTimeEntryModal';
+import TaskCreateModalAction from 'c/taskCreateModalAction';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 import getMyDueTasks from '@salesforce/apex/TaskDueReminderController.getMyDueTasks';
 import getTasksAssignedByMe from '@salesforce/apex/TaskDueReminderController.getTasksAssignedByMe';
@@ -11,6 +12,8 @@ import getMyWaitingTasks from '@salesforce/apex/TaskDueReminderController.getMyW
 import getCompletedTodayCount from '@salesforce/apex/TaskDueReminderController.getCompletedTodayCount';
 import snoozeTask from '@salesforce/apex/TaskDueReminderController.snoozeTask';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
+import bypassTask from '@salesforce/apex/TaskUiController.bypassTask';
+import CURRENT_USER_ID from '@salesforce/user/Id';
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
 const REMOVE_ANIMATION_MS = 220;
@@ -169,19 +172,31 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     decorateTasks(results) {
-        return results.map((t) => ({
-            ...t,
-            dueLabel: dueLabelFor(t.DaysUntil),
-            priorityClass: priorityClassFor(t.Priority),
-            showPriorityPill: !!t.Priority && t.Priority !== 'Normal',
-            isWaiting: t.Status === 'Waiting',
-            isSnoozed: !!t.IsSnoozed,
-            snoozedUntilLabel: snoozedUntilLabelFor(t.SnoozedUntil),
-            showOwnerPill: t.Status !== 'Waiting' && !!t.OwnerName,
-            waitingOnLabel: t.Status === 'Waiting' && t.WaitingOnOwnerName
-                ? `Waiting on ${t.WaitingOnOwnerName} to finish "${t.WaitingOnSubject}"`
-                : null
-        }));
+        return results.map((t) => {
+            const attachments = (t.AttachmentDtos || []).map((a) => ({
+                ...a,
+                viewUrl: `/lightning/r/ContentDocument/${a.contentDocumentId}/view`
+            }));
+
+            return {
+                ...t,
+                dueLabel: dueLabelFor(t.DaysUntil),
+                priorityClass: priorityClassFor(t.Priority),
+                showPriorityPill: !!t.Priority && t.Priority !== 'Normal',
+                isWaiting: t.Status === 'Waiting',
+                isSnoozed: !!t.IsSnoozed,
+                snoozedUntilLabel: snoozedUntilLabelFor(t.SnoozedUntil),
+                showOwnerPill: t.Status !== 'Waiting' && !!t.OwnerName,
+                waitingOnLabel: t.Status === 'Waiting' && t.WaitingOnOwnerName
+                    ? `Waiting on ${t.WaitingOnOwnerName} to finish "${t.WaitingOnSubject}"`
+                    : null,
+                canReassign: t.OwnerId === CURRENT_USER_ID || t.CreatedById === CURRENT_USER_ID,
+                attachments,
+                hasAttachments: attachments.length > 0,
+                attachmentTitle: attachments.length === 1 ? '1 attachment' : `${attachments.length} attachments`,
+                isAttachmentMenuOpen: false
+            };
+        });
     }
 
     async refreshTasks() {
@@ -373,6 +388,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 // Completing is still allowed on a snoozed task - only the
                 // "Snooze" action itself is hidden once it's already snoozed.
                 showComplete: isAssignedToMe,
+                showSkip: isAssignedToMe && !!t.IsChainStep && t.canReassign,
                 showSnoozeButton: isAssignedToMe && !t.isSnoozed,
                 showOwnerOrStatusPills: !isAssignedToMe,
                 itemClass: classes.join(' ')
@@ -664,6 +680,91 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 })
             );
         }
+    }
+
+    async handleBypass(event) {
+        event.stopPropagation();
+        const taskId = event.currentTarget.dataset.id;
+        const task = this.tasks.find((t) => t.Id === taskId)
+            || this.delegatedTasks.find((t) => t.Id === taskId)
+            || this.waitingTasks.find((t) => t.Id === taskId);
+
+        // eslint-disable-next-line no-alert
+        if (!window.confirm(`Skip "${task?.Subject}" without completing it? The next step in this chain will still be activated.`)) {
+            return;
+        }
+
+        try {
+            await bypassTask({ taskId });
+            this.scheduleRemoval(taskId);
+            this.suppressNextTaskChangedEcho = true;
+            publish(this.messageContext, TASK_CHANGED, {});
+
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Step skipped',
+                    message: `"${task?.Subject}" was skipped.`,
+                    variant: 'success'
+                })
+            );
+        } catch (error) {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Could not skip step',
+                    message: error?.body?.message || 'Please try again.',
+                    variant: 'error'
+                })
+            );
+        }
+    }
+
+    async handleReassign(event) {
+        event.stopPropagation();
+        const taskId = event.currentTarget.dataset.id;
+        // The button renders across all three tabs (due/delegated/waiting),
+        // each backed by its own array - the clicked task may live in any of them.
+        const task = this.tasks.find((t) => t.Id === taskId)
+            || this.delegatedTasks.find((t) => t.Id === taskId)
+            || this.waitingTasks.find((t) => t.Id === taskId);
+
+        const result = await TaskCreateModalAction.open({
+            size: 'medium',
+            recordId: task?.MatterId,
+            existingTaskId: taskId
+        });
+
+        if (result === 'success') {
+            this.refreshTasks();
+        }
+    }
+
+    handleAttachmentClick(event) {
+        event.stopPropagation();
+        const rowId = event.currentTarget.dataset.id;
+        const task = this.tasks.find((t) => t.Id === rowId)
+            || this.delegatedTasks.find((t) => t.Id === rowId)
+            || this.waitingTasks.find((t) => t.Id === rowId);
+        if (!task) return;
+
+        if (task.attachments.length === 1) {
+            window.open(task.attachments[0].viewUrl, '_blank', 'noopener');
+            return;
+        }
+
+        const toggle = (list) => list.map((t) => (t.Id === rowId
+            ? { ...t, isAttachmentMenuOpen: !t.isAttachmentMenuOpen }
+            : { ...t, isAttachmentMenuOpen: false }));
+
+        this.tasks = toggle(this.tasks);
+        this.delegatedTasks = toggle(this.delegatedTasks);
+        this.waitingTasks = toggle(this.waitingTasks);
+    }
+
+    // The row itself navigates to the task on click (handleOpenTask) - file
+    // links inside the attachment menu need their own tab to open without
+    // also triggering that row-level navigation.
+    stopClickPropagation(event) {
+        event.stopPropagation();
     }
 
     handleOpenTask(event) {

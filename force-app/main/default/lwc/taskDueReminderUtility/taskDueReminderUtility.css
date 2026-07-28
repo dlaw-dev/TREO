@@ -275,6 +275,32 @@
     text-overflow: ellipsis;
 }
 
+.attachment-clip-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: 0.75rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.attachment-clip-btn:hover { opacity: 0.7; }
+
+/* Rendered inline (not a floating popover) so it can never get clipped -
+   just grows the row when open. */
+.attachment-menu {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 4px 8px;
+    background: var(--slds-g-color-surface-2, #f9f9f9);
+    border: 1px solid var(--slds-g-color-border-1, #dddbda);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    white-space: normal;
+}
+.attachment-menu li { padding: 2px 0; }
+.attachment-menu a { color: #0176d3; text-decoration: underline; }
+
 .reminder-matter-link {
     padding: 0;
     border: none;

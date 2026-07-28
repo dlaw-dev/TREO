@@ -208,6 +208,60 @@ private class TaskTriggerActionsTest {
     }
 
     @IsTest
+    static void testChainAdvances_respectsManualReassignment_doesNotOverwriteOwner() {
+        Subtask_Template__c template = buildSeniorToAssociateTemplate();
+        NEOS_Matter__c matter = createMatter();
+
+        User seniorAttorney = [
+            SELECT Id FROM User
+            WHERE UserRole.Name = 'Senior Counsel' AND IsActive = true
+            LIMIT 1
+        ];
+        matter.Senior_Attorney__c = seniorAttorney.Id;
+        update matter;
+
+        Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User manualOverrideUser = new User(
+            ProfileId = sysAdmin.Id,
+            LastName = 'ManualOverride',
+            Email = 'manualoverride@test.example',
+            Username = 'manualoverride+' + System.now().getTime() + '@test.example',
+            Alias = 'manover',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US'
+        );
+        insert manualOverrideUser;
+
+        Id masterId = SubtaskTemplateApplier.apply(template.Id, matter.Id);
+
+        Task firstTask = [
+            SELECT Id, Status FROM Task
+            WHERE Parent_Task__c = :masterId AND Id != :masterId
+            LIMIT 1
+        ];
+
+        // Manually reassign the not-yet-active master step (mirrors what
+        // TaskUiController.updateTask does when Edit/Reassign is used on a
+        // Waiting chain step) before its predecessor ever completes.
+        Task master = [SELECT Id, OwnerId, Manually_Reassigned__c FROM Task WHERE Id = :masterId];
+        master.OwnerId = manualOverrideUser.Id;
+        master.Manually_Reassigned__c = true;
+        update master;
+
+        Test.startTest();
+        firstTask.Status = 'Completed';
+        update firstTask;
+        Test.stopTest();
+
+        Task masterReloaded = [SELECT Status, OwnerId FROM Task WHERE Id = :masterId];
+        System.assertEquals('Open', masterReloaded.Status);
+        System.assertEquals(manualOverrideUser.Id, masterReloaded.OwnerId,
+            'A manually reassigned Waiting step should keep its manually-set owner instead of being overwritten by dynamic resolution.');
+    }
+
+    @IsTest
     static void testAdHocWaitingTask_activatesWhenBlockerCompletes() {
         Task blocker = new Task(Subject = 'Blocker Task', Status = 'Open');
         insert blocker;

@@ -19,7 +19,8 @@ public with sharing class TaskUiController {
         String taskSubtypeIfOther,
         String internalExternalType,
         List<String> reminderTypes,
-        Id waitingOnTaskId
+        Id waitingOnTaskId,
+        List<Map<String, String>> attachments
     ) {
         try {
 
@@ -99,6 +100,8 @@ public with sharing class TaskUiController {
 
             insert t;
 
+            insertAttachments(t.Id, attachments);
+
             // ===============================
             // Custom Reminder Records — one set per assignee
             // ===============================
@@ -137,6 +140,269 @@ public with sharing class TaskUiController {
         } catch (Exception e) {
             throw new AuraHandledException('Error saving Task: ' + e.getMessage());
         }
+    }
+
+    public class TaskAttachmentDto {
+        @AuraEnabled public Id contentDocumentId;
+        @AuraEnabled public String title;
+        @AuraEnabled public Id latestVersionId;
+    }
+
+    public class TaskForEditDto {
+        @AuraEnabled public Id id;
+        @AuraEnabled public String subject;
+        @AuraEnabled public Date dueDate;
+        @AuraEnabled public String status;
+        @AuraEnabled public String priority;
+        @AuraEnabled public String description;
+        @AuraEnabled public Id ownerId;
+        @AuraEnabled public String ownerName;
+        @AuraEnabled public Id matterId;
+        @AuraEnabled public Id waitingOnTaskId;
+        @AuraEnabled public String waitingOnTaskSubject;
+        @AuraEnabled public Boolean isChainStep;
+        @AuraEnabled public String chainPredecessorSubject;
+        @AuraEnabled public List<TaskAttachmentDto> attachments;
+    }
+
+    /**
+     * Loads an existing Task for the Edit/Reassign flow in the New Task
+     * modal - the modal pre-fills every field from this DTO rather than
+     * relying on whatever summary fields the calling list view already had,
+     * so it works the same whether opened from the Matter page or the
+     * (non-matter-scoped) Task Hub.
+     */
+    @AuraEnabled(cacheable=false)
+    public static TaskForEditDto getTaskForEdit(Id taskId) {
+        Task t = [
+            SELECT Id, Subject, ActivityDate, Status, Priority, Description,
+                   OwnerId, Owner.Name, NEOS_Matter__c, Waiting_On_Task__c,
+                   Subtask_Template_Item__c, Parent_Task__c, CreatedById
+            FROM Task
+            WHERE Id = :taskId
+            LIMIT 1
+        ];
+
+        assertCanEditTask(t.OwnerId, t.CreatedById);
+
+        TaskForEditDto dto = new TaskForEditDto();
+        dto.id = t.Id;
+        dto.subject = t.Subject;
+        dto.dueDate = t.ActivityDate;
+        dto.status = t.Status;
+        dto.priority = t.Priority;
+        dto.description = t.Description;
+        dto.ownerId = t.OwnerId;
+        dto.ownerName = t.Owner?.Name;
+        dto.matterId = t.NEOS_Matter__c;
+
+        // Waiting_On_Task__c is a Text field (not a real Lookup) - Task can't
+        // self-reference via a proper relationship on the Activity object -
+        // so the referenced task's Subject needs its own lookup.
+        if (String.isNotBlank(t.Waiting_On_Task__c)) {
+            dto.waitingOnTaskId = t.Waiting_On_Task__c;
+            List<Task> waitingOn = [SELECT Subject FROM Task WHERE Id = :t.Waiting_On_Task__c LIMIT 1];
+            if (!waitingOn.isEmpty()) dto.waitingOnTaskSubject = waitingOn[0].Subject;
+        }
+
+        // A subtask-template chain step being Waiting has nothing to do with
+        // Waiting_On_Task__c (that field is only for ad hoc manually-created
+        // tasks) - it's blocked on the previous step in its own chain
+        // completing. Surface that step's Subject read-only, purely so the
+        // Waiting-On area isn't confusingly blank; this is never editable or
+        // written back on save.
+        if (t.Subtask_Template_Item__c != null) {
+            dto.isChainStep = true;
+            dto.chainPredecessorSubject = getChainPredecessorSubject(t.Subtask_Template_Item__c, t.Parent_Task__c);
+        }
+
+        dto.attachments = new List<TaskAttachmentDto>();
+        for (ContentDocumentLink link : [
+            SELECT ContentDocumentId, ContentDocument.Title, ContentDocument.LatestPublishedVersionId
+            FROM ContentDocumentLink
+            WHERE LinkedEntityId = :taskId
+        ]) {
+            TaskAttachmentDto a = new TaskAttachmentDto();
+            a.contentDocumentId = link.ContentDocumentId;
+            a.title = link.ContentDocument.Title;
+            a.latestVersionId = link.ContentDocument.LatestPublishedVersionId;
+            dto.attachments.add(a);
+        }
+
+        return dto;
+    }
+
+    // Mirrors TaskTriggerActions.queryNextItemsBulk in reverse - finds the
+    // template item immediately before this one by Sequence_Order__c within
+    // the same template, then the sibling Task instantiated from that item
+    // in this same chain run (same Parent_Task__c).
+    private static String getChainPredecessorSubject(Id currentItemId, Id chainId) {
+        List<Subtask_Template_Item__c> currentItems = [
+            SELECT Subtask_Template__c, Sequence_Order__c
+            FROM Subtask_Template_Item__c
+            WHERE Id = :currentItemId
+        ];
+        if (currentItems.isEmpty() || chainId == null) return null;
+
+        List<Subtask_Template_Item__c> earlierItems = [
+            SELECT Id
+            FROM Subtask_Template_Item__c
+            WHERE Subtask_Template__c = :currentItems[0].Subtask_Template__c
+              AND Sequence_Order__c < :currentItems[0].Sequence_Order__c
+            ORDER BY Sequence_Order__c DESC
+            LIMIT 1
+        ];
+        if (earlierItems.isEmpty()) return null;
+
+        List<Task> predecessorTasks = [
+            SELECT Subject
+            FROM Task
+            WHERE Subtask_Template_Item__c = :earlierItems[0].Id
+              AND Parent_Task__c = :chainId
+            LIMIT 1
+        ];
+        return predecessorTasks.isEmpty() ? null : predecessorTasks[0].Subject;
+    }
+
+    // Only the task's current assignee or its original assigner (creator)
+    // may edit/reassign it - per management's requirement, this is stricter
+    // than plain record-sharing visibility.
+    private static void assertCanEditTask(Id currentOwnerId, Id createdById) {
+        Id runningUserId = UserInfo.getUserId();
+        if (runningUserId != currentOwnerId && runningUserId != createdById) {
+            throw new AuraHandledException('Only the person this task is assigned to, or the person who assigned it, can edit or reassign it.');
+        }
+    }
+
+    /**
+     * Updates an existing Task in place (Edit/Reassign) - deliberately
+     * leaves Task_Subtype__c, Internal_External_Type__c, and every native/
+     * custom reminder field untouched, since this form has no UI for them
+     * and Apex `update` only writes fields explicitly set on the sObject.
+     */
+    @AuraEnabled
+    public static Id updateTask(
+        Id taskId,
+        Id ownerId,
+        String subject,
+        Date dueDate,
+        String status,
+        String priority,
+        String description,
+        Id waitingOnTaskId,
+        List<Map<String, String>> newAttachments
+    ) {
+        try {
+            if (ownerId == null) {
+                throw new AuraHandledException('Please select an Assignee.');
+            }
+
+            Task existing = [SELECT OwnerId, CreatedById, Status FROM Task WHERE Id = :taskId LIMIT 1];
+            assertCanEditTask(existing.OwnerId, existing.CreatedById);
+
+            List<User> validOwners = [
+                SELECT Id
+                FROM User
+                WHERE Id = :ownerId
+                  AND IsActive = true
+                  AND UserType = 'Standard'
+                  AND Profile.Name IN :ALLOWED_PROFILE_NAMES
+            ];
+
+            if (validOwners.isEmpty()) {
+                throw new AuraHandledException('Selected assignee is not allowed.');
+            }
+
+            Task toUpdate = new Task(
+                Id                 = taskId,
+                OwnerId             = ownerId,
+                Subject             = subject,
+                ActivityDate        = dueDate,
+                Status              = status,
+                Priority            = priority,
+                Description         = description,
+                Waiting_On_Task__c  = waitingOnTaskId
+            );
+
+            // A not-yet-active chain step (Status = Waiting) with a dynamic
+            // assignee gets its OwnerId re-resolved and overwritten by
+            // AdvanceSubtaskChainAfterComplete when it activates - flagging
+            // a manual reassignment here tells that trigger to leave this
+            // one alone instead of silently clobbering it later.
+            if (ownerId != existing.OwnerId && existing.Status == 'Waiting') {
+                toUpdate.Manually_Reassigned__c = true;
+            }
+
+            update toUpdate;
+
+            insertAttachments(taskId, newAttachments);
+
+            return taskId;
+
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error updating Task: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * Skips a subtask-chain step without actually completing the work -
+     * marks it Completed (so the existing chain-advance trigger activates
+     * the next step exactly as it would for a real completion) plus
+     * Bypassed__c, purely so the UI/reporting can tell "skipped" apart from
+     * "actually done". Restricted to real chain steps - an ad hoc task has
+     * no "next step" for skipping to meaningfully unblock.
+     */
+    @AuraEnabled
+    public static void bypassTask(Id taskId) {
+        try {
+            Task t = [
+                SELECT OwnerId, CreatedById, Subtask_Template_Item__c, Status
+                FROM Task
+                WHERE Id = :taskId
+                LIMIT 1
+            ];
+
+            assertCanEditTask(t.OwnerId, t.CreatedById);
+
+            if (t.Subtask_Template_Item__c == null) {
+                throw new AuraHandledException('Only steps in a task chain can be skipped.');
+            }
+
+            if (t.Status == 'Completed') {
+                throw new AuraHandledException('This step is already complete.');
+            }
+
+            update new Task(
+                Id          = taskId,
+                Status      = 'Completed',
+                Bypassed__c = true
+            );
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error skipping step: ' + e.getMessage());
+        }
+    }
+
+    private static void insertAttachments(Id taskId, List<Map<String, String>> attachments) {
+        if (attachments == null || attachments.isEmpty()) return;
+
+        List<ContentVersion> cvs = new List<ContentVersion>();
+        for (Map<String, String> file : attachments) {
+            String base64Data = file.get('base64Data');
+            if (String.isBlank(base64Data)) continue;
+
+            cvs.add(new ContentVersion(
+                Title = file.get('name'),
+                PathOnClient = file.get('name'),
+                VersionData = EncodingUtil.base64Decode(base64Data),
+                FirstPublishLocationId = taskId
+            ));
+        }
+
+        if (!cvs.isEmpty()) insert cvs;
     }
 
     /**

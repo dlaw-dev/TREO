@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Bypassed__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Set when a subtask-chain step is skipped rather than actually completed, via the Skip action (available to the step's assignee or the person who assigned it). The task is still marked Status = Completed so the existing chain-advance logic activates the next step normally - this flag exists purely to distinguish "skipped" from "actually done" in the UI (and in reporting).</description>
+    <externalId>false</externalId>
+    <label>Bypassed</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

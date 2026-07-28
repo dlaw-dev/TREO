@@ -79,4 +79,19 @@
         <editable>true</editable>
         <readable>true</readable>
     </fieldPermissions>
+    <fieldPermissions>
+        <field>Task.Manually_Reassigned__c</field>
+        <editable>true</editable>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <field>Task.Bypassed__c</field>
+        <editable>true</editable>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <field>Subtask_Template_Item__c.Depends_On_Item__c</field>
+        <editable>true</editable>
+        <readable>true</readable>
+    </fieldPermissions>
 </Profile>

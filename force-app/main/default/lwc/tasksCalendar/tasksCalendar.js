@@ -10,6 +10,7 @@ import CURRENT_USER_ID from '@salesforce/user/Id';
 
 import getTasksForMatter from '@salesforce/apex/TaskCalendarController.getTasksForMatter';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
+import bypassTask from '@salesforce/apex/TaskUiController.bypassTask';
 
 export default class TasksCalendar extends NavigationMixin(LightningElement) {
 
@@ -114,13 +115,20 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             const { label, cls } = this._dueInfo(t, today);
             const isAssignee = t.OwnerId === CURRENT_USER_ID;
             const isCompleted = t.Status === 'Completed';
+            const isBypassed = isCompleted && !!t.IsBypassed;
             const isWaiting   = t.Status === 'Waiting';
+            const canReassign = t.OwnerId === CURRENT_USER_ID || t.CreatedById === CURRENT_USER_ID;
             const waitingTitle = t.WaitingOnSubject
                 ? `Waiting on "${t.WaitingOnSubject}"${t.WaitingOnOwnerName ? ` (${t.WaitingOnOwnerName})` : ''}`
                 : "Waiting on a prior step in this task's chain";
+            const attachments = (t.AttachmentDtos || []).map(a => ({
+                ...a,
+                viewUrl: `/lightning/r/ContentDocument/${a.contentDocumentId}/view`
+            }));
             return {
                 ...t,
                 isCompleted,
+                isBypassed,
                 isWaiting,
                 waitingTitle,
                 dueLabel:        label,
@@ -129,7 +137,13 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
                 isAssignee,
                 showMarkDone:    !isCompleted && !isWaiting,
                 disableMarkDone: !isAssignee,
-                markDoneTitle:   isAssignee ? 'Mark as complete' : `Only ${t.OwnerName || 'the assignee'} can complete this task`
+                markDoneTitle:   isAssignee ? 'Mark as complete' : `Only ${t.OwnerName || 'the assignee'} can complete this task`,
+                canReassign,
+                showSkip:        !isCompleted && !isWaiting && !!t.IsChainStep && canReassign,
+                attachments,
+                hasAttachments:  attachments.length > 0,
+                attachmentTitle: attachments.length === 1 ? '1 attachment' : `${attachments.length} attachments`,
+                isAttachmentMenuOpen: false
             };
         });
     }
@@ -307,6 +321,34 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         }
     }
 
+    async handleBypass(event) {
+        const taskId = event.currentTarget.dataset.id;
+        const row = (this.tasks || []).find(t => t.Id === taskId);
+        if (!row) return;
+
+        // eslint-disable-next-line no-alert
+        if (!window.confirm(`Skip "${row.Subject}" without completing it? The next step in this chain will still be activated.`)) {
+            return;
+        }
+
+        try {
+            await bypassTask({ taskId });
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Step skipped',
+                message: `"${row.Subject}" was skipped.`,
+                variant: 'success'
+            }));
+            publish(this.messageContext, TASK_CHANGED, {});
+            await refreshApex(this.wiredResult);
+        } catch (e) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error',
+                message: e.body?.message || e.message,
+                variant: 'error'
+            }));
+        }
+    }
+
     // ---------- Actions ----------
     get refreshBtnLabel() {
         return this.isRefreshing ? '…' : '↻';
@@ -330,5 +372,35 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         if (result === 'success') {
             await refreshApex(this.wiredResult);
         }
+    }
+
+    async handleReassign(event) {
+        const taskId = event.currentTarget.dataset.id;
+
+        const result = await TaskCreateModalAction.open({
+            size: 'medium',
+            recordId: this.recordId,
+            existingTaskId: taskId
+        });
+
+        if (result === 'success') {
+            await refreshApex(this.wiredResult);
+        }
+    }
+
+    handleAttachmentClick(event) {
+        event.stopPropagation();
+        const rowId = event.currentTarget.dataset.id;
+        const row = this.displayTasks.find(t => t.Id === rowId);
+        if (!row) return;
+
+        if (row.attachments.length === 1) {
+            window.open(row.attachments[0].viewUrl, '_blank', 'noopener');
+            return;
+        }
+
+        this.displayTasks = this.displayTasks.map(t => (t.Id === rowId
+            ? { ...t, isAttachmentMenuOpen: !t.isAttachmentMenuOpen }
+            : { ...t, isAttachmentMenuOpen: false }));
     }
 }

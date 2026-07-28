@@ -8,6 +8,8 @@ import { refreshApex } from '@salesforce/apex';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 
 import saveTask from '@salesforce/apex/TaskUiController.saveTask';
+import updateTask from '@salesforce/apex/TaskUiController.updateTask';
+import getTaskForEdit from '@salesforce/apex/TaskUiController.getTaskForEdit';
 import searchTasksForMatter from '@salesforce/apex/TaskUiController.searchTasksForMatter';
 import searchUsers from '@salesforce/apex/EventAttendeeUiController.searchUsers';
 import getTemplates from '@salesforce/apex/SubtaskTemplateUiController.getTemplates';
@@ -30,6 +32,7 @@ const SEARCH_FOCUS_CLICK_WINDOW_MS = 200;
 const DROPDOWN_MAX_HEIGHT_PX = 200;
 const DROPDOWN_EDGE_MARGIN_PX = 8;
 const DROPDOWN_MIN_HEIGHT_PX = 60;
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 const SUBJECT_SUGGESTIONS = [
     'Call Client',
@@ -121,7 +124,13 @@ function blankTaskRow(id) {
         isMoreDetailsOpen: false,
         waitingOnTaskId: undefined,
         waitingOnDraftId: undefined,
-        waitingOnTaskLabel: ''
+        waitingOnTaskLabel: '',
+        isChainStep: false,
+        chainPredecessorSubject: '',
+        stagedFiles: [],
+        fileWarning: '',
+        isDragOver: false,
+        existingAttachments: []
     };
 }
 
@@ -160,6 +169,53 @@ export default class TaskCreateModalAction extends LightningModal {
                 selectedUserIds: new Set([first.id]),
                 selectedUsers: [{ id: first.id, name: first.name }]
             });
+        }
+    }
+
+    // Setting this puts the modal into Edit/Reassign mode: a single row,
+    // pre-filled from the real Task record (not from whatever summary
+    // fields the calling list view already had), saved via updateTask
+    // instead of the normal insert-only saveTask loop.
+    _existingTaskId;
+    @api get existingTaskId() { return this._existingTaskId; }
+    set existingTaskId(val) {
+        this._existingTaskId = val;
+        if (val) { this._loadExistingTask(val); }
+    }
+
+    get isEditMode() { return !!this._existingTaskId; }
+
+    isLoadingExisting = false;
+
+    async _loadExistingTask(taskId) {
+        this.isLoadingExisting = true;
+        try {
+            const dto = await getTaskForEdit({ taskId });
+            this._patchFirstRow({
+                subject: dto.subject,
+                activityDate: dto.dueDate,
+                status: dto.status,
+                priority: dto.priority,
+                description: dto.description || '',
+                selectedUserIds: new Set(dto.ownerId ? [dto.ownerId] : []),
+                selectedUsers: dto.ownerId ? [{ id: dto.ownerId, name: dto.ownerName }] : [],
+                waitingOnTaskId: dto.waitingOnTaskId,
+                waitingOnTaskLabel: dto.waitingOnTaskSubject || '',
+                isChainStep: !!dto.isChainStep,
+                chainPredecessorSubject: dto.chainPredecessorSubject || '',
+                existingAttachments: (dto.attachments || []).map(a => ({
+                    ...a,
+                    viewUrl: `/lightning/r/ContentDocument/${a.contentDocumentId}/view`
+                }))
+            });
+        } catch (e) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error loading task',
+                message: e.body?.message || e.message,
+                variant: 'error'
+            }));
+        } finally {
+            this.isLoadingExisting = false;
         }
     }
 
@@ -398,10 +454,31 @@ export default class TaskCreateModalAction extends LightningModal {
     }
 
     get statusOptions() {
-        return [
+        const base = [
             { label: 'Open', value: 'Open' },
             { label: 'Waiting', value: 'Waiting' }
         ];
+
+        // A reassigned task may have been created outside this modal (or by
+        // an older version of it) with a Status this dropdown doesn't offer -
+        // add it so the combobox doesn't silently blank out an unrecognized
+        // existing value.
+        if (this.isEditMode) {
+            const current = this.draftTasks[0]?.status;
+            if (current && !base.some(o => o.value === current)) {
+                base.push({ label: current, value: current });
+            }
+        }
+
+        return base;
+    }
+
+    get modalTitle() {
+        return this.isEditMode ? 'Edit/Reassign Task' : 'New Task';
+    }
+
+    get requireWaitingOnTask() {
+        return !this.isEditMode;
     }
 
     /* -------------------------
@@ -433,6 +510,9 @@ export default class TaskCreateModalAction extends LightningModal {
                 userSearchKeyword: isAssigneeActive ? this.userSearchKeyword : '',
                 isStatusWaiting: t.status === 'Waiting',
                 hasWaitingOnTask: !!t.waitingOnTaskId || !!t.waitingOnDraftId,
+                chainWaitingLabel: t.chainPredecessorSubject
+                    ? `Part of a task chain — waiting on "${t.chainPredecessorSubject}"`
+                    : 'Part of a task chain — waiting on an earlier step',
                 waitingSearchKeyword: isWaitingActive ? this.waitingSearchKeyword : '',
                 // Earlier rows in this same batch aren't saved yet, so they can't
                 // be found via searchTasksForMatter - offer them directly instead.
@@ -446,7 +526,11 @@ export default class TaskCreateModalAction extends LightningModal {
                 })),
                 hasOtherDraftOptions: index > 0,
                 reminderOptionColumnLeft: reminderRows.slice(0, Math.ceil(reminderRows.length / 2)),
-                reminderOptionColumnRight: reminderRows.slice(Math.ceil(reminderRows.length / 2))
+                reminderOptionColumnRight: reminderRows.slice(Math.ceil(reminderRows.length / 2)),
+                dropZoneClass: t.isDragOver ? 'drop-zone drop-zone--active' : 'drop-zone',
+                hasStagedFiles: t.stagedFiles.length > 0,
+                attachBannerText: t.stagedFiles.length === 1 ? '1 file attached' : `${t.stagedFiles.length} files attached`,
+                hasExistingAttachments: t.existingAttachments.length > 0
             };
         });
     }
@@ -461,6 +545,7 @@ export default class TaskCreateModalAction extends LightningModal {
 
     get saveLabel() {
         if (this.isSaving) return 'Saving…';
+        if (this.isEditMode) return 'Save Changes';
         const n = this.draftTasks.length;
         return n > 1 ? `Create ${n} Tasks` : 'Create Task';
     }
@@ -1287,6 +1372,106 @@ export default class TaskCreateModalAction extends LightningModal {
     }
 
     /* -------------------------
+       Attachments (drag & drop) - same pattern as eventCreateModalActionRefactor,
+       scoped per row via data-id since a batch can hold several draft tasks,
+       each carrying its own files.
+    -------------------------- */
+
+    handleDropZoneClick(e) {
+        const rowId = e.currentTarget.dataset.id;
+        this.template.querySelector(`input[data-file-input-id="${rowId}"]`)?.click();
+    }
+
+    handleDragOver(e) {
+        e.preventDefault();
+        const rowId = e.currentTarget.dataset.id;
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId ? { ...t, isDragOver: true } : t));
+    }
+
+    handleDragLeave(e) {
+        const rowId = e.currentTarget.dataset.id;
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId ? { ...t, isDragOver: false } : t));
+    }
+
+    handleDrop(e) {
+        e.preventDefault();
+        const rowId = e.currentTarget.dataset.id;
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId ? { ...t, isDragOver: false } : t));
+        this._processFiles(rowId, Array.from(e.dataTransfer.files));
+    }
+
+    handleFileChange(e) {
+        const rowId = e.currentTarget.dataset.id;
+        this._processFiles(rowId, Array.from(e.target.files));
+    }
+
+    handleRemoveStagedFile(e) {
+        const rowId = e.currentTarget.dataset.id;
+        const name = e.currentTarget.dataset.name;
+        const row = this.draftTasks.find(t => t._id === rowId);
+        const removed = row?.stagedFiles.find(f => f.name === name);
+        if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId
+            ? { ...t, stagedFiles: t.stagedFiles.filter(f => f.name !== name) }
+            : t));
+    }
+
+    // Read files immediately on selection - before LWS wraps File objects in
+    // a reactive proxy that blocks FileReader. Stores base64 directly so
+    // saveAll()/the edit-mode save can pass them straight to Apex. Also
+    // stamps a local blob preview URL so a dropped file can be viewed
+    // before it's actually saved as a real Salesforce File.
+    _processFiles(rowId, files) {
+        const row = this.draftTasks.find(t => t._id === rowId);
+        if (!row) return;
+
+        const oversized = files.filter(f => f.size > MAX_FILE_BYTES);
+        const valid = files.filter(f => f.size <= MAX_FILE_BYTES);
+        const fileWarning = oversized.length > 0
+            ? `File(s) exceed the 5 MB limit and were removed: ${oversized.map(f => f.name).join(', ')}`
+            : '';
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId ? { ...t, fileWarning } : t));
+
+        if (valid.length === 0) return;
+
+        const existingNames = new Set(row.stagedFiles.map(f => f.name));
+        const toRead = valid.filter(f => !existingNames.has(f.name));
+        if (toRead.length === 0) return;
+
+        const previewUrlByName = new Map(toRead.map(f => [f.name, URL.createObjectURL(f)]));
+
+        Promise.all(
+            toRead.map(f => this._readFileAsBase64(f).catch(() => ({ _failed: true, name: f.name })))
+        ).then(results => {
+            const failed = results.filter(r => r._failed);
+            const succeeded = results.filter(r => !r._failed)
+                .map(r => ({ ...r, previewUrl: previewUrlByName.get(r.name) }));
+            this.draftTasks = this.draftTasks.map(t => {
+                if (t._id !== rowId) return t;
+                const stagedFiles = succeeded.length > 0 ? [...t.stagedFiles, ...succeeded] : t.stagedFiles;
+                const nextWarning = failed.length > 0
+                    ? `Failed to read: ${failed.map(f => f.name).join(', ')}`
+                    : t.fileWarning;
+                return { ...t, stagedFiles, fileWarning: nextWarning };
+            });
+        });
+    }
+
+    _readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve({
+                name: file.name,
+                base64Data: reader.result.split(',')[1],
+                contentType: file.type || 'application/octet-stream'
+            });
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    /* -------------------------
        Waiting On Task (only shown when a row's Status = Waiting)
     -------------------------- */
 
@@ -1475,12 +1660,22 @@ export default class TaskCreateModalAction extends LightningModal {
             return;
         }
 
-        if (this.draftTasks.some(t => t.status === 'Waiting' && !t.waitingOnTaskId && !t.waitingOnDraftId)) {
+        // Only enforced when newly creating a Waiting task here - an existing
+        // task being edited/reassigned may already be Waiting for reasons
+        // outside this field (e.g. a subtask-template chain step), and
+        // shouldn't be forced to backfill an unrelated ad hoc dependency
+        // just to save an edit to its owner/subject/due date/etc.
+        if (!this.isEditMode && this.draftTasks.some(t => t.status === 'Waiting' && !t.waitingOnTaskId && !t.waitingOnDraftId)) {
             this.dispatchEvent(new ShowToastEvent({
                 title: 'Error',
                 message: 'Please select which task each Waiting task is waiting on.',
                 variant: 'error'
             }));
+            return;
+        }
+
+        if (this.isEditMode) {
+            await this._saveEdit();
             return;
         }
 
@@ -1512,7 +1707,8 @@ export default class TaskCreateModalAction extends LightningModal {
                         priority: t.priority,
                         description: t.description,
                         reminderTypes: t.selectedReminderTypes,
-                        waitingOnTaskId
+                        waitingOnTaskId,
+                        attachments: t.stagedFiles
                     });
                     savedIdByDraftId.set(t._id, newId);
                     results.push({ status: 'fulfilled', value: newId });
@@ -1550,11 +1746,51 @@ export default class TaskCreateModalAction extends LightningModal {
         }
     }
 
+    async _saveEdit() {
+        const t = this.draftTasks[0];
+        const waitingOnTaskId = t.status === 'Waiting' ? (t.waitingOnTaskId || null) : null;
+
+        this.isSaving = true;
+        try {
+            await updateTask({
+                taskId: this._existingTaskId,
+                ownerId: t.selectedUsers[0]?.id,
+                subject: t.subject,
+                dueDate: t.activityDate,
+                status: t.status,
+                priority: t.priority,
+                description: t.description,
+                waitingOnTaskId,
+                newAttachments: t.stagedFiles
+            });
+
+            publish(this.messageContext, TASK_CHANGED, {});
+
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Success',
+                message: 'Task updated',
+                variant: 'success'
+            }));
+            this.close('success');
+        } catch (e) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error',
+                message: e.body?.message || e.message || 'Please try again.',
+                variant: 'error'
+            }));
+        } finally {
+            this.isSaving = false;
+        }
+    }
+
     disconnectedCallback() {
         clearTimeout(this.userSearchTimeout);
         clearTimeout(this.waitingSearchTimeout);
         clearTimeout(this.stepSearchTimeout);
         this._unmountPortal();
+        this.draftTasks.forEach(t => t.stagedFiles.forEach(f => {
+            if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+        }));
     }
 
     handleCancel() {

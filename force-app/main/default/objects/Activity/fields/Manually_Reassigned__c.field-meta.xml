@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Manually_Reassigned__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Set when someone manually reassigns a not-yet-active subtask-chain step (Status = Waiting) via the Edit/Reassign action. The chain-advance trigger checks this before overwriting OwnerId with a freshly-resolved dynamic assignee when the step activates, so a manual override isn't silently clobbered.</description>
+    <externalId>false</externalId>
+    <label>Manually Reassigned</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

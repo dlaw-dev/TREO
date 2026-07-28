@@ -108,7 +108,13 @@ public with sharing class TaskTriggerActions {
                     continue; // no placeholder, or it was already activated/advanced - never regress it
                 }
 
-                placeholder.OwnerId = assigneeId;
+                // Someone may have already manually reassigned this
+                // not-yet-active step via Edit/Reassign - respect that
+                // instead of silently overwriting it with a freshly
+                // resolved dynamic assignee.
+                if (placeholder.Manually_Reassigned__c != true) {
+                    placeholder.OwnerId = assigneeId;
+                }
                 placeholder.Status = 'Open';
                 placeholder.ActivityDate = Date.today().addDays(7);
                 tasksToUpdate.add(placeholder);
@@ -159,7 +165,7 @@ public with sharing class TaskTriggerActions {
             }
 
             for (Task placeholder : [
-                SELECT Id, OwnerId, Status, ActivityDate, Subtask_Template_Item__c, Parent_Task__c
+                SELECT Id, OwnerId, Status, ActivityDate, Subtask_Template_Item__c, Parent_Task__c, Manually_Reassigned__c
                 FROM Task
                 WHERE Subtask_Template_Item__c IN :nextItemIds
                   AND Parent_Task__c IN :chainIds

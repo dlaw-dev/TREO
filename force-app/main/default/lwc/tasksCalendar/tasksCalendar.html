@@ -58,6 +58,18 @@
                   <tr key={t.Id} class={t.rowClass}>
                     <td class="tasks-td">
                       <button type="button" class="tasks-subject-link" data-id={t.Id} onclick={handleSubjectClick}>{t.Subject}</button>
+                      <template if:true={t.hasAttachments}>
+                        <button type="button" class="attachment-clip-btn" data-id={t.Id} onclick={handleAttachmentClick} title={t.attachmentTitle}>📎</button>
+                        <template if:true={t.isAttachmentMenuOpen}>
+                          <ul class="attachment-menu">
+                            <template for:each={t.attachments} for:item="a">
+                              <li key={a.contentDocumentId}>
+                                <a href={a.viewUrl} target="_blank" rel="noopener">{a.title}</a>
+                              </li>
+                            </template>
+                          </ul>
+                        </template>
+                      </template>
                     </td>
                     <td class="tasks-td">{t.Priority}</td>
                     <td class="tasks-td tasks-td--date">
@@ -65,14 +77,25 @@
                     </td>
                     <td class="tasks-td">{t.OwnerName}</td>
                     <td class="tasks-td tasks-td--action">
-                      <template if:true={t.isCompleted}>
-                        <span class="task-done-pill">✓ Done</span>
+                      <template if:true={t.isBypassed}>
+                        <span class="task-skipped-pill">⏭ Skipped</span>
+                      </template>
+                      <template if:false={t.isBypassed}>
+                        <template if:true={t.isCompleted}>
+                          <span class="task-done-pill">✓ Done</span>
+                        </template>
                       </template>
                       <template if:true={t.isWaiting}>
                         <span class="task-waiting-pill" title={t.waitingTitle}>⏳ Waiting</span>
                       </template>
                       <template if:true={t.showMarkDone}>
                         <button type="button" class="task-done-btn" data-id={t.Id} onclick={handleTaskCompleteBtn} disabled={t.disableMarkDone} title={t.markDoneTitle}>Mark Done</button>
+                      </template>
+                      <template if:true={t.showSkip}>
+                        <button type="button" class="task-skip-btn" data-id={t.Id} onclick={handleBypass} title="Skip this step without completing it">Skip</button>
+                      </template>
+                      <template if:true={t.canReassign}>
+                        <button type="button" class="task-reassign-btn" data-id={t.Id} onclick={handleReassign} title="Edit or reassign this task">Edit/Reassign</button>
                       </template>
                     </td>
                   </tr>

@@ -1,8 +1,9 @@
 <template>
-    <lightning-modal-header label="New Task"></lightning-modal-header>
+    <lightning-modal-header label={modalTitle}></lightning-modal-header>
 
     <lightning-modal-body onclick={handleModalOutsideSearchClick}>
 
+        <template if:false={isEditMode}>
         <div class="modal-tabs" role="tablist">
             <button
                 type="button"
@@ -19,6 +20,7 @@
                 data-tab="useTemplate"
                 onclick={handleTabClick}>Use Task Template</button>
         </div>
+        </template>
 
         <template if:true={isNewTaskTab}>
         <template for:each={displayTasks} for:item="t">
@@ -128,6 +130,63 @@
                             onchange={handleDescription}>
                         </lightning-textarea>
 
+                        <!-- Attachments -->
+                        <div class="slds-form-element slds-m-top_medium">
+                            <label class="slds-form-element__label">Attachments</label>
+
+                            <template if:true={t.hasExistingAttachments}>
+                                <ul class="existing-attach-list">
+                                    <template for:each={t.existingAttachments} for:item="a">
+                                        <li key={a.contentDocumentId} class="existing-attach-item">
+                                            <lightning-icon icon-name="doctype:attachment" size="xx-small"></lightning-icon>
+                                            <a href={a.viewUrl} target="_blank" rel="noopener">{a.title}</a>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </template>
+
+                            <div class="slds-form-element__control">
+                                <div class={t.dropZoneClass}
+                                     data-id={t._id}
+                                     onclick={handleDropZoneClick}
+                                     ondragover={handleDragOver}
+                                     ondragleave={handleDragLeave}
+                                     ondrop={handleDrop}>
+                                    <lightning-icon icon-name="utility:upload" size="small" class="drop-zone__icon"></lightning-icon>
+                                    <p class="drop-zone__text">Drag &amp; drop files here</p>
+                                    <p class="drop-zone__sub">or <span class="drop-zone__browse">click to browse</span> &nbsp;·&nbsp; max 5 MB per file</p>
+                                </div>
+                                <input
+                                    type="file"
+                                    multiple
+                                    data-id={t._id}
+                                    data-file-input-id={t._id}
+                                    class="slds-assistive-text"
+                                    onchange={handleFileChange}>
+                            </div>
+
+                            <template if:true={t.hasStagedFiles}>
+                                <div class="attach-banner slds-m-top_small">
+                                    <div class="attach-banner__header">
+                                        <lightning-icon icon-name="utility:check" size="xx-small"></lightning-icon>
+                                        <span>{t.attachBannerText}</span>
+                                    </div>
+                                    <ul class="attach-banner__list">
+                                        <template for:each={t.stagedFiles} for:item="f">
+                                            <li key={f.name} class="attach-banner__item">
+                                                <a href={f.previewUrl} target="_blank" rel="noopener" title="View file">{f.name}</a>
+                                                <button class="attach-banner__remove" data-id={t._id} data-name={f.name} onclick={handleRemoveStagedFile} title="Remove file">✕</button>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </div>
+                            </template>
+
+                            <template if:true={t.fileWarning}>
+                                <p class="slds-m-top_x-small slds-text-body_small slds-text-color_error">{t.fileWarning}</p>
+                            </template>
+                        </div>
+
                         <!-- Priority / Status -->
                         <div class="priority-status-grid slds-m-top_medium">
                             <lightning-combobox
@@ -150,6 +209,20 @@
                         <!-- Waiting On Task -->
                         <template if:true={t.isStatusWaiting}>
                             <div class="slds-m-top_medium">
+                                <!--
+                                    A subtask-chain step's "Waiting" has nothing to do with
+                                    Waiting_On_Task__c - it's blocked on the previous chain step,
+                                    not a user-pickable ad hoc dependency. Shown read-only so it's
+                                    never confusingly blank, and never editable here.
+                                -->
+                                <template if:true={t.isChainStep}>
+                                    <div class="slds-form-element__label slds-m-bottom_x-small">Waiting On</div>
+                                    <div class="waiting-on-pill waiting-on-pill--chain">
+                                        <span class="waiting-on-pill-label">{t.chainWaitingLabel}</span>
+                                    </div>
+                                </template>
+
+                                <template if:false={t.isChainStep}>
                                 <template if:true={t.hasWaitingOnTask}>
                                     <div class="slds-form-element__label slds-m-bottom_x-small">Waiting On</div>
                                     <div class="waiting-on-pill">
@@ -186,7 +259,7 @@
                                             data-id={t._id}
                                             type="search"
                                             label="Waiting On"
-                                            required
+                                            required={requireWaitingOnTask}
                                             placeholder="Search tasks on this Matter…"
                                             value={t.waitingSearchKeyword}
                                             onfocus={handleWaitingFocus}
@@ -195,6 +268,7 @@
                                             onkeydown={handleWaitingKeydown}>
                                         </lightning-input>
                                     </div>
+                                </template>
                                 </template>
                             </div>
                         </template>
@@ -256,7 +330,9 @@
         </div>
         </template>
 
-        <button type="button" class="add-task-row-btn" onclick={addTaskRow}>+ Add Another Task</button>
+        <template if:false={isEditMode}>
+            <button type="button" class="add-task-row-btn" onclick={addTaskRow}>+ Add Another Task</button>
+        </template>
         </template>
 
         <template if:true={isUseTemplateTab}>

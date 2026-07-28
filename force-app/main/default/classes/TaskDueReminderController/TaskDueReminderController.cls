@@ -41,7 +41,10 @@ public with sharing class TaskDueReminderController {
                    What.Name,
                    OwnerId,
                    Owner.Name,
-                   Snoozed_Until__c
+                   CreatedById,
+                   Snoozed_Until__c,
+                   Subtask_Template_Item__c,
+                   Bypassed__c
             FROM Task
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
@@ -67,7 +70,10 @@ public with sharing class TaskDueReminderController {
                    What.Name,
                    OwnerId,
                    Owner.Name,
-                   Snoozed_Until__c
+                   CreatedById,
+                   Snoozed_Until__c,
+                   Subtask_Template_Item__c,
+                   Bypassed__c
             FROM Task
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
@@ -79,6 +85,7 @@ public with sharing class TaskDueReminderController {
             results.add(new DueTask(t, todayDate, nowDt));
         }
 
+        attachAttachments(results);
         return results;
     }
 
@@ -103,7 +110,10 @@ public with sharing class TaskDueReminderController {
                    WhatId,
                    What.Name,
                    OwnerId,
-                   Owner.Name
+                   Owner.Name,
+                   CreatedById,
+                   Subtask_Template_Item__c,
+                   Bypassed__c
             FROM Task
             WHERE CreatedById = :currentUserId
               AND OwnerId != :currentUserId
@@ -129,7 +139,10 @@ public with sharing class TaskDueReminderController {
                    WhatId,
                    What.Name,
                    OwnerId,
-                   Owner.Name
+                   Owner.Name,
+                   CreatedById,
+                   Subtask_Template_Item__c,
+                   Bypassed__c
             FROM Task
             WHERE CreatedById = :currentUserId
               AND OwnerId != :currentUserId
@@ -142,6 +155,7 @@ public with sharing class TaskDueReminderController {
             results.add(new DueTask(t, todayDate));
         }
 
+        attachAttachments(results);
         return results;
     }
 
@@ -164,7 +178,10 @@ public with sharing class TaskDueReminderController {
                    What.Name,
                    OwnerId,
                    Owner.Name,
+                   CreatedById,
                    Parent_Task__c,
+                   Subtask_Template_Item__c,
+                   Bypassed__c,
                    Subtask_Template_Item__r.Assignee_Type__c,
                    Subtask_Template_Item__r.Static_Assignee__c,
                    Subtask_Template_Item__r.Dynamic_Assignee_Field__c
@@ -233,6 +250,7 @@ public with sharing class TaskDueReminderController {
 
         results.addAll(getMyAdHocWaitingTasks(currentUserId, todayDate));
 
+        attachAttachments(results);
         return results;
     }
 
@@ -256,7 +274,10 @@ public with sharing class TaskDueReminderController {
                    What.Name,
                    OwnerId,
                    Owner.Name,
-                   Waiting_On_Task__c
+                   CreatedById,
+                   Waiting_On_Task__c,
+                   Subtask_Template_Item__c,
+                   Bypassed__c
             FROM Task
             WHERE Status = 'Waiting'
               AND Subtask_Template_Item__c = null
@@ -329,10 +350,15 @@ public with sharing class TaskDueReminderController {
         @AuraEnabled public Boolean IsOverdue;
         @AuraEnabled public Integer DaysUntil;
         @AuraEnabled public String  OwnerName;
+        @AuraEnabled public Id      OwnerId;
+        @AuraEnabled public Id      CreatedById;
         @AuraEnabled public String  WaitingOnSubject;
         @AuraEnabled public String  WaitingOnOwnerName;
         @AuraEnabled public Datetime SnoozedUntil;
         @AuraEnabled public Boolean IsSnoozed;
+        @AuraEnabled public Boolean IsChainStep;
+        @AuraEnabled public Boolean IsBypassed;
+        @AuraEnabled public List<TaskUiController.TaskAttachmentDto> AttachmentDtos;
 
         public DueTask(Task t, Date todayDate) {
             Id           = t.Id;
@@ -342,6 +368,10 @@ public with sharing class TaskDueReminderController {
             Status       = t.Status;
             TaskSubtype  = t.Task_Subtype__c;
             OwnerName    = t.Owner != null ? t.Owner.Name : null;
+            OwnerId      = t.OwnerId;
+            CreatedById  = t.CreatedById;
+            IsChainStep  = t.Subtask_Template_Item__c != null;
+            IsBypassed   = t.Bypassed__c;
 
             if (t.ActivityDate != null) {
                 DaysUntil = todayDate.daysBetween(t.ActivityDate);
@@ -370,6 +400,39 @@ public with sharing class TaskDueReminderController {
             this(t, todayDate);
             SnoozedUntil = t.Snoozed_Until__c;
             IsSnoozed    = SnoozedUntil != null && SnoozedUntil > nowDt;
+        }
+    }
+
+    // Bulk-resolves attachments for every task in one query rather than one
+    // per row - used to show a clickable paperclip indicator on the Task Hub
+    // list without opening the Edit/Reassign modal.
+    private static void attachAttachments(List<DueTask> results) {
+        if (results.isEmpty()) return;
+
+        Map<Id, DueTask> byId = new Map<Id, DueTask>();
+        for (DueTask d : results) byId.put(d.Id, d);
+
+        Map<Id, List<TaskUiController.TaskAttachmentDto>> attachmentsByTaskId = new Map<Id, List<TaskUiController.TaskAttachmentDto>>();
+
+        for (ContentDocumentLink link : [
+            SELECT LinkedEntityId, ContentDocumentId, ContentDocument.Title, ContentDocument.LatestPublishedVersionId
+            FROM ContentDocumentLink
+            WHERE LinkedEntityId IN :byId.keySet()
+        ]) {
+            if (!attachmentsByTaskId.containsKey(link.LinkedEntityId)) {
+                attachmentsByTaskId.put(link.LinkedEntityId, new List<TaskUiController.TaskAttachmentDto>());
+            }
+
+            TaskUiController.TaskAttachmentDto dto = new TaskUiController.TaskAttachmentDto();
+            dto.contentDocumentId = link.ContentDocumentId;
+            dto.title = link.ContentDocument.Title;
+            dto.latestVersionId = link.ContentDocument.LatestPublishedVersionId;
+            attachmentsByTaskId.get(link.LinkedEntityId).add(dto);
+        }
+
+        for (DueTask d : results) {
+            List<TaskUiController.TaskAttachmentDto> found = attachmentsByTaskId.get(d.Id);
+            d.AttachmentDtos = (found != null) ? found : new List<TaskUiController.TaskAttachmentDto>();
         }
     }
 }
