@@ -1,13 +1,15 @@
 /**
  * Instantiates a full subtask chain from a Subtask_Template__c onto a Matter.
- * Pre-creates every step up front: the first step is immediately actionable
- * (Status = Open, assigned), every later step - including the master, the
- * last step in sequence - starts in Status = Waiting until
- * TaskTriggerActions.AdvanceSubtaskChainAfterComplete activates it.
+ * Pre-creates every step up front: any step with no Depends_On_Step__c is
+ * immediately actionable (Status = Open, assigned) - a template can have
+ * more than one such "entry" step, which all open together. Every other
+ * step starts in Status = Waiting until
+ * TaskTriggerActions.AdvanceSubtaskChainAfterComplete activates it once its
+ * specific dependency completes.
  *
  * A step's assignee - static User, or dynamic field read off the Matter -
- * resolves the same way whether it's the first step or a later one, via
- * SubtaskAssigneeResolver. A dynamic first step is valid as long as the
+ * resolves the same way whether it's an entry step or a later one, via
+ * SubtaskAssigneeResolver. A dynamic entry step is valid as long as the
  * Matter field it reads is already populated (e.g. a chain applied after an
  * earlier chain already set that field).
  */
@@ -18,7 +20,8 @@ public with sharing class SubtaskTemplateApplier {
     public static Id apply(Id templateId, Id matterId) {
         List<Subtask_Template_Item__c> items = [
             SELECT Id, Sequence_Order__c, Subject__c, Description__c,
-                   Assignee_Type__c, Static_Assignee__c, Dynamic_Assignee_Field__c
+                   Assignee_Type__c, Static_Assignee__c, Dynamic_Assignee_Field__c,
+                   Depends_On_Step__c
             FROM Subtask_Template_Item__c
             WHERE Subtask_Template__c = :templateId
             ORDER BY Sequence_Order__c ASC
@@ -28,11 +31,16 @@ public with sharing class SubtaskTemplateApplier {
             throw new SubtaskTemplateApplierException('This template has no steps.');
         }
 
-        List<Subtask_Template_Item__c> leadingItems = items.clone();
-        Subtask_Template_Item__c masterItem = leadingItems.remove(leadingItems.size() - 1);
-        Subtask_Template_Item__c firstStepItem = leadingItems.isEmpty() ? masterItem : leadingItems[0];
+        List<Subtask_Template_Item__c> entryItems = new List<Subtask_Template_Item__c>();
+        for (Subtask_Template_Item__c item : items) {
+            if (item.Depends_On_Step__c == null) entryItems.add(item);
+        }
 
-        // Resolve every step's assignee up front, not just the first step's.
+        if (entryItems.isEmpty()) {
+            throw new SubtaskTemplateApplierException('This template has no starting step - every step depends on another.');
+        }
+
+        // Resolve every step's assignee up front, not just the entry steps'.
         // A later step's dynamic field is usually already set on the Matter
         // (e.g. LSS_Paralegal__c), so showing its real assignee immediately -
         // even while the step is still Waiting - beats showing whoever
@@ -49,15 +57,25 @@ public with sharing class SubtaskTemplateApplier {
         }
         Map<Id, Id> resolvedAssignees = SubtaskAssigneeResolver.resolveAssigneesBulk(keyToItem, keyToMatterId);
 
-        Id firstAssigneeId = resolvedAssignees.get(firstStepItem.Id);
-
-        if (firstAssigneeId == null) {
-            throw new SubtaskTemplateApplierException(firstStepErrorMessage(firstStepItem));
+        // Every entry step must be immediately assignable - unlike a
+        // dependent step, there's no predecessor completion to re-resolve
+        // it against later, so an unresolvable entry step blocks the whole
+        // template from being applied at all.
+        for (Subtask_Template_Item__c entryItem : entryItems) {
+            if (resolvedAssignees.get(entryItem.Id) == null) {
+                throw new SubtaskTemplateApplierException(firstStepErrorMessage(entryItem));
+            }
         }
 
-        Boolean masterIsAlsoFirstStep = leadingItems.isEmpty();
-        Id masterAssigneeId = masterIsAlsoFirstStep
-            ? firstAssigneeId
+        // The last item by sequence anchors the chain (self-referencing
+        // Parent_Task__c) - purely a grouping Id shared by every sibling
+        // task now, not necessarily "the final step" in the flow.
+        List<Subtask_Template_Item__c> nonMasterItems = items.clone();
+        Subtask_Template_Item__c masterItem = nonMasterItems.remove(nonMasterItems.size() - 1);
+
+        Boolean masterIsEntry = masterItem.Depends_On_Step__c == null;
+        Id masterAssigneeId = masterIsEntry
+            ? resolvedAssignees.get(masterItem.Id)
             : coalesceAssignee(resolvedAssignees.get(masterItem.Id));
 
         Task master = new Task(
@@ -66,23 +84,22 @@ public with sharing class SubtaskTemplateApplier {
             NEOS_Matter__c           = matterId,
             WhatId                   = matterId,
             Subtask_Template_Item__c = masterItem.Id,
-            Status                   = masterIsAlsoFirstStep ? 'Open' : 'Waiting',
+            Status                   = masterIsEntry ? 'Open' : 'Waiting',
             Priority                 = 'Normal',
             OwnerId                  = masterAssigneeId,
-            ActivityDate             = masterIsAlsoFirstStep ? Date.today().addDays(7) : null
+            ActivityDate             = masterIsEntry ? Date.today().addDays(7) : null
         );
         insert master;
 
         master.Parent_Task__c = master.Id;
         update master;
 
-        if (!leadingItems.isEmpty()) {
+        if (!nonMasterItems.isEmpty()) {
             List<Task> tasksToInsert = new List<Task>();
 
-            for (Integer i = 0; i < leadingItems.size(); i++) {
-                Subtask_Template_Item__c item = leadingItems[i];
-                Boolean isFirst = (i == 0);
-                Id assigneeId = isFirst ? firstAssigneeId : coalesceAssignee(resolvedAssignees.get(item.Id));
+            for (Subtask_Template_Item__c item : nonMasterItems) {
+                Boolean isEntry = item.Depends_On_Step__c == null;
+                Id assigneeId = isEntry ? resolvedAssignees.get(item.Id) : coalesceAssignee(resolvedAssignees.get(item.Id));
 
                 tasksToInsert.add(new Task(
                     Subject                  = item.Subject__c,
@@ -91,10 +108,10 @@ public with sharing class SubtaskTemplateApplier {
                     WhatId                   = matterId,
                     Subtask_Template_Item__c = item.Id,
                     Parent_Task__c           = master.Id,
-                    Status                   = isFirst ? 'Open' : 'Waiting',
+                    Status                   = isEntry ? 'Open' : 'Waiting',
                     Priority                 = 'Normal',
                     OwnerId                  = assigneeId,
-                    ActivityDate             = isFirst ? Date.today().addDays(7) : null
+                    ActivityDate             = isEntry ? Date.today().addDays(7) : null
                 ));
             }
 
@@ -114,6 +131,6 @@ public with sharing class SubtaskTemplateApplier {
                 + '" field must be set before "' + item.Subject__c + '" can be assigned.';
         }
 
-        return 'Cannot apply this template: the first step has no assignee configured.';
+        return 'Cannot apply this template: "' + item.Subject__c + '" (a starting step) has no assignee configured.';
     }
 }

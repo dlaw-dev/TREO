@@ -396,9 +396,6 @@
                             <div key={item.id} class="timeline-step">
                                 <div class="timeline-marker">
                                     <span class="timeline-circle">{item.displayIndex}</span>
-                                    <template if:false={item.isLast}>
-                                        <span class="timeline-line"></span>
-                                    </template>
                                 </div>
                                 <div class="timeline-content">
                                     <div class="timeline-subject">{item.subject}</div>
@@ -484,9 +481,6 @@
                                     <div key={item.id} class="timeline-step">
                                         <div class="timeline-marker">
                                             <span class="timeline-circle">{item.displayIndex}</span>
-                                            <template if:false={item.isLast}>
-                                                <span class="timeline-line"></span>
-                                            </template>
                                         </div>
                                         <div class="timeline-content">
                                             <div class="timeline-subject">{item.subject}</div>

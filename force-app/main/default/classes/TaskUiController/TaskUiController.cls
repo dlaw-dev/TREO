@@ -177,7 +177,8 @@ public with sharing class TaskUiController {
         Task t = [
             SELECT Id, Subject, ActivityDate, Status, Priority, Description,
                    OwnerId, Owner.Name, NEOS_Matter__c, Waiting_On_Task__c,
-                   Subtask_Template_Item__c, Parent_Task__c, CreatedById
+                   Subtask_Template_Item__c, Subtask_Template_Item__r.Depends_On_Step__c,
+                   Parent_Task__c, CreatedById
             FROM Task
             WHERE Id = :taskId
             LIMIT 1
@@ -213,7 +214,8 @@ public with sharing class TaskUiController {
         // written back on save.
         if (t.Subtask_Template_Item__c != null) {
             dto.isChainStep = true;
-            dto.chainPredecessorSubject = getChainPredecessorSubject(t.Subtask_Template_Item__c, t.Parent_Task__c);
+            dto.chainPredecessorSubject = getChainPredecessorSubject(
+                t.Subtask_Template_Item__r.Depends_On_Step__c, t.Parent_Task__c);
         }
 
         dto.attachments = new List<TaskAttachmentDto>();
@@ -232,32 +234,17 @@ public with sharing class TaskUiController {
         return dto;
     }
 
-    // Mirrors TaskTriggerActions.queryNextItemsBulk in reverse - finds the
-    // template item immediately before this one by Sequence_Order__c within
-    // the same template, then the sibling Task instantiated from that item
-    // in this same chain run (same Parent_Task__c).
-    private static String getChainPredecessorSubject(Id currentItemId, Id chainId) {
-        List<Subtask_Template_Item__c> currentItems = [
-            SELECT Subtask_Template__c, Sequence_Order__c
-            FROM Subtask_Template_Item__c
-            WHERE Id = :currentItemId
-        ];
-        if (currentItems.isEmpty() || chainId == null) return null;
-
-        List<Subtask_Template_Item__c> earlierItems = [
-            SELECT Id
-            FROM Subtask_Template_Item__c
-            WHERE Subtask_Template__c = :currentItems[0].Subtask_Template__c
-              AND Sequence_Order__c < :currentItems[0].Sequence_Order__c
-            ORDER BY Sequence_Order__c DESC
-            LIMIT 1
-        ];
-        if (earlierItems.isEmpty()) return null;
+    // Follows the explicit Depends_On_Step__c edge to the sibling Task
+    // instantiated from that step in this same chain run (same
+    // Parent_Task__c) - null dependsOnItemId means this is an entry step
+    // with no predecessor at all.
+    private static String getChainPredecessorSubject(Id dependsOnItemId, Id chainId) {
+        if (dependsOnItemId == null || chainId == null) return null;
 
         List<Task> predecessorTasks = [
             SELECT Subject
             FROM Task
-            WHERE Subtask_Template_Item__c = :earlierItems[0].Id
+            WHERE Subtask_Template_Item__c = :dependsOnItemId
               AND Parent_Task__c = :chainId
             LIMIT 1
         ];
@@ -446,31 +433,32 @@ public with sharing class TaskUiController {
     @AuraEnabled
     public static Boolean completeTask(Id taskId) {
         try {
-            Task t = [SELECT Id, Subtask_Template_Item__c FROM Task WHERE Id = :taskId LIMIT 1];
+            Task t = [SELECT Id, Subtask_Template_Item__c, Parent_Task__c FROM Task WHERE Id = :taskId LIMIT 1];
             t.Status = 'Completed';
             update t;
 
-            return t.Subtask_Template_Item__c != null && isLastChainStep(t.Subtask_Template_Item__c);
+            return t.Subtask_Template_Item__c != null && isEntireChainComplete(t.Parent_Task__c);
         } catch (Exception e) {
             throw new AuraHandledException('Error completing task: ' + e.getMessage());
         }
     }
 
-    private static Boolean isLastChainStep(Id templateItemId) {
-        Subtask_Template_Item__c item = [
-            SELECT Subtask_Template__c, Sequence_Order__c
-            FROM Subtask_Template_Item__c
-            WHERE Id = :templateItemId
-        ];
+    // Whether every step in this chain (every Task sharing this
+    // Parent_Task__c) is Completed - topology-independent, so it's correct
+    // whether the chain is a simple line or has several branches/leaves
+    // (unlike checking "is there a template item with a later sequence
+    // number", which only ever recognized a single linear leaf).
+    private static Boolean isEntireChainComplete(Id chainId) {
+        if (chainId == null) return false;
 
-        Integer laterStepCount = [
+        Integer remaining = [
             SELECT COUNT()
-            FROM Subtask_Template_Item__c
-            WHERE Subtask_Template__c = :item.Subtask_Template__c
-              AND Sequence_Order__c > :item.Sequence_Order__c
+            FROM Task
+            WHERE Parent_Task__c = :chainId
+              AND Status != 'Completed'
         ];
 
-        return laterStepCount == 0;
+        return remaining == 0;
     }
 
     // ======================================

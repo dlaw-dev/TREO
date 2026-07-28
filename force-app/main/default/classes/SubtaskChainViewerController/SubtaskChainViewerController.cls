@@ -11,13 +11,19 @@ public with sharing class SubtaskChainViewerController {
         @AuraEnabled public String status;
         @AuraEnabled public String ownerName;
         @AuraEnabled public Decimal sequenceOrder;
+        // Null means this step opens immediately (no dependency) - resolved
+        // against sibling steps already fetched for this same chain, no
+        // extra query needed.
+        @AuraEnabled public String dependsOnSubject;
     }
 
     @AuraEnabled(cacheable=true)
     public static List<ChainDto> getChainsForMatter(Id matterId) {
         List<Task> tasks = [
             SELECT Id, Subject, Status, Owner.Name, Parent_Task__c,
+                   Subtask_Template_Item__c,
                    Subtask_Template_Item__r.Sequence_Order__c,
+                   Subtask_Template_Item__r.Depends_On_Step__c,
                    Subtask_Template_Item__r.Subtask_Template__r.Name
             FROM Task
             WHERE NEOS_Matter__c = :matterId
@@ -26,6 +32,11 @@ public with sharing class SubtaskChainViewerController {
         ];
 
         Map<String, ChainDto> chainsByParent = new Map<String, ChainDto>();
+
+        // Lets a step's dependency resolve to its sibling's Subject within
+        // the same chain, regardless of iteration/insertion order.
+        Map<String, String> subjectByCompositeKey = new Map<String, String>();
+        Map<Id, String> dependsOnKeyByStepId = new Map<Id, String>();
 
         for (Task t : tasks) {
             String chainKey = t.Parent_Task__c;
@@ -45,6 +56,20 @@ public with sharing class SubtaskChainViewerController {
             step.ownerName = t.Owner.Name;
             step.sequenceOrder = t.Subtask_Template_Item__r.Sequence_Order__c;
             chain.steps.add(step);
+
+            subjectByCompositeKey.put(chainKey + ':' + t.Subtask_Template_Item__c, t.Subject);
+
+            Id dependsOnItemId = t.Subtask_Template_Item__r.Depends_On_Step__c;
+            if (dependsOnItemId != null) {
+                dependsOnKeyByStepId.put(t.Id, chainKey + ':' + dependsOnItemId);
+            }
+        }
+
+        for (ChainDto chain : chainsByParent.values()) {
+            for (StepDto step : chain.steps) {
+                String key = dependsOnKeyByStepId.get(step.id);
+                step.dependsOnSubject = (key != null) ? subjectByCompositeKey.get(key) : null;
+            }
         }
 
         return chainsByParent.values();

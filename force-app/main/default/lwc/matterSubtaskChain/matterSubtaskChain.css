@@ -94,17 +94,17 @@
     background: #1b7f4d;
 }
 
-.timeline-line {
-    width: 2px;
-    flex: 1 1 auto;
-    min-height: 1.25rem;
-    background: var(--slds-g-color-border-1, var(--lwc-colorBorder, #d8dde6));
-}
-
 .timeline-content {
     padding-bottom: 1rem;
     flex: 1 1 auto;
     min-width: 0;
+}
+
+.timeline-depends {
+    margin-top: 0.3rem;
+    font-size: 0.75rem;
+    color: var(--slds-g-color-on-surface-2, var(--lwc-colorTextWeak, #706e6b));
+    font-style: italic;
 }
 
 .timeline-subject-link {

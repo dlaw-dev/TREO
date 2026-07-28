@@ -7,7 +7,8 @@
  * Subtask_Template_Item__c populated - manually-created tasks are always
  * left completely untouched. Every query here is bulkified to a small,
  * bounded count regardless of how many tasks complete in one transaction
- * (mass actions, Data Loader, etc.).
+ * (mass actions, Data Loader, etc.) - and regardless of how many OTHER
+ * steps a single completing step unlocks at once (branching).
  */
 public with sharing class TaskTriggerActions {
 
@@ -20,38 +21,44 @@ public with sharing class TaskTriggerActions {
                 return;
             }
 
-            Map<Id, Subtask_Template_Item__c> currentItemsById = queryItems(completingSubtasks);
-            Map<Id, Subtask_Template_Item__c> nextItemByCurrentItemId = queryNextItemsBulk(currentItemsById.values());
+            Set<Id> completedItemIds = new Set<Id>();
+            for (Task t : completingSubtasks) {
+                completedItemIds.add(t.Subtask_Template_Item__c);
+            }
+            Map<Id, List<Subtask_Template_Item__c>> dependentsByCompletedItemId = queryDependentItemsBulk(completedItemIds);
 
-            Map<Id, Subtask_Template_Item__c> itemToResolveByTaskId = new Map<Id, Subtask_Template_Item__c>();
-            Map<Id, Id> matterIdByTaskId = new Map<Id, Id>();
+            // Keyed by the dependent item's own Id, not the completing
+            // task's - a single completing step can unlock several
+            // dependents at once (branching), and each dependent item's Id
+            // is unique across the whole batch regardless.
+            Map<Id, Subtask_Template_Item__c> itemToResolveByDependentItemId = new Map<Id, Subtask_Template_Item__c>();
+            Map<Id, Id> matterIdByDependentItemId = new Map<Id, Id>();
+            Map<Id, Task> completingTaskByDependentItemId = new Map<Id, Task>();
 
             for (Task t : completingSubtasks) {
-                Subtask_Template_Item__c nextItem = nextItemFor(t, currentItemsById, nextItemByCurrentItemId);
+                List<Subtask_Template_Item__c> dependents = dependentsByCompletedItemId.get(t.Subtask_Template_Item__c);
+                if (dependents == null) continue;
 
-                if (nextItem == null || nextItem.Assignee_Type__c != 'Dynamic Matter Field') {
-                    continue;
+                for (Subtask_Template_Item__c dependent : dependents) {
+                    if (dependent.Assignee_Type__c != 'Dynamic Matter Field') continue;
+
+                    itemToResolveByDependentItemId.put(dependent.Id, dependent);
+                    matterIdByDependentItemId.put(dependent.Id, t.NEOS_Matter__c);
+                    completingTaskByDependentItemId.put(dependent.Id, t);
                 }
-
-                itemToResolveByTaskId.put(t.Id, nextItem);
-                matterIdByTaskId.put(t.Id, t.NEOS_Matter__c);
             }
 
-            Map<Id, Id> resolvedAssigneeByTaskId = SubtaskAssigneeResolver.resolveAssigneesBulk(
-                itemToResolveByTaskId, matterIdByTaskId);
+            Map<Id, Id> resolvedAssigneeByDependentItemId = SubtaskAssigneeResolver.resolveAssigneesBulk(
+                itemToResolveByDependentItemId, matterIdByDependentItemId);
 
-            for (Task t : completingSubtasks) {
-                Subtask_Template_Item__c nextItem = itemToResolveByTaskId.get(t.Id);
+            for (Id dependentItemId : itemToResolveByDependentItemId.keySet()) {
+                if (resolvedAssigneeByDependentItemId.get(dependentItemId) != null) continue;
 
-                if (nextItem == null) {
-                    continue;
-                }
-
-                if (resolvedAssigneeByTaskId.get(t.Id) == null) {
-                    t.addError('Please set "' + nextItem.Dynamic_Assignee_Field__c
-                        + '" on the Matter before completing this task, so "'
-                        + nextItem.Subject__c + '" can be assigned.');
-                }
+                Subtask_Template_Item__c dependent = itemToResolveByDependentItemId.get(dependentItemId);
+                completingTaskByDependentItemId.get(dependentItemId).addError(
+                    'Please set "' + dependent.Dynamic_Assignee_Field__c
+                    + '" on the Matter before completing this task, so "'
+                    + dependent.Subject__c + '" can be assigned.');
             }
         }
     }
@@ -65,44 +72,51 @@ public with sharing class TaskTriggerActions {
                 return;
             }
 
-            Map<Id, Subtask_Template_Item__c> currentItemsById = queryItems(completedSubtasks);
-            Map<Id, Subtask_Template_Item__c> nextItemByCurrentItemId = queryNextItemsBulk(currentItemsById.values());
+            Set<Id> completedItemIds = new Set<Id>();
+            for (Task t : completedSubtasks) {
+                completedItemIds.add(t.Subtask_Template_Item__c);
+            }
+            Map<Id, List<Subtask_Template_Item__c>> dependentsByCompletedItemId = queryDependentItemsBulk(completedItemIds);
 
-            Map<Id, Subtask_Template_Item__c> nextItemByTaskId = new Map<Id, Subtask_Template_Item__c>();
-            Map<Id, Id> matterIdByTaskId = new Map<Id, Id>();
+            // One entry per (completing task, dependent item) pair, keyed
+            // by the dependent item's own Id - see note above on why that's
+            // safely unique across the whole batch.
+            Map<Id, Subtask_Template_Item__c> dependentItemById = new Map<Id, Subtask_Template_Item__c>();
+            Map<Id, Id> matterIdByDependentItemId = new Map<Id, Id>();
+            Map<Id, Id> chainIdByDependentItemId = new Map<Id, Id>();
 
             for (Task t : completedSubtasks) {
-                Subtask_Template_Item__c nextItem = nextItemFor(t, currentItemsById, nextItemByCurrentItemId);
+                List<Subtask_Template_Item__c> dependents = dependentsByCompletedItemId.get(t.Subtask_Template_Item__c);
+                if (dependents == null) continue;
 
-                if (nextItem == null) {
-                    continue; // this was the master / last step - chain is complete
+                for (Subtask_Template_Item__c dependent : dependents) {
+                    dependentItemById.put(dependent.Id, dependent);
+                    matterIdByDependentItemId.put(dependent.Id, t.NEOS_Matter__c);
+                    chainIdByDependentItemId.put(dependent.Id, t.Parent_Task__c);
                 }
-
-                nextItemByTaskId.put(t.Id, nextItem);
-                matterIdByTaskId.put(t.Id, t.NEOS_Matter__c);
             }
 
-            Map<Id, Id> resolvedAssigneeByTaskId = SubtaskAssigneeResolver.resolveAssigneesBulk(
-                nextItemByTaskId, matterIdByTaskId);
+            if (dependentItemById.isEmpty()) {
+                return;
+            }
 
-            Map<String, Task> placeholderByCompositeKey = queryPlaceholdersBulk(completedSubtasks, nextItemByTaskId);
+            Map<Id, Id> resolvedAssigneeByDependentItemId = SubtaskAssigneeResolver.resolveAssigneesBulk(
+                dependentItemById, matterIdByDependentItemId);
+
+            Map<String, Task> placeholderByCompositeKey = queryPlaceholdersBulk(
+                dependentItemById.keySet(), new Set<Id>(chainIdByDependentItemId.values()));
 
             List<Task> tasksToUpdate = new List<Task>();
 
-            for (Task t : completedSubtasks) {
-                Subtask_Template_Item__c nextItem = nextItemByTaskId.get(t.Id);
-
-                if (nextItem == null) {
-                    continue;
-                }
-
-                Id assigneeId = resolvedAssigneeByTaskId.get(t.Id);
+            for (Id dependentItemId : dependentItemById.keySet()) {
+                Id assigneeId = resolvedAssigneeByDependentItemId.get(dependentItemId);
 
                 if (assigneeId == null) {
                     continue; // the before-update safety rail should have blocked this already
                 }
 
-                Task placeholder = placeholderByCompositeKey.get(compositeKey(nextItem.Id, t.Parent_Task__c));
+                Task placeholder = placeholderByCompositeKey.get(
+                    compositeKey(dependentItemId, chainIdByDependentItemId.get(dependentItemId)));
 
                 if (placeholder == null || placeholder.Status != 'Waiting') {
                     continue; // no placeholder, or it was already activated/advanced - never regress it
@@ -136,38 +150,21 @@ public with sharing class TaskTriggerActions {
             }
         }
 
-        private String compositeKey(Id templateItemId, String chainId) {
+        private String compositeKey(Id templateItemId, Id chainId) {
             return templateItemId + ':' + chainId;
         }
 
-        private Map<String, Task> queryPlaceholdersBulk(List<Task> completedSubtasks, Map<Id, Subtask_Template_Item__c> nextItemByTaskId) {
-            Set<Id> nextItemIds = new Set<Id>();
-            Set<String> chainIds = new Set<String>();
-
-            for (Task t : completedSubtasks) {
-                Subtask_Template_Item__c nextItem = nextItemByTaskId.get(t.Id);
-
-                if (nextItem == null) {
-                    continue;
-                }
-
-                nextItemIds.add(nextItem.Id);
-
-                if (t.Parent_Task__c != null) {
-                    chainIds.add(t.Parent_Task__c);
-                }
-            }
-
+        private Map<String, Task> queryPlaceholdersBulk(Set<Id> dependentItemIds, Set<Id> chainIds) {
             Map<String, Task> results = new Map<String, Task>();
 
-            if (nextItemIds.isEmpty() || chainIds.isEmpty()) {
+            if (dependentItemIds.isEmpty() || chainIds.isEmpty()) {
                 return results;
             }
 
             for (Task placeholder : [
                 SELECT Id, OwnerId, Status, ActivityDate, Subtask_Template_Item__c, Parent_Task__c, Manually_Reassigned__c
                 FROM Task
-                WHERE Subtask_Template_Item__c IN :nextItemIds
+                WHERE Subtask_Template_Item__c IN :dependentItemIds
                   AND Parent_Task__c IN :chainIds
             ]) {
                 results.put(compositeKey(placeholder.Subtask_Template_Item__c, placeholder.Parent_Task__c), placeholder);
@@ -241,85 +238,27 @@ public with sharing class TaskTriggerActions {
         return result;
     }
 
-    private static Subtask_Template_Item__c nextItemFor(
-        Task t,
-        Map<Id, Subtask_Template_Item__c> currentItemsById,
-        Map<Id, Subtask_Template_Item__c> nextItemByCurrentItemId
-    ) {
-        Subtask_Template_Item__c currentItem = currentItemsById.get(t.Subtask_Template_Item__c);
-
-        if (currentItem == null) {
-            return null;
-        }
-
-        return nextItemByCurrentItemId.get(currentItem.Id);
-    }
-
-    private static Map<Id, Subtask_Template_Item__c> queryItems(List<Task> tasks) {
-        Set<Id> itemIds = new Set<Id>();
-
-        for (Task t : tasks) {
-            itemIds.add(t.Subtask_Template_Item__c);
-        }
-
-        return new Map<Id, Subtask_Template_Item__c>([
-            SELECT Id, Subtask_Template__c, Sequence_Order__c, Subject__c
-            FROM Subtask_Template_Item__c
-            WHERE Id IN :itemIds
-        ]);
-    }
-
     /**
-     * Returns, for each given current item, its next item by sequence within
-     * the same template - computed with exactly one query total (fetching
-     * every item in every referenced template), regardless of how many
-     * current items are passed in.
+     * Returns, for each given completed item, every item that depends on it
+     * directly (Depends_On_Step__c) - zero, one, or several (branching) -
+     * computed with exactly one query total regardless of how many
+     * completed items are passed in.
      */
-    private static Map<Id, Subtask_Template_Item__c> queryNextItemsBulk(List<Subtask_Template_Item__c> currentItems) {
-        Set<Id> templateIds = new Set<Id>();
+    private static Map<Id, List<Subtask_Template_Item__c>> queryDependentItemsBulk(Set<Id> completedItemIds) {
+        Map<Id, List<Subtask_Template_Item__c>> results = new Map<Id, List<Subtask_Template_Item__c>>();
 
-        for (Subtask_Template_Item__c item : currentItems) {
-            templateIds.add(item.Subtask_Template__c);
-        }
-
-        Map<Id, List<Subtask_Template_Item__c>> itemsByTemplate = new Map<Id, List<Subtask_Template_Item__c>>();
-
-        for (Subtask_Template_Item__c item : [
+        for (Subtask_Template_Item__c dependent : [
             SELECT Id, Subtask_Template__c, Sequence_Order__c, Subject__c,
-                   Description__c, Assignee_Type__c, Static_Assignee__c, Dynamic_Assignee_Field__c
+                   Description__c, Assignee_Type__c, Static_Assignee__c, Dynamic_Assignee_Field__c, Depends_On_Step__c
             FROM Subtask_Template_Item__c
-            WHERE Subtask_Template__c IN :templateIds
-            ORDER BY Sequence_Order__c ASC
+            WHERE Depends_On_Step__c IN :completedItemIds
         ]) {
-            if (!itemsByTemplate.containsKey(item.Subtask_Template__c)) {
-                itemsByTemplate.put(item.Subtask_Template__c, new List<Subtask_Template_Item__c>());
+            if (!results.containsKey(dependent.Depends_On_Step__c)) {
+                results.put(dependent.Depends_On_Step__c, new List<Subtask_Template_Item__c>());
             }
-            itemsByTemplate.get(item.Subtask_Template__c).add(item);
+            results.get(dependent.Depends_On_Step__c).add(dependent);
         }
 
-        Map<Id, Subtask_Template_Item__c> nextItemByCurrentId = new Map<Id, Subtask_Template_Item__c>();
-
-        for (Subtask_Template_Item__c currentItem : currentItems) {
-            List<Subtask_Template_Item__c> siblings = itemsByTemplate.get(currentItem.Subtask_Template__c);
-
-            if (siblings == null) {
-                continue;
-            }
-
-            Subtask_Template_Item__c next = null;
-
-            for (Subtask_Template_Item__c sibling : siblings) {
-                if (sibling.Sequence_Order__c > currentItem.Sequence_Order__c
-                    && (next == null || sibling.Sequence_Order__c < next.Sequence_Order__c)) {
-                    next = sibling;
-                }
-            }
-
-            if (next != null) {
-                nextItemByCurrentId.put(currentItem.Id, next);
-            }
-        }
-
-        return nextItemByCurrentId;
+        return results;
     }
 }

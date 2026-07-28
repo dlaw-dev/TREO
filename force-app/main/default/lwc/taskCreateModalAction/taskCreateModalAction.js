@@ -689,17 +689,18 @@ export default class TaskCreateModalAction extends LightningModal {
         const items = this.wiredTemplateItems?.data ?? [];
 
         return items.map((item, index) => {
-            const isFirst = index === 0;
-            const previousSubject = isFirst ? null : items[index - 1].subject;
+            // Sourced from the template's real Depends_On_Step__c edge, not
+            // "whatever's listed right above it" - more than one step can
+            // depend on the very same earlier step (branching).
+            const isImmediate = !item.dependsOnSubject;
 
             return {
                 id: item.id,
                 displayIndex: index + 1,
                 subject: item.subject,
                 description: item.description,
-                isLast: index === items.length - 1,
-                timingLabel: isFirst ? 'Starts immediately' : `Waits for "${previousSubject}"`,
-                timingPillClass: isFirst
+                timingLabel: isImmediate ? 'Starts immediately' : `Waits for "${item.dependsOnSubject}"`,
+                timingPillClass: isImmediate
                     ? 'timeline-pill timeline-pill-immediate'
                     : 'timeline-pill timeline-pill-waiting',
                 assigneeText: item.assigneeType === 'Static User'

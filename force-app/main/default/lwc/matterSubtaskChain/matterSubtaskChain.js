@@ -89,7 +89,6 @@ export default class MatterSubtaskChain extends NavigationMixin(LightningElement
             const steps = chain.steps.map((step, index) => ({
                 ...step,
                 displayIndex: index + 1,
-                isLast: index === chain.steps.length - 1,
                 isCompleted: step.status === 'Completed',
                 // SubtaskTemplateApplier now resolves a Waiting step's real
                 // future assignee up front whenever the Matter field it
@@ -98,7 +97,12 @@ export default class MatterSubtaskChain extends NavigationMixin(LightningElement
                 showOwnerPill: !!step.ownerName,
                 markerClass: this.markerClass(step.status),
                 statusPillClass: this.statusPillClass(step.status),
-                statusLabel: this.statusLabel(step.status)
+                statusLabel: this.statusLabel(step.status),
+                // Text, not a connecting line - a step can depend on any
+                // earlier step, not necessarily "the one right above it", so
+                // a single line drawn between consecutive steps would
+                // misrepresent branches.
+                dependsOnLabel: step.dependsOnSubject ? `Waits for "${step.dependsOnSubject}"` : 'Starts immediately'
             }));
 
             const completedCount = steps.filter(s => s.isCompleted).length;

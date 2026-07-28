@@ -14,6 +14,10 @@ public with sharing class SubtaskTemplateUiController {
         @AuraEnabled public String assigneeType;
         @AuraEnabled public String assigneeLabel;
         @AuraEnabled public String resolvedName;
+        // Null means this step starts immediately when the chain is
+        // applied - not necessarily "right after the step above it", since
+        // more than one step can depend on the same earlier one.
+        @AuraEnabled public String dependsOnSubject;
     }
 
     public class MatterRoleAssignees {
@@ -210,11 +214,19 @@ public with sharing class SubtaskTemplateUiController {
         List<Subtask_Template_Item__c> items = [
             SELECT Id, Sequence_Order__c, Subject__c, Description__c,
                    Assignee_Type__c, Static_Assignee__c, Static_Assignee__r.Name,
-                   Dynamic_Assignee_Field__c
+                   Dynamic_Assignee_Field__c, Depends_On_Step__c
             FROM Subtask_Template_Item__c
             WHERE Subtask_Template__c = :templateId
             ORDER BY Sequence_Order__c ASC
         ];
+
+        // Depends_On_Step__c is a Text field (not a real Lookup - see its
+        // description), so a dependency's Subject is resolved against this
+        // same already-fetched list rather than via relationship traversal.
+        Map<Id, String> subjectByItemId = new Map<Id, String>();
+        for (Subtask_Template_Item__c item : items) {
+            subjectByItemId.put(item.Id, item.Subject__c);
+        }
 
         Map<String, Schema.SObjectField> matterFieldMap = Schema.SObjectType.NEOS_Matter__c.fields.getMap();
 
@@ -247,6 +259,8 @@ public with sharing class SubtaskTemplateUiController {
             dto.subject = item.Subject__c;
             dto.description = item.Description__c;
             dto.assigneeType = item.Assignee_Type__c;
+            dto.dependsOnSubject = String.isNotBlank(item.Depends_On_Step__c)
+                ? subjectByItemId.get(item.Depends_On_Step__c) : null;
 
             if (item.Assignee_Type__c == 'Static User') {
                 dto.assigneeLabel = item.Static_Assignee__r != null ? item.Static_Assignee__r.Name : 'Unassigned';

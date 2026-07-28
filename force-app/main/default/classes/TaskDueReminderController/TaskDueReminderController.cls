@@ -184,7 +184,8 @@ public with sharing class TaskDueReminderController {
                    Bypassed__c,
                    Subtask_Template_Item__r.Assignee_Type__c,
                    Subtask_Template_Item__r.Static_Assignee__c,
-                   Subtask_Template_Item__r.Dynamic_Assignee_Field__c
+                   Subtask_Template_Item__r.Dynamic_Assignee_Field__c,
+                   Subtask_Template_Item__r.Depends_On_Step__c
             FROM Task
             WHERE Status = 'Waiting'
               AND Subtask_Template_Item__c != null
@@ -219,18 +220,27 @@ public with sharing class TaskDueReminderController {
             }
         }
 
-        // Exactly one task per chain is ever Open at a time - whoever owns it
-        // is the person actually holding up every Waiting step behind it.
-        Map<String, Task> openTaskByChain = new Map<String, Task>();
+        // With branching, more than one task can be Open in the same chain
+        // at once - resolve each Waiting task's own specific blocker (via
+        // its item's Depends_On_Step__c) rather than assuming "the chain's
+        // one Open task" is necessarily the thing holding it up.
+        Set<Id> dependsOnItemIds = new Set<Id>();
+        for (Task t : matchingTasks) {
+            if (t.Subtask_Template_Item__r.Depends_On_Step__c != null) {
+                dependsOnItemIds.add(t.Subtask_Template_Item__r.Depends_On_Step__c);
+            }
+        }
 
-        if (!chainIds.isEmpty()) {
-            for (Task openTask : [
-                SELECT Id, Subject, Owner.Name, Parent_Task__c
+        Map<String, Task> blockerByCompositeKey = new Map<String, Task>();
+
+        if (!dependsOnItemIds.isEmpty() && !chainIds.isEmpty()) {
+            for (Task blockerTask : [
+                SELECT Id, Subject, Owner.Name, Subtask_Template_Item__c, Parent_Task__c
                 FROM Task
-                WHERE Parent_Task__c IN :chainIds
-                  AND Status = 'Open'
+                WHERE Subtask_Template_Item__c IN :dependsOnItemIds
+                  AND Parent_Task__c IN :chainIds
             ]) {
-                openTaskByChain.put(openTask.Parent_Task__c, openTask);
+                blockerByCompositeKey.put(blockerTask.Subtask_Template_Item__c + ':' + blockerTask.Parent_Task__c, blockerTask);
             }
         }
 
@@ -238,11 +248,14 @@ public with sharing class TaskDueReminderController {
 
         for (Task t : matchingTasks) {
             DueTask dueTask = new DueTask(t, todayDate);
-            Task openTask = t.Parent_Task__c != null ? openTaskByChain.get(t.Parent_Task__c) : null;
+            Id dependsOnItemId = t.Subtask_Template_Item__r.Depends_On_Step__c;
+            Task blockerTask = (dependsOnItemId != null && t.Parent_Task__c != null)
+                ? blockerByCompositeKey.get(dependsOnItemId + ':' + t.Parent_Task__c)
+                : null;
 
-            if (openTask != null) {
-                dueTask.WaitingOnSubject = openTask.Subject;
-                dueTask.WaitingOnOwnerName = openTask.Owner.Name;
+            if (blockerTask != null) {
+                dueTask.WaitingOnSubject = blockerTask.Subject;
+                dueTask.WaitingOnOwnerName = blockerTask.Owner.Name;
             }
 
             results.add(dueTask);

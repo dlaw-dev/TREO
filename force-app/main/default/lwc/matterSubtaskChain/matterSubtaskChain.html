@@ -50,9 +50,6 @@
                                             <template if:true={step.isCompleted}>✓</template>
                                             <template if:false={step.isCompleted}>{step.displayIndex}</template>
                                         </span>
-                                        <template if:false={step.isLast}>
-                                            <span class="timeline-line"></span>
-                                        </template>
                                     </div>
                                     <div class="timeline-content">
                                         <button
@@ -68,6 +65,7 @@
                                                 <span class="chain-pill chain-pill-owner">{step.ownerName}</span>
                                             </template>
                                         </div>
+                                        <div class="timeline-depends">{step.dependsOnLabel}</div>
                                     </div>
                                 </div>
                             </template>
