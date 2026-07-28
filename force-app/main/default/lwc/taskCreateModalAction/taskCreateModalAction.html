@@ -336,7 +336,7 @@
         </template>
 
         <template if:true={isUseTemplateTab}>
-            <p class="template-tab-subtitle">Automatically creates a sequence of tasks for this Matter - each one activates and gets assigned as soon as the step before it is completed.</p>
+            <p class="template-tab-subtitle">Automatically creates a set of tasks for this Matter - each one activates and gets assigned as soon as the step(s) it depends on are completed.</p>
 
             <div class="template-section">
                 <button type="button" class="template-section-toggle" onclick={togglePrebuiltSection} aria-expanded={isPrebuiltSectionOpen}>

@@ -165,6 +165,16 @@ public with sharing class TaskDueReminderController {
         Date todayDate = Date.today();
         Id currentUserId = UserInfo.getUserId();
 
+        // Split into two queries rather than one unfiltered "every Waiting
+        // chain step org-wide, LIMIT 200" scan - as more chains run
+        // concurrently, that single query could silently push a user's own
+        // due tasks out of the window. A step whose OwnerId already IS the
+        // current user is captured with no LIMIT risk (narrowly scoped).
+        // Only a Dynamic Matter Field step can ever have a true eventual
+        // owner that differs from its current placeholder OwnerId (a Static
+        // User step's owner never changes), so the second, bounded query
+        // only needs to cover that much smaller subset instead of every
+        // Waiting task org-wide.
         List<Task> waitingTasks = [
             SELECT Id,
                    Subject,
@@ -189,9 +199,38 @@ public with sharing class TaskDueReminderController {
             FROM Task
             WHERE Status = 'Waiting'
               AND Subtask_Template_Item__c != null
+              AND OwnerId = :currentUserId
+        ];
+
+        waitingTasks.addAll([
+            SELECT Id,
+                   Subject,
+                   ActivityDate,
+                   Priority,
+                   Status,
+                   Task_Subtype__c,
+                   NEOS_Matter__c,
+                   NEOS_Matter__r.Name,
+                   WhatId,
+                   What.Name,
+                   OwnerId,
+                   Owner.Name,
+                   CreatedById,
+                   Parent_Task__c,
+                   Subtask_Template_Item__c,
+                   Bypassed__c,
+                   Subtask_Template_Item__r.Assignee_Type__c,
+                   Subtask_Template_Item__r.Static_Assignee__c,
+                   Subtask_Template_Item__r.Dynamic_Assignee_Field__c,
+                   Subtask_Template_Item__r.Depends_On_Step__c
+            FROM Task
+            WHERE Status = 'Waiting'
+              AND Subtask_Template_Item__c != null
+              AND OwnerId != :currentUserId
+              AND Subtask_Template_Item__r.Assignee_Type__c = 'Dynamic Matter Field'
             ORDER BY CreatedDate DESC
             LIMIT 200
-        ];
+        ]);
 
         // Resolve all pending assignees in one bulk pass - one query per
         // distinct dynamic field referenced, not one per Waiting task - so

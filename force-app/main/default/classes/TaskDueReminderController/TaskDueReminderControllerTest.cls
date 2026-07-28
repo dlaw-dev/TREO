@@ -393,6 +393,78 @@ private class TaskDueReminderControllerTest {
     }
 
     @IsTest
+    static void testGetMyWaitingTasks_notPushedOutByUnrelatedWaitingTasksElsewhereInOrg() {
+        Subtask_Template__c template = new Subtask_Template__c(Name = 'Volume Test Template');
+        insert template;
+
+        Subtask_Template_Item__c myItem = new Subtask_Template_Item__c(
+            Subtask_Template__c = template.Id,
+            Sequence_Order__c   = 1,
+            Subject__c          = 'My Real Waiting Step',
+            Assignee_Type__c    = 'Static User',
+            Static_Assignee__c  = UserInfo.getUserId()
+        );
+        insert myItem;
+
+        Task myWaitingTask = new Task(
+            Subject                  = 'My Real Waiting Step',
+            Status                   = 'Waiting',
+            OwnerId                  = UserInfo.getUserId(),
+            Subtask_Template_Item__c = myItem.Id
+        );
+        insert myWaitingTask;
+
+        // Flood with 200 unrelated Waiting chain steps owned by someone
+        // else, inserted AFTER the real task so they'd rank ahead of it
+        // under an org-wide "ORDER BY CreatedDate DESC LIMIT 200" scan with
+        // no owner pre-filter - the exact scenario that used to be able to
+        // push a user's own due task out of their Waiting tab.
+        Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User otherUser = new User(
+            ProfileId = sysAdmin.Id,
+            LastName = 'Decoy',
+            Email = 'decoy@test.example',
+            Username = 'decoy+' + System.now().getTime() + '@test.example',
+            Alias = 'decoy1',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US'
+        );
+        insert otherUser;
+
+        Subtask_Template_Item__c decoyItem = new Subtask_Template_Item__c(
+            Subtask_Template__c = template.Id,
+            Sequence_Order__c   = 2,
+            Subject__c          = 'Decoy Step',
+            Assignee_Type__c    = 'Static User',
+            Static_Assignee__c  = otherUser.Id
+        );
+        insert decoyItem;
+
+        List<Task> decoys = new List<Task>();
+        for (Integer i = 0; i < 200; i++) {
+            decoys.add(new Task(
+                Subject                  = 'Decoy Waiting ' + i,
+                Status                   = 'Waiting',
+                OwnerId                  = otherUser.Id,
+                Subtask_Template_Item__c = decoyItem.Id
+            ));
+        }
+        insert decoys;
+
+        Test.startTest();
+        List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getMyWaitingTasks();
+        Test.stopTest();
+
+        Boolean found = false;
+        for (TaskDueReminderController.DueTask dt : results) {
+            if (dt.Subject == 'My Real Waiting Step') found = true;
+        }
+        System.assert(found, 'The current user\'s own waiting task must not be pushed out by unrelated waiting tasks elsewhere in the org.');
+    }
+
+    @IsTest
     static void testSnoozeTask_notOwner_throws() {
 
         Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];

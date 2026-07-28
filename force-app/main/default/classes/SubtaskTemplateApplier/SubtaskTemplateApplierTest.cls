@@ -162,6 +162,120 @@ private class SubtaskTemplateApplierTest {
     }
 
     @IsTest
+    static void testApply_throwsWhenStepDependsOnNonexistentItem() {
+        User staticAssignee = [SELECT Id FROM User WHERE Name = 'David Yeremian' AND IsActive = true LIMIT 1];
+
+        Subtask_Template__c template = new Subtask_Template__c(Name = 'Dangling Reference Template');
+        insert template;
+
+        Subtask_Template_Item__c stepOne = new Subtask_Template_Item__c(
+            Subtask_Template__c = template.Id,
+            Sequence_Order__c   = 1,
+            Subject__c          = 'Step One',
+            Assignee_Type__c    = 'Static User',
+            Static_Assignee__c  = staticAssignee.Id
+        );
+        insert stepOne;
+
+        // A second, throwaway template item whose Id will never appear in
+        // the real template's own item list - simulates a deleted item or a
+        // reference that leaked in from a different template entirely.
+        Subtask_Template__c otherTemplate = new Subtask_Template__c(Name = 'Other Template');
+        insert otherTemplate;
+        Subtask_Template_Item__c foreignItem = new Subtask_Template_Item__c(
+            Subtask_Template__c = otherTemplate.Id,
+            Sequence_Order__c   = 1,
+            Subject__c          = 'Foreign Step',
+            Assignee_Type__c    = 'Static User',
+            Static_Assignee__c  = staticAssignee.Id
+        );
+        insert foreignItem;
+
+        insert new Subtask_Template_Item__c(
+            Subtask_Template__c = template.Id,
+            Sequence_Order__c   = 2,
+            Subject__c          = 'Step Two',
+            Assignee_Type__c    = 'Static User',
+            Static_Assignee__c  = staticAssignee.Id,
+            Depends_On_Step__c  = foreignItem.Id
+        );
+
+        NEOS_Matter__c matter = new NEOS_Matter__c(Name = 'Test Matter', Case_Title__c = 'Test Case');
+        insert matter;
+
+        Boolean threw = false;
+        Test.startTest();
+        try {
+            SubtaskTemplateApplier.apply(template.Id, matter.Id);
+        } catch (SubtaskTemplateApplier.SubtaskTemplateApplierException e) {
+            threw = true;
+            System.assert(e.getMessage().contains('no longer exists in this template'));
+        }
+        Test.stopTest();
+
+        System.assert(threw, 'Expected an exception when a step depends on an item outside this template.');
+    }
+
+    @IsTest
+    static void testApply_throwsWhenCycleLeavesStepsUnreachable() {
+        User staticAssignee = [SELECT Id FROM User WHERE Name = 'David Yeremian' AND IsActive = true LIMIT 1];
+
+        Subtask_Template__c template = new Subtask_Template__c(Name = 'Cycle Template');
+        insert template;
+
+        // Entry step gives the template a valid starting point, but B and C
+        // depend only on each other - a 2-item cycle disconnected from the
+        // only entry step, so B and C can never activate.
+        Subtask_Template_Item__c entry = new Subtask_Template_Item__c(
+            Subtask_Template__c = template.Id,
+            Sequence_Order__c   = 1,
+            Subject__c          = 'Entry Step',
+            Assignee_Type__c    = 'Static User',
+            Static_Assignee__c  = staticAssignee.Id
+        );
+        insert entry;
+
+        Subtask_Template_Item__c stepB = new Subtask_Template_Item__c(
+            Subtask_Template__c = template.Id,
+            Sequence_Order__c   = 2,
+            Subject__c          = 'Step B',
+            Assignee_Type__c    = 'Static User',
+            Static_Assignee__c  = staticAssignee.Id
+        );
+        insert stepB;
+
+        Subtask_Template_Item__c stepC = new Subtask_Template_Item__c(
+            Subtask_Template__c = template.Id,
+            Sequence_Order__c   = 3,
+            Subject__c          = 'Step C',
+            Assignee_Type__c    = 'Static User',
+            Static_Assignee__c  = staticAssignee.Id,
+            Depends_On_Step__c  = stepB.Id
+        );
+        insert stepC;
+
+        stepB.Depends_On_Step__c = stepC.Id;
+        update stepB;
+
+        NEOS_Matter__c matter = new NEOS_Matter__c(Name = 'Test Matter', Case_Title__c = 'Test Case');
+        insert matter;
+
+        Boolean threw = false;
+        Test.startTest();
+        try {
+            SubtaskTemplateApplier.apply(template.Id, matter.Id);
+        } catch (SubtaskTemplateApplier.SubtaskTemplateApplierException e) {
+            threw = true;
+            System.assert(e.getMessage().contains('circular dependency'));
+            System.assert(e.getMessage().contains('Step B'));
+            System.assert(e.getMessage().contains('Step C'));
+        }
+        Test.stopTest();
+
+        System.assert(threw, 'Expected an exception when a cycle leaves steps unreachable from any entry step.');
+    }
+
+    @IsTest
     static void testApply_singleStepTemplate_activatesImmediately() {
         User staticAssignee = [SELECT Id FROM User WHERE Name = 'David Yeremian' AND IsActive = true LIMIT 1];
 

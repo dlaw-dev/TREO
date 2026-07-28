@@ -83,7 +83,18 @@ public with sharing class SubtaskAssigneeResolver {
                 continue;
             }
 
-            String safeFieldName = field.getDescribe().getName();
+            Schema.DescribeFieldResult describe = field.getDescribe();
+
+            // Respect the running user's field-level security rather than
+            // reading this field in system mode regardless of their
+            // profile's FLS - a step whose dynamic field the user can't see
+            // simply fails to resolve here, same as any other unresolvable
+            // field, rather than silently leaking its value to them.
+            if (!describe.isAccessible()) {
+                continue;
+            }
+
+            String safeFieldName = describe.getName();
             Set<Id> matterIds = matterIdsByField.get(fieldApiName);
 
             Map<Id, Id> valueByMatterId = new Map<Id, Id>();

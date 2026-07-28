@@ -263,6 +263,56 @@ private class TaskTriggerActionsTest {
     }
 
     @IsTest
+    static void testValidator_manuallyReassignedStep_doesNotBlockPredecessorCompletion_evenWithFieldUnset() {
+        // Deliberately do NOT set matter.Senior_Attorney__c - the whole
+        // point is proving completion isn't blocked on it once the
+        // dependent step has already been manually reassigned to a real
+        // owner and no longer needs that field resolved at all.
+        Subtask_Template__c template = buildSeniorToAssociateTemplate();
+        NEOS_Matter__c matter = createMatter();
+
+        Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User manualOverrideUser = new User(
+            ProfileId = sysAdmin.Id,
+            LastName = 'ManualOverrideNoField',
+            Email = 'manualoverridenofield@test.example',
+            Username = 'manualoverridenofield+' + System.now().getTime() + '@test.example',
+            Alias = 'manover2',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US'
+        );
+        insert manualOverrideUser;
+
+        Id masterId = SubtaskTemplateApplier.apply(template.Id, matter.Id);
+
+        Task firstTask = [
+            SELECT Id, Status FROM Task
+            WHERE Parent_Task__c = :masterId AND Id != :masterId
+            LIMIT 1
+        ];
+
+        Task master = [SELECT Id, OwnerId, Manually_Reassigned__c FROM Task WHERE Id = :masterId];
+        master.OwnerId = manualOverrideUser.Id;
+        master.Manually_Reassigned__c = true;
+        update master;
+
+        Test.startTest();
+        firstTask.Status = 'Completed';
+        update firstTask;
+        Test.stopTest();
+
+        Task firstTaskReloaded = [SELECT Status FROM Task WHERE Id = :firstTask.Id];
+        System.assertEquals('Completed', firstTaskReloaded.Status,
+            'Completing the predecessor must not be blocked just because the Matter field behind a manually reassigned dependent is unset.');
+
+        Task masterReloaded = [SELECT Status, OwnerId FROM Task WHERE Id = :masterId];
+        System.assertEquals('Open', masterReloaded.Status);
+        System.assertEquals(manualOverrideUser.Id, masterReloaded.OwnerId);
+    }
+
+    @IsTest
     static void testAdHocWaitingTask_activatesWhenBlockerCompletes() {
         Task blocker = new Task(Subject = 'Blocker Task', Status = 'Open');
         insert blocker;

@@ -55,6 +55,14 @@ public with sharing class TaskTriggerActions {
                     Task placeholder = placeholderByCompositeKey.get(compositeKey(dependent.Id, t.Parent_Task__c));
                     if (placeholder == null) continue;
 
+                    // A manually reassigned placeholder already has a real,
+                    // intentional owner (set via Edit/Reassign) and will
+                    // never be re-resolved from the dynamic field anyway -
+                    // see AdvanceSubtaskChainAfterComplete below - so it has
+                    // nothing to validate here regardless of whether the
+                    // Matter field is set.
+                    if (placeholder.Manually_Reassigned__c == true) continue;
+
                     itemToResolveByPlaceholderId.put(placeholder.Id, dependent);
                     matterIdByPlaceholderId.put(placeholder.Id, t.NEOS_Matter__c);
                     completingTaskByPlaceholderId.put(placeholder.Id, t);
@@ -136,12 +144,16 @@ public with sharing class TaskTriggerActions {
 
             for (Id placeholderId : placeholderById.keySet()) {
                 Id assigneeId = resolvedAssigneeByPlaceholderId.get(placeholderId);
+                Task placeholder = placeholderById.get(placeholderId);
 
-                if (assigneeId == null) {
+                // A manually reassigned placeholder already has a real,
+                // intentional owner and never needs the dynamic field
+                // resolved at all (the before-update validator skips it for
+                // the same reason) - only an un-reassigned step actually
+                // needs a successful resolution to proceed.
+                if (assigneeId == null && placeholder.Manually_Reassigned__c != true) {
                     continue; // the before-update safety rail should have blocked this already
                 }
-
-                Task placeholder = placeholderById.get(placeholderId);
 
                 // Someone may have already manually reassigned this
                 // not-yet-active step via Edit/Reassign - respect that
@@ -212,7 +224,18 @@ public with sharing class TaskTriggerActions {
                 dependent.Status = 'Open';
             }
 
-            Database.update(dependents, false);
+            List<Database.SaveResult> saveResults = Database.update(dependents, false);
+
+            for (Integer i = 0; i < saveResults.size(); i++) {
+                if (!saveResults[i].isSuccess()) {
+                    String errorDetail = '';
+                    for (Database.Error err : saveResults[i].getErrors()) {
+                        errorDetail += err.getStatusCode() + ': ' + err.getMessage() + ' ';
+                    }
+                    System.debug(LoggingLevel.ERROR, 'Failed to activate ad hoc waiting task (Task Id='
+                        + dependents[i].Id + '): ' + errorDetail);
+                }
+            }
         }
     }
 

@@ -4,7 +4,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import TaskCreateModalAction from 'c/taskCreateModalAction';
 import LogTimeEntryModal from 'c/logTimeEntryModal';
 import { refreshApex } from '@salesforce/apex';
-import { subscribe, publish, MessageContext } from 'lightning/messageService';
+import { subscribe, unsubscribe, publish, MessageContext } from 'lightning/messageService';
 import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 import CURRENT_USER_ID from '@salesforce/user/Id';
 
@@ -30,12 +30,46 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     _sortField      = '';
     _sortDir        = 'asc';
 
+    // Guards Mark Done/Skip against a double-click or slow-network double
+    // submission - both actions remove the row from view once they resolve,
+    // but a second click fired before that happens would otherwise send a
+    // second, redundant completeTask/bypassTask call.
+    _actionInFlightIds = new Set();
+
+    subscription;
+
     @wire(MessageContext) messageContext;
 
+    _boundCloseAttachmentMenu;
+
     connectedCallback() {
-        subscribe(this.messageContext, TASK_CHANGED, () => {
-            refreshApex(this.wiredResult);
-        });
+        if (!this.subscription) {
+            this.subscription = subscribe(this.messageContext, TASK_CHANGED, () => {
+                refreshApex(this.wiredResult);
+            });
+        }
+
+        // handleAttachmentClick already stops propagation on the triggering
+        // click, so this only ever fires for a genuine outside click.
+        this._boundCloseAttachmentMenu = () => this.closeAttachmentMenu();
+        window.addEventListener('click', this._boundCloseAttachmentMenu);
+    }
+
+    disconnectedCallback() {
+        if (this.subscription) {
+            unsubscribe(this.subscription);
+            this.subscription = null;
+        }
+
+        if (this._boundCloseAttachmentMenu) {
+            window.removeEventListener('click', this._boundCloseAttachmentMenu);
+            this._boundCloseAttachmentMenu = null;
+        }
+    }
+
+    closeAttachmentMenu() {
+        if (!this.displayTasks.some(t => t.isAttachmentMenuOpen)) return;
+        this.displayTasks = this.displayTasks.map(t => ({ ...t, isAttachmentMenuOpen: false }));
     }
 
     // ---------- Wire ----------
@@ -118,6 +152,7 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             const isBypassed = isCompleted && !!t.IsBypassed;
             const isWaiting   = t.Status === 'Waiting';
             const canReassign = t.OwnerId === CURRENT_USER_ID || t.CreatedById === CURRENT_USER_ID;
+            const isActionInFlight = this._actionInFlightIds.has(t.Id);
             const waitingTitle = t.WaitingOnSubject
                 ? `Waiting on "${t.WaitingOnSubject}"${t.WaitingOnOwnerName ? ` (${t.WaitingOnOwnerName})` : ''}`
                 : "Waiting on a prior step in this task's chain";
@@ -136,10 +171,11 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
                 rowClass:        isCompleted ? 'tasks-row tasks-row--completed' : 'tasks-row',
                 isAssignee,
                 showMarkDone:    !isCompleted && !isWaiting,
-                disableMarkDone: !isAssignee,
+                disableMarkDone: !isAssignee || isActionInFlight,
                 markDoneTitle:   isAssignee ? 'Mark as complete' : `Only ${t.OwnerName || 'the assignee'} can complete this task`,
                 canReassign,
                 showSkip:        !isCompleted && !isWaiting && !!t.IsChainStep && canReassign,
+                disableSkip:     isActionInFlight,
                 attachments,
                 hasAttachments:  attachments.length > 0,
                 attachmentTitle: attachments.length === 1 ? '1 attachment' : `${attachments.length} attachments`,
@@ -242,6 +278,15 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     get dueSortIcon()      { return this._sortIconFor('ActivityDate'); }
     get assigneeSortIcon() { return this._sortIconFor('OwnerName'); }
 
+    _ariaSortFor(field) {
+        if (this._sortField !== field) return 'none';
+        return this._sortDir === 'asc' ? 'ascending' : 'descending';
+    }
+    get subjectAriaSort()  { return this._ariaSortFor('Subject'); }
+    get priorityAriaSort() { return this._ariaSortFor('Priority'); }
+    get dueAriaSort()      { return this._ariaSortFor('ActivityDate'); }
+    get assigneeAriaSort() { return this._ariaSortFor('OwnerName'); }
+
     // ---------- Handlers ----------
     handleTaskFilter(event) {
         this._taskFilter = event.currentTarget.dataset.filter;
@@ -269,6 +314,13 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         this._rebuild();
     }
 
+    handleSortKeydown(event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            this.handleSort(event);
+        }
+    }
+
     handleSubjectClick(event) {
         this[NavigationMixin.Navigate]({
             type: 'standard__recordPage',
@@ -281,7 +333,10 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     }
 
     handleTaskCompleteBtn(event) {
-        const row = (this.tasks || []).find(t => t.Id === event.currentTarget.dataset.id);
+        const taskId = event.currentTarget.dataset.id;
+        if (this._actionInFlightIds.has(taskId)) return;
+
+        const row = (this.tasks || []).find(t => t.Id === taskId);
         if (!row || row.OwnerId !== CURRENT_USER_ID || row.Status === 'Waiting') {
             return;
         }
@@ -293,6 +348,8 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     }
 
     async handleCompleteTask(row) {
+        this._actionInFlightIds.add(row.Id);
+        this._rebuild();
         try {
             await completeTask({ taskId: row.Id });
             this.dispatchEvent(new ShowToastEvent({
@@ -318,19 +375,26 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
                 message: e.body?.message || e.message,
                 variant: 'error'
             }));
+        } finally {
+            this._actionInFlightIds.delete(row.Id);
+            this._rebuild();
         }
     }
 
     async handleBypass(event) {
         const taskId = event.currentTarget.dataset.id;
+        if (this._actionInFlightIds.has(taskId)) return;
+
         const row = (this.tasks || []).find(t => t.Id === taskId);
         if (!row) return;
 
         // eslint-disable-next-line no-alert
-        if (!window.confirm(`Skip "${row.Subject}" without completing it? The next step in this chain will still be activated.`)) {
+        if (!window.confirm(`Skip "${row.Subject}" without completing it? Any step(s) that depend on it will still activate.`)) {
             return;
         }
 
+        this._actionInFlightIds.add(taskId);
+        this._rebuild();
         try {
             await bypassTask({ taskId });
             this.dispatchEvent(new ShowToastEvent({
@@ -346,6 +410,9 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
                 message: e.body?.message || e.message,
                 variant: 'error'
             }));
+        } finally {
+            this._actionInFlightIds.delete(taskId);
+            this._rebuild();
         }
     }
 
@@ -377,14 +444,22 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
     async handleReassign(event) {
         const taskId = event.currentTarget.dataset.id;
 
-        const result = await TaskCreateModalAction.open({
-            size: 'medium',
-            recordId: this.recordId,
-            existingTaskId: taskId
-        });
+        try {
+            const result = await TaskCreateModalAction.open({
+                size: 'medium',
+                recordId: this.recordId,
+                existingTaskId: taskId
+            });
 
-        if (result === 'success') {
-            await refreshApex(this.wiredResult);
+            if (result === 'success') {
+                await refreshApex(this.wiredResult);
+            }
+        } catch (e) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Could not open Edit/Reassign',
+                message: e?.body?.message || e?.message || 'Please try again.',
+                variant: 'error'
+            }));
         }
     }
 

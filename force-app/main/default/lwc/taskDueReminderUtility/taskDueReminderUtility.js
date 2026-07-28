@@ -1,6 +1,6 @@
 import { LightningElement, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
-import { subscribe, publish, MessageContext } from 'lightning/messageService';
+import { subscribe, unsubscribe, publish, MessageContext } from 'lightning/messageService';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { EnclosingUtilityId, open, updateUtility, getInfo } from 'lightning/platformUtilityBarApi';
 import LogTimeEntryModal from 'c/logTimeEntryModal';
@@ -114,6 +114,11 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     snoozeOptions = SNOOZE_OPTIONS;
     baseUtilityLabel;
     suppressNextTaskChangedEcho = false;
+    // Tracks which urgent tasks we've already auto-opened the panel for -
+    // otherwise a user who manually closes the panel gets it forced back
+    // open on every subsequent poll for as long as the same overdue/due-
+    // today task(s) remain, instead of only when something new shows up.
+    _seenUrgentTaskIds = new Set();
 
     expanded = {
         overdue: true,
@@ -136,6 +141,8 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         noDueDate: true
     };
 
+    _boundCloseAttachmentMenu;
+
     connectedCallback() {
         this.ensureBaseUtilityLabel();
         this.refreshTasks();
@@ -150,12 +157,37 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 this.refreshTasks();
             });
         }
+
+        // handleAttachmentClick already stops propagation on the triggering
+        // click, so this only ever fires for a genuine outside click.
+        this._boundCloseAttachmentMenu = () => this.closeAttachmentMenu();
+        window.addEventListener('click', this._boundCloseAttachmentMenu);
     }
 
     disconnectedCallback() {
         if (this.pollIntervalId) {
             clearInterval(this.pollIntervalId);
         }
+
+        if (this.subscription) {
+            unsubscribe(this.subscription);
+            this.subscription = null;
+        }
+
+        if (this._boundCloseAttachmentMenu) {
+            window.removeEventListener('click', this._boundCloseAttachmentMenu);
+            this._boundCloseAttachmentMenu = null;
+        }
+    }
+
+    closeAttachmentMenu() {
+        const anyOpen = (list) => list.some((t) => t.isAttachmentMenuOpen);
+        if (!anyOpen(this.tasks) && !anyOpen(this.delegatedTasks) && !anyOpen(this.waitingTasks)) return;
+
+        const close = (list) => list.map((t) => ({ ...t, isAttachmentMenuOpen: false }));
+        this.tasks = close(this.tasks);
+        this.delegatedTasks = close(this.delegatedTasks);
+        this.waitingTasks = close(this.waitingTasks);
     }
 
     async ensureBaseUtilityLabel() {
@@ -222,7 +254,11 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             this.tasks = this.decorateTasks(dueOutcome.value);
             this.syncUtilityChrome();
 
-            if (this.urgentTasks.length > 0) {
+            const currentUrgentIds = new Set(this.urgentTasks.map((t) => t.Id));
+            const hasNewUrgentTask = [...currentUrgentIds].some((id) => !this._seenUrgentTaskIds.has(id));
+            this._seenUrgentTaskIds = currentUrgentIds;
+
+            if (hasNewUrgentTask) {
                 this.openPanel();
             }
         } else {
@@ -375,6 +411,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
 
     withMenuState(list) {
         const isAssignedToMe = this.isAssignedToMeTab;
+        const isAssignedByMe = this.isAssignedByMeTab;
         return list.map((t) => {
             const isOpen = this.openSnoozeMenuId === t.Id;
             const classes = ['reminder-item'];
@@ -388,7 +425,13 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 // Completing is still allowed on a snoozed task - only the
                 // "Snooze" action itself is hidden once it's already snoozed.
                 showComplete: isAssignedToMe,
-                showSkip: isAssignedToMe && !!t.IsChainStep && t.canReassign,
+                // bypassTask permits either the current assignee OR the
+                // original assigner (creator) to skip - the Assigned By Me
+                // tab is exactly that second case (every row there has
+                // CreatedById === current user by construction), so it
+                // needs its own Skip button rather than requiring a
+                // reassign-to-self round trip first.
+                showSkip: (isAssignedToMe || isAssignedByMe) && !!t.IsChainStep && t.canReassign,
                 showSnoozeButton: isAssignedToMe && !t.isSnoozed,
                 showOwnerOrStatusPills: !isAssignedToMe,
                 itemClass: classes.join(' ')
@@ -580,16 +623,20 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         this.removingIds = removing;
         this.syncUtilityChrome();
 
-        setTimeout(() => {
-            const after = new Set(this.removingIds);
-            after.delete(taskId);
-            this.removingIds = after;
-
+        setTimeout(async () => {
             // A full refetch - not just dropping taskId locally - so any
             // successor step this completion just activated (e.g. the next
             // subtask chain step, now assigned to this same user) shows up
             // without waiting for the poll interval or a manual page refresh.
-            this.refreshTasks();
+            // Awaited before clearing removingIds so the row stays hidden by
+            // its CSS-animation class through the whole round trip, instead
+            // of snapping back to full opacity for that window and then
+            // disappearing again once the refetch resolves.
+            await this.refreshTasks();
+
+            const after = new Set(this.removingIds);
+            after.delete(taskId);
+            this.removingIds = after;
         }, REMOVE_ANIMATION_MS);
     }
 
@@ -690,7 +737,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             || this.waitingTasks.find((t) => t.Id === taskId);
 
         // eslint-disable-next-line no-alert
-        if (!window.confirm(`Skip "${task?.Subject}" without completing it? The next step in this chain will still be activated.`)) {
+        if (!window.confirm(`Skip "${task?.Subject}" without completing it? Any step(s) that depend on it will still activate.`)) {
             return;
         }
 
@@ -727,14 +774,24 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             || this.delegatedTasks.find((t) => t.Id === taskId)
             || this.waitingTasks.find((t) => t.Id === taskId);
 
-        const result = await TaskCreateModalAction.open({
-            size: 'medium',
-            recordId: task?.MatterId,
-            existingTaskId: taskId
-        });
+        try {
+            const result = await TaskCreateModalAction.open({
+                size: 'medium',
+                recordId: task?.MatterId,
+                existingTaskId: taskId
+            });
 
-        if (result === 'success') {
-            this.refreshTasks();
+            if (result === 'success') {
+                this.refreshTasks();
+            }
+        } catch (error) {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Could not open Edit/Reassign',
+                    message: error?.body?.message || error?.message || 'Please try again.',
+                    variant: 'error'
+                })
+            );
         }
     }
 

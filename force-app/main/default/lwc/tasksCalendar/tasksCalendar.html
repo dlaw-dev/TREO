@@ -46,10 +46,10 @@
             <table class="tasks-table">
               <thead>
                 <tr>
-                  <th class="tasks-th tasks-th--sortable" data-field="Subject" onclick={handleSort}>Subject{subjectSortIcon}</th>
-                  <th class="tasks-th tasks-th--sortable" data-field="Priority" onclick={handleSort}>Priority{prioritySortIcon}</th>
-                  <th class="tasks-th tasks-th--sortable" data-field="ActivityDate" onclick={handleSort}>Due{dueSortIcon}</th>
-                  <th class="tasks-th tasks-th--sortable" data-field="OwnerName" onclick={handleSort}>Assignee{assigneeSortIcon}</th>
+                  <th class="tasks-th tasks-th--sortable" data-field="Subject" onclick={handleSort} onkeydown={handleSortKeydown} role="button" tabindex="0" aria-sort={subjectAriaSort}>Subject{subjectSortIcon}</th>
+                  <th class="tasks-th tasks-th--sortable" data-field="Priority" onclick={handleSort} onkeydown={handleSortKeydown} role="button" tabindex="0" aria-sort={priorityAriaSort}>Priority{prioritySortIcon}</th>
+                  <th class="tasks-th tasks-th--sortable" data-field="ActivityDate" onclick={handleSort} onkeydown={handleSortKeydown} role="button" tabindex="0" aria-sort={dueAriaSort}>Due{dueSortIcon}</th>
+                  <th class="tasks-th tasks-th--sortable" data-field="OwnerName" onclick={handleSort} onkeydown={handleSortKeydown} role="button" tabindex="0" aria-sort={assigneeAriaSort}>Assignee{assigneeSortIcon}</th>
                   <th class="tasks-th tasks-th--action"></th>
                 </tr>
               </thead>
@@ -92,7 +92,7 @@
                         <button type="button" class="task-done-btn" data-id={t.Id} onclick={handleTaskCompleteBtn} disabled={t.disableMarkDone} title={t.markDoneTitle}>Mark Done</button>
                       </template>
                       <template if:true={t.showSkip}>
-                        <button type="button" class="task-skip-btn" data-id={t.Id} onclick={handleBypass} title="Skip this step without completing it">Skip</button>
+                        <button type="button" class="task-skip-btn" data-id={t.Id} onclick={handleBypass} disabled={t.disableSkip} title="Skip this step without completing it">Skip</button>
                       </template>
                       <template if:true={t.canReassign}>
                         <button type="button" class="task-reassign-btn" data-id={t.Id} onclick={handleReassign} title="Edit or reassign this task">Edit/Reassign</button>

@@ -40,6 +40,8 @@ public with sharing class SubtaskTemplateApplier {
             throw new SubtaskTemplateApplierException('This template has no starting step - every step depends on another.');
         }
 
+        validateDependencyGraph(items, entryItems);
+
         // Resolve every step's assignee up front, not just the entry steps'.
         // A later step's dynamic field is usually already set on the Matter
         // (e.g. LSS_Paralegal__c), so showing its real assignee immediately -
@@ -119,6 +121,62 @@ public with sharing class SubtaskTemplateApplier {
         }
 
         return master.Id;
+    }
+
+    /**
+     * Guards against a hand-authored template's Depends_On_Step__c edges
+     * being bad data - a dangling reference (deleted item, or one that
+     * belongs to a different template entirely) or a cycle that leaves some
+     * steps unreachable from any entry step. Either would otherwise apply
+     * "successfully" and leave the affected steps stuck at Waiting forever,
+     * with nothing ever activating them and no error to explain why.
+     */
+    private static void validateDependencyGraph(List<Subtask_Template_Item__c> items, List<Subtask_Template_Item__c> entryItems) {
+        Map<Id, Subtask_Template_Item__c> itemsById = new Map<Id, Subtask_Template_Item__c>();
+        for (Subtask_Template_Item__c item : items) {
+            itemsById.put(item.Id, item);
+        }
+
+        Map<Id, List<Subtask_Template_Item__c>> childrenByDependsOnId = new Map<Id, List<Subtask_Template_Item__c>>();
+        for (Subtask_Template_Item__c item : items) {
+            if (item.Depends_On_Step__c == null) continue;
+
+            if (!itemsById.containsKey(item.Depends_On_Step__c)) {
+                throw new SubtaskTemplateApplierException(
+                    'Cannot apply this template: "' + item.Subject__c
+                    + '" depends on a step that no longer exists in this template.');
+            }
+
+            if (!childrenByDependsOnId.containsKey(item.Depends_On_Step__c)) {
+                childrenByDependsOnId.put(item.Depends_On_Step__c, new List<Subtask_Template_Item__c>());
+            }
+            childrenByDependsOnId.get(item.Depends_On_Step__c).add(item);
+        }
+
+        Set<Id> reached = new Set<Id>();
+        List<Subtask_Template_Item__c> queue = new List<Subtask_Template_Item__c>(entryItems);
+        Integer cursor = 0;
+
+        while (cursor < queue.size()) {
+            Subtask_Template_Item__c current = queue[cursor];
+            cursor++;
+
+            if (reached.contains(current.Id)) continue;
+            reached.add(current.Id);
+
+            List<Subtask_Template_Item__c> children = childrenByDependsOnId.get(current.Id);
+            if (children != null) queue.addAll(children);
+        }
+
+        if (reached.size() != items.size()) {
+            List<String> unreachableSubjects = new List<String>();
+            for (Subtask_Template_Item__c item : items) {
+                if (!reached.contains(item.Id)) unreachableSubjects.add(item.Subject__c);
+            }
+            throw new SubtaskTemplateApplierException(
+                'Cannot apply this template: the following step(s) can never activate due to a circular dependency: '
+                + String.join(unreachableSubjects, ', '));
+        }
     }
 
     private static Id coalesceAssignee(Id resolvedId) {

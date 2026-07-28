@@ -86,6 +86,20 @@ export default class MatterSubtaskChain extends NavigationMixin(LightningElement
 
         return data.map((chain, chainIndex) => {
             const key = `chain-${chainIndex}`;
+
+            // How many steps in THIS chain depend on the same predecessor -
+            // more than one means those steps open together (branching),
+            // not one-after-another, which the sequential-looking numbered
+            // markers below would otherwise misrepresent on their own.
+            const siblingCountBySubject = new Map();
+            for (const step of chain.steps) {
+                if (!step.dependsOnSubject) continue;
+                siblingCountBySubject.set(
+                    step.dependsOnSubject,
+                    (siblingCountBySubject.get(step.dependsOnSubject) || 0) + 1
+                );
+            }
+
             const steps = chain.steps.map((step, index) => ({
                 ...step,
                 displayIndex: index + 1,
@@ -102,7 +116,7 @@ export default class MatterSubtaskChain extends NavigationMixin(LightningElement
                 // earlier step, not necessarily "the one right above it", so
                 // a single line drawn between consecutive steps would
                 // misrepresent branches.
-                dependsOnLabel: step.dependsOnSubject ? `Waits for "${step.dependsOnSubject}"` : 'Starts immediately'
+                dependsOnLabel: this._dependsOnLabelFor(step.dependsOnSubject, siblingCountBySubject)
             }));
 
             const completedCount = steps.filter(s => s.isCompleted).length;
@@ -125,6 +139,17 @@ export default class MatterSubtaskChain extends NavigationMixin(LightningElement
 
     get hasChains() {
         return !this.isLoading && !this.hasError && this.chains.length > 0;
+    }
+
+    _dependsOnLabelFor(dependsOnSubject, siblingCountBySubject) {
+        if (!dependsOnSubject) return 'Starts immediately';
+
+        const siblingCount = siblingCountBySubject.get(dependsOnSubject) || 1;
+        const base = `Waits for "${dependsOnSubject}"`;
+        if (siblingCount <= 1) return base;
+
+        const othersCount = siblingCount - 1;
+        return `${base} — opens together with ${othersCount} other step${othersCount === 1 ? '' : 's'}`;
     }
 
     toggleChain(event) {

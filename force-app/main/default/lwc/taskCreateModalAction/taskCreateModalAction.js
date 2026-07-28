@@ -688,18 +688,36 @@ export default class TaskCreateModalAction extends LightningModal {
     get templateItemRows() {
         const items = this.wiredTemplateItems?.data ?? [];
 
+        // How many items depend on the same predecessor - more than one
+        // means those steps open together (branching), which the numbered
+        // markers below would otherwise make look like a strict sequence.
+        const siblingCountBySubject = new Map();
+        for (const item of items) {
+            if (!item.dependsOnSubject) continue;
+            siblingCountBySubject.set(
+                item.dependsOnSubject,
+                (siblingCountBySubject.get(item.dependsOnSubject) || 0) + 1
+            );
+        }
+
         return items.map((item, index) => {
             // Sourced from the template's real Depends_On_Step__c edge, not
             // "whatever's listed right above it" - more than one step can
             // depend on the very same earlier step (branching).
             const isImmediate = !item.dependsOnSubject;
+            const siblingCount = isImmediate ? 0 : (siblingCountBySubject.get(item.dependsOnSubject) || 1);
+            const timingBase = isImmediate ? 'Starts immediately' : `Waits for "${item.dependsOnSubject}"`;
+            const othersCount = siblingCount - 1;
+            const timingLabel = othersCount > 0
+                ? `${timingBase} — opens together with ${othersCount} other step${othersCount === 1 ? '' : 's'}`
+                : timingBase;
 
             return {
                 id: item.id,
                 displayIndex: index + 1,
                 subject: item.subject,
                 description: item.description,
-                timingLabel: isImmediate ? 'Starts immediately' : `Waits for "${item.dependsOnSubject}"`,
+                timingLabel,
                 timingPillClass: isImmediate
                     ? 'timeline-pill timeline-pill-immediate'
                     : 'timeline-pill timeline-pill-waiting',
