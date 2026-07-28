@@ -60,4 +60,21 @@ private class TaskCalendarControllerTest {
         System.assertEquals(false, row.IsChainStep);
         System.assertEquals(false, row.IsBypassed);
     }
+
+    @IsTest
+    static void returnsEmptyListWithoutErrorWhenNoTasksExist() {
+        // A parent record with zero Tasks against it (e.g. a brand new
+        // Matter, or one where the running user's sharing shows none) -
+        // attachmentsFor() must not run its ContentDocumentLink query with
+        // an empty Id set in this case.
+        Account a = new Account(Name = 'Empty Parent Account');
+        insert a;
+
+        Test.startTest();
+        List<TaskCalendarController.TaskRow> rows = TaskCalendarController.getTasksForMatter(a.Id);
+        Test.stopTest();
+
+        System.assertNotEquals(null, rows);
+        System.assertEquals(0, rows.size());
+    }
 }

@@ -68,6 +68,18 @@ public with sharing class TaskCalendarController {
     private static Map<Id, List<TaskUiController.TaskAttachmentDto>> attachmentsFor(Set<Id> taskIds) {
         Map<Id, List<TaskUiController.TaskAttachmentDto>> results = new Map<Id, List<TaskUiController.TaskAttachmentDto>>();
 
+        // ContentDocumentLink enforces "filter by a single Id or an IN list
+        // of Ids" at the query-plan level - an empty IN list still trips
+        // that restriction (unlike a normal SOQL IN, which would just match
+        // nothing), so this has to short-circuit before the query runs
+        // rather than relying on the query itself to return zero rows. This
+        // is reachable in practice: a Matter with zero Tasks visible to the
+        // running user's sharing (e.g. a different profile/OWD) means
+        // getTasksForMatter() returns nothing, and taskIds arrives empty.
+        if (taskIds.isEmpty()) {
+            return results;
+        }
+
         for (ContentDocumentLink link : [
             SELECT LinkedEntityId, ContentDocumentId, ContentDocument.Title, ContentDocument.LatestPublishedVersionId
             FROM ContentDocumentLink
