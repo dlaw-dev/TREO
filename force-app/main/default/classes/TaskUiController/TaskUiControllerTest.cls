@@ -87,6 +87,7 @@ private class TaskUiControllerTest {
                 internalExternalTypeValue,
                 reminderTypes,
                 null,
+                null,
                 null
             );
         }
@@ -144,6 +145,7 @@ private class TaskUiControllerTest {
                 null,
                 internalExternalTypeValue,
                 new List<String>(),
+                null,
                 null,
                 null
             );
@@ -206,6 +208,7 @@ private class TaskUiControllerTest {
                 getInternalExternalTypeValue(),
                 null,
                 null,
+                null,
                 null
             );
         } catch (Exception e) {
@@ -250,6 +253,7 @@ private class TaskUiControllerTest {
                 null,
                 getInternalExternalTypeValue(),
                 reminderTypes,
+                null,
                 null,
                 null
             );
@@ -333,6 +337,7 @@ private class TaskUiControllerTest {
                     internalExternalTypeValue,
                     reminderTypes,
                     null,
+                    null,
                     null
                 );
             } catch (Exception e) {
@@ -376,6 +381,7 @@ private class TaskUiControllerTest {
                 getInternalExternalTypeValue(),
                 null,
                 blockerTask.Id,
+                null,
                 null
             );
         }
@@ -442,7 +448,8 @@ private class TaskUiControllerTest {
                 getInternalExternalTypeValue(),
                 null,
                 null,
-                attachments
+                attachments,
+                null
             );
         }
         Test.stopTest();
@@ -549,7 +556,8 @@ private class TaskUiControllerTest {
             'High',
             'Updated description',
             null,
-            attachments
+            attachments,
+            null
         );
         Test.stopTest();
 
@@ -619,6 +627,7 @@ private class TaskUiControllerTest {
                 'Not Started',
                 'Normal',
                 'desc',
+                null,
                 null,
                 null
             );
@@ -733,7 +742,7 @@ private class TaskUiControllerTest {
         Test.startTest();
         System.runAs(outsider) {
             try {
-                TaskUiController.updateTask(t.Id, owner.Id, 'Hacked Subject', Date.today(), 'Not Started', 'Normal', 'desc', null, null);
+                TaskUiController.updateTask(t.Id, owner.Id, 'Hacked Subject', Date.today(), 'Not Started', 'Normal', 'desc', null, null, null);
             } catch (Exception e) {
                 exceptionThrown = true;
             }
@@ -778,7 +787,7 @@ private class TaskUiControllerTest {
 
         Test.startTest();
         TaskUiController.updateTask(
-            chainStep.Id, newOwner.Id, 'Chain Step', Date.today(), 'Waiting', 'Normal', null, null, null
+            chainStep.Id, newOwner.Id, 'Chain Step', Date.today(), 'Waiting', 'Normal', null, null, null, null
         );
         Test.stopTest();
 
@@ -802,7 +811,7 @@ private class TaskUiControllerTest {
 
         Test.startTest();
         TaskUiController.updateTask(
-            chainStep.Id, owner.Id, 'Chain Step Same Owner', Date.today(), 'Waiting', 'Normal', null, null, null
+            chainStep.Id, owner.Id, 'Chain Step Same Owner', Date.today(), 'Waiting', 'Normal', null, null, null, null
         );
         Test.stopTest();
 
@@ -914,5 +923,246 @@ private class TaskUiControllerTest {
 
         Task unchanged = [SELECT Status FROM Task WHERE Id = :chainStep.Id];
         System.assertEquals('Open', unchanged.Status);
+    }
+
+    /* =========================================================
+       Reviewer - completeTask / approveTask / sendBackTask
+    ========================================================== */
+
+    @IsTest
+    static void testCompleteTask_withReviewerSet_goesPendingReviewInsteadOfCompleted() {
+        User owner = createAllowedUser('RevOwner', 'taskuicontroller.revowner');
+        User reviewer = createAllowedUser('Reviewer', 'taskuicontroller.reviewer1');
+
+        Task t = new Task(
+            Subject     = 'Needs Review',
+            Status      = 'Not Started',
+            OwnerId     = owner.Id,
+            Reviewer__c = reviewer.Id
+        );
+        insert t;
+
+        Test.startTest();
+        Boolean chainComplete = TaskUiController.completeTask(t.Id);
+        Test.stopTest();
+
+        System.assertEquals(false, chainComplete);
+
+        Task reloaded = [SELECT Status FROM Task WHERE Id = :t.Id];
+        System.assertEquals('Pending Review', reloaded.Status,
+            'Completing a task with a Reviewer set should hand off to review instead of finishing it outright.');
+    }
+
+    @IsTest
+    static void testApproveTask_reviewerApproves_marksCompleted() {
+        User owner = createAllowedUser('RevOwner2', 'taskuicontroller.revowner2');
+        User reviewer = createAllowedUser('Reviewer2', 'taskuicontroller.reviewer2');
+
+        Task t = new Task(
+            Subject     = 'Awaiting Approval',
+            Status      = 'Pending Review',
+            OwnerId     = owner.Id,
+            Reviewer__c = reviewer.Id
+        );
+        insert t;
+
+        Test.startTest();
+        System.runAs(reviewer) {
+            TaskUiController.approveTask(t.Id);
+        }
+        Test.stopTest();
+
+        Task reloaded = [SELECT Status FROM Task WHERE Id = :t.Id];
+        System.assertEquals('Completed', reloaded.Status);
+    }
+
+    @IsTest
+    static void testApproveTask_nonReviewer_throws() {
+        User owner = createAllowedUser('RevOwner3', 'taskuicontroller.revowner3');
+        User reviewer = createAllowedUser('Reviewer3', 'taskuicontroller.reviewer3');
+        User outsider = createAllowedUser('RevOutsider', 'taskuicontroller.revoutsider');
+
+        Task t = new Task(
+            Subject     = 'Awaiting Approval 2',
+            Status      = 'Pending Review',
+            OwnerId     = owner.Id,
+            Reviewer__c = reviewer.Id
+        );
+        insert t;
+
+        Boolean exceptionThrown = false;
+        Test.startTest();
+        System.runAs(outsider) {
+            try {
+                TaskUiController.approveTask(t.Id);
+            } catch (AuraHandledException e) {
+                exceptionThrown = true;
+            }
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown, 'Only the assigned Reviewer may approve.');
+
+        Task unchanged = [SELECT Status FROM Task WHERE Id = :t.Id];
+        System.assertEquals('Pending Review', unchanged.Status);
+    }
+
+    @IsTest
+    static void testApproveTask_notPendingReview_throws() {
+        User owner = createAllowedUser('RevOwner4', 'taskuicontroller.revowner4');
+        User reviewer = createAllowedUser('Reviewer4', 'taskuicontroller.reviewer4');
+
+        Task t = new Task(
+            Subject     = 'Not Yet Submitted',
+            Status      = 'Open',
+            OwnerId     = owner.Id,
+            Reviewer__c = reviewer.Id
+        );
+        insert t;
+
+        Boolean exceptionThrown = false;
+        Test.startTest();
+        System.runAs(reviewer) {
+            try {
+                TaskUiController.approveTask(t.Id);
+            } catch (AuraHandledException e) {
+                exceptionThrown = true;
+            }
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown, 'Approving a task that is not Pending Review should be rejected.');
+    }
+
+    @IsTest
+    static void testSendBackTask_setsOpenAndStoresFeedback() {
+        User owner = createAllowedUser('RevOwner5', 'taskuicontroller.revowner5');
+        User reviewer = createAllowedUser('Reviewer5', 'taskuicontroller.reviewer5');
+
+        Task t = new Task(
+            Subject     = 'Needs Revisions',
+            Status      = 'Pending Review',
+            OwnerId     = owner.Id,
+            Reviewer__c = reviewer.Id
+        );
+        insert t;
+
+        Test.startTest();
+        System.runAs(reviewer) {
+            TaskUiController.sendBackTask(t.Id, 'Please add more detail.');
+        }
+        Test.stopTest();
+
+        Task reloaded = [SELECT Status, Review_Feedback__c FROM Task WHERE Id = :t.Id];
+        System.assertEquals('Open', reloaded.Status);
+        System.assertEquals('Please add more detail.', reloaded.Review_Feedback__c);
+    }
+
+    @IsTest
+    static void testSendBackTask_nonReviewer_throws() {
+        User owner = createAllowedUser('RevOwner6', 'taskuicontroller.revowner6');
+        User reviewer = createAllowedUser('Reviewer6', 'taskuicontroller.reviewer6');
+        User outsider = createAllowedUser('RevOutsider2', 'taskuicontroller.revoutsider2');
+
+        Task t = new Task(
+            Subject     = 'Awaiting Approval 3',
+            Status      = 'Pending Review',
+            OwnerId     = owner.Id,
+            Reviewer__c = reviewer.Id
+        );
+        insert t;
+
+        Boolean exceptionThrown = false;
+        Test.startTest();
+        System.runAs(outsider) {
+            try {
+                TaskUiController.sendBackTask(t.Id, 'nice try');
+            } catch (AuraHandledException e) {
+                exceptionThrown = true;
+            }
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown, 'Only the assigned Reviewer may send a task back.');
+    }
+
+    @IsTest
+    static void testSaveTask_withReviewer_setsReviewerField() {
+        NEOS_Matter__c matter = createMatter();
+        User owner = createAllowedUser('RevOwner7', 'taskuicontroller.revowner7');
+        User reviewer = createAllowedUser('Reviewer7', 'taskuicontroller.reviewer7');
+
+        Id taskId;
+        Test.startTest();
+        System.runAs(owner) {
+            taskId = TaskUiController.saveTask(
+                matter.Id,
+                new List<Id>{ owner.Id },
+                'Task With Reviewer',
+                Date.today().addDays(5),
+                'Not Started',
+                'Normal',
+                'desc',
+                null,
+                null,
+                getInternalExternalTypeValue(),
+                null,
+                null,
+                null,
+                reviewer.Id
+            );
+        }
+        Test.stopTest();
+
+        Task t = [SELECT Reviewer__c FROM Task WHERE Id = :taskId];
+        System.assertEquals(reviewer.Id, t.Reviewer__c);
+    }
+
+    @IsTest
+    static void testUpdateTask_withReviewer_setsReviewerField() {
+        NEOS_Matter__c matter = createMatter();
+        User owner = createAllowedUser('RevOwner8', 'taskuicontroller.revowner8');
+        User reviewer = createAllowedUser('Reviewer8', 'taskuicontroller.reviewer8');
+
+        Task t = new Task(
+            Subject        = 'Add A Reviewer',
+            Status         = 'Not Started',
+            OwnerId        = owner.Id,
+            NEOS_Matter__c = matter.Id
+        );
+        insert t;
+
+        Test.startTest();
+        TaskUiController.updateTask(
+            t.Id, owner.Id, 'Add A Reviewer', Date.today(), 'Not Started', 'Normal', 'desc', null, null, reviewer.Id
+        );
+        Test.stopTest();
+
+        Task reloaded = [SELECT Reviewer__c FROM Task WHERE Id = :t.Id];
+        System.assertEquals(reviewer.Id, reloaded.Reviewer__c);
+    }
+
+    @IsTest
+    static void testGetTaskForEdit_returnsReviewerFieldsAndFeedback() {
+        User owner = createAllowedUser('RevOwner9', 'taskuicontroller.revowner9');
+        User reviewer = createAllowedUser('Reviewer9', 'taskuicontroller.reviewer9');
+        reviewer = [SELECT Id, Name FROM User WHERE Id = :reviewer.Id];
+
+        Task t = new Task(
+            Subject             = 'Sent Back Task',
+            Status              = 'Open',
+            OwnerId             = owner.Id,
+            Reviewer__c         = reviewer.Id,
+            Review_Feedback__c  = 'Please fix the formatting.'
+        );
+        insert t;
+
+        Test.startTest();
+        TaskUiController.TaskForEditDto dto = TaskUiController.getTaskForEdit(t.Id);
+        Test.stopTest();
+
+        System.assertEquals(reviewer.Id, dto.reviewerId);
+        System.assertEquals(reviewer.Name, dto.reviewerName);
+        System.assertEquals('Please fix the formatting.', dto.reviewFeedback);
     }
 }

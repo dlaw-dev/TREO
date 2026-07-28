@@ -273,6 +273,41 @@
                             </div>
                         </template>
 
+                        <!-- Reviewer (optional) -->
+                        <div class="slds-m-top_medium">
+                            <template if:true={t.hasReviewFeedback}>
+                                <div class="review-feedback-banner slds-m-bottom_x-small">
+                                    <span class="review-feedback-banner-label">Sent back for review:</span>
+                                    <span>{t.reviewFeedback}</span>
+                                </div>
+                            </template>
+
+                            <template if:true={t.hasSelectedReviewer}>
+                                <div class="slds-form-element__label slds-m-bottom_x-small">Reviewer (optional)</div>
+                                <lightning-pill
+                                    label={t.selectedReviewer.name}
+                                    data-row-id={t._id}
+                                    onremove={removeReviewer}>
+                                </lightning-pill>
+                            </template>
+
+                            <template if:false={t.hasSelectedReviewer}>
+                                <div class="search-container" data-id={t.reviewerContainerId} onclick={handleSearchAreaClick}>
+                                    <lightning-input
+                                        data-id={t._id}
+                                        type="search"
+                                        label="Reviewer (optional)"
+                                        placeholder="Search for a person to review this when it's done…"
+                                        value={t.reviewerSearchKeyword}
+                                        onfocus={handleReviewerFocus}
+                                        onblur={handleReviewerBlur}
+                                        onkeyup={handleReviewerSearch}
+                                        onkeydown={handleReviewerKeydown}>
+                                    </lightning-input>
+                                </div>
+                            </template>
+                        </div>
+
                         <!-- Reminder Set -->
                         <lightning-input
                             class="slds-m-top_medium"

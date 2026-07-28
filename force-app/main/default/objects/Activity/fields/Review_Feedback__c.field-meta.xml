@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Review_Feedback__c</fullName>
+    <description>Set when a Reviewer sends this task back instead of approving it - the reason shown to the assignee. Overwritten on each send-back; not a history log.</description>
+    <label>Review Feedback</label>
+    <length>255</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

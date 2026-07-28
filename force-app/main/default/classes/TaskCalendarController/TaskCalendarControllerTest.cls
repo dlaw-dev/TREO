@@ -77,4 +77,48 @@ private class TaskCalendarControllerTest {
         System.assertNotEquals(null, rows);
         System.assertEquals(0, rows.size());
     }
+
+    @IsTest
+    static void returnsReviewerFieldsWhenSet() {
+        Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User reviewer = new User(
+            ProfileId = sysAdmin.Id,
+            LastName = 'CalendarReviewer',
+            Email = 'taskcalendar.reviewer@test.example',
+            Username = 'taskcalendar.reviewer+' + System.now().getTime() + '@test.example',
+            Alias = 'calrev1',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US'
+        );
+        insert reviewer;
+        reviewer = [SELECT Id, Name FROM User WHERE Id = :reviewer.Id];
+
+        Account a = new Account(Name = 'Test Account');
+        insert a;
+
+        Task t = new Task(
+            Subject             = 'Task Pending Review',
+            Status              = 'Pending Review',
+            WhatId              = a.Id,
+            Reviewer__c         = reviewer.Id,
+            Review_Feedback__c  = 'Looked good last time.'
+        );
+        insert t;
+
+        Test.startTest();
+        List<TaskCalendarController.TaskRow> rows = TaskCalendarController.getTasksForMatter(a.Id);
+        Test.stopTest();
+
+        TaskCalendarController.TaskRow row;
+        for (TaskCalendarController.TaskRow r : rows) {
+            if (r.Id == t.Id) row = r;
+        }
+
+        System.assertNotEquals(null, row);
+        System.assertEquals(reviewer.Id, row.ReviewerId);
+        System.assertEquals(reviewer.Name, row.ReviewerName);
+        System.assertEquals('Looked good last time.', row.ReviewFeedback);
+    }
 }

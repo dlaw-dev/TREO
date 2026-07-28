@@ -20,7 +20,8 @@ public with sharing class TaskUiController {
         String internalExternalType,
         List<String> reminderTypes,
         Id waitingOnTaskId,
-        List<Map<String, String>> attachments
+        List<Map<String, String>> attachments,
+        Id reviewerId
     ) {
         try {
 
@@ -95,7 +96,8 @@ public with sharing class TaskUiController {
                 Internal_External_Type__c = internalExternalType,
                 IsReminderSet             = setNativeReminder,
                 ReminderDateTime          = nativeReminderDT,
-                Waiting_On_Task__c        = waitingOnTaskId
+                Waiting_On_Task__c        = waitingOnTaskId,
+                Reviewer__c               = reviewerId
             );
 
             insert t;
@@ -163,6 +165,9 @@ public with sharing class TaskUiController {
         @AuraEnabled public Boolean isChainStep;
         @AuraEnabled public String chainPredecessorSubject;
         @AuraEnabled public List<TaskAttachmentDto> attachments;
+        @AuraEnabled public Id reviewerId;
+        @AuraEnabled public String reviewerName;
+        @AuraEnabled public String reviewFeedback;
     }
 
     /**
@@ -178,7 +183,7 @@ public with sharing class TaskUiController {
             SELECT Id, Subject, ActivityDate, Status, Priority, Description,
                    OwnerId, Owner.Name, NEOS_Matter__c, Waiting_On_Task__c,
                    Subtask_Template_Item__c, Subtask_Template_Item__r.Depends_On_Step__c,
-                   Parent_Task__c, CreatedById
+                   Parent_Task__c, CreatedById, Reviewer__c, Reviewer__r.Name, Review_Feedback__c
             FROM Task
             WHERE Id = :taskId
             LIMIT 1
@@ -196,6 +201,9 @@ public with sharing class TaskUiController {
         dto.ownerId = t.OwnerId;
         dto.ownerName = t.Owner?.Name;
         dto.matterId = t.NEOS_Matter__c;
+        dto.reviewerId = t.Reviewer__c;
+        dto.reviewerName = t.Reviewer__r?.Name;
+        dto.reviewFeedback = t.Review_Feedback__c;
 
         // Waiting_On_Task__c is a Text field (not a real Lookup) - Task can't
         // self-reference via a proper relationship on the Activity object -
@@ -277,7 +285,8 @@ public with sharing class TaskUiController {
         String priority,
         String description,
         Id waitingOnTaskId,
-        List<Map<String, String>> newAttachments
+        List<Map<String, String>> newAttachments,
+        Id reviewerId
     ) {
         try {
             if (ownerId == null) {
@@ -308,7 +317,8 @@ public with sharing class TaskUiController {
                 Status              = status,
                 Priority            = priority,
                 Description         = description,
-                Waiting_On_Task__c  = waitingOnTaskId
+                Waiting_On_Task__c  = waitingOnTaskId,
+                Reviewer__c         = reviewerId
             );
 
             // A not-yet-active chain step (Status = Waiting) with a dynamic
@@ -428,18 +438,94 @@ public with sharing class TaskUiController {
     /**
      * Completes a Task, returning true when this was the last step of a
      * subtask chain - so the UI can celebrate finishing the whole chain
-     * rather than just checking off one more item.
+     * rather than just checking off one more item. When a Reviewer is set,
+     * this doesn't finish the task at all - it hands off to Status =
+     * Pending Review instead, and only that Reviewer's approveTask() call
+     * actually marks it Completed (and so only then can the chain advance -
+     * Pending Review still counts as "not done" for isEntireChainComplete
+     * and never satisfies the Completed transition the chain trigger looks
+     * for).
      */
     @AuraEnabled
     public static Boolean completeTask(Id taskId) {
         try {
-            Task t = [SELECT Id, Subtask_Template_Item__c, Parent_Task__c FROM Task WHERE Id = :taskId LIMIT 1];
+            Task t = [SELECT Id, Subtask_Template_Item__c, Parent_Task__c, Reviewer__c FROM Task WHERE Id = :taskId LIMIT 1];
+
+            if (t.Reviewer__c != null) {
+                update new Task(Id = taskId, Status = 'Pending Review', Review_Feedback__c = null);
+                return false;
+            }
+
             t.Status = 'Completed';
             update t;
 
             return t.Subtask_Template_Item__c != null && isEntireChainComplete(t.Parent_Task__c);
         } catch (Exception e) {
             throw new AuraHandledException('Error completing task: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * Approves a task pending this user's review - the only way a
+     * Pending Review task actually reaches Completed (and so the only way
+     * its chain, if any, can advance). Restricted to the Task's own
+     * Reviewer__c, the same single-person-authority pattern used for
+     * Edit/Reassign and Skip.
+     */
+    @AuraEnabled
+    public static Boolean approveTask(Id taskId) {
+        try {
+            Task t = [SELECT Id, Subtask_Template_Item__c, Parent_Task__c, Reviewer__c, Status FROM Task WHERE Id = :taskId LIMIT 1];
+
+            assertCanReview(t.Reviewer__c);
+
+            if (t.Status != 'Pending Review') {
+                throw new AuraHandledException('This task is not pending review.');
+            }
+
+            t.Status = 'Completed';
+            update t;
+
+            return t.Subtask_Template_Item__c != null && isEntireChainComplete(t.Parent_Task__c);
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error approving task: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * Sends a task pending this user's review back to the assignee -
+     * Status returns to Open (so it reappears as actionable) and the
+     * reason is stored so the assignee can see why. Restricted to the
+     * Task's own Reviewer__c.
+     */
+    @AuraEnabled
+    public static void sendBackTask(Id taskId, String reason) {
+        try {
+            Task t = [SELECT Id, Reviewer__c, Status FROM Task WHERE Id = :taskId LIMIT 1];
+
+            assertCanReview(t.Reviewer__c);
+
+            if (t.Status != 'Pending Review') {
+                throw new AuraHandledException('This task is not pending review.');
+            }
+
+            update new Task(
+                Id                  = taskId,
+                Status              = 'Open',
+                Review_Feedback__c  = reason
+            );
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error sending task back: ' + e.getMessage());
+        }
+    }
+
+    private static void assertCanReview(Id reviewerId) {
+        if (reviewerId == null || UserInfo.getUserId() != reviewerId) {
+            throw new AuraHandledException('Only the assigned reviewer can approve or send back this task.');
         }
     }
 

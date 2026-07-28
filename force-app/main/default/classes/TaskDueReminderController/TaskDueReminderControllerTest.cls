@@ -538,4 +538,118 @@ private class TaskDueReminderControllerTest {
         System.assertEquals(false, dueTask.IsChainStep);
         System.assertEquals(false, dueTask.IsBypassed);
     }
+
+    /* =========================================================
+       Reviewer - Pending Review exclusion + getTasksToReview
+    ========================================================== */
+
+    @IsTest
+    static void testGetMyDueTasks_excludesPendingReviewStatus() {
+        Task pendingReview = new Task(
+            Subject      = 'Pending Review Task',
+            Status       = 'Pending Review',
+            ActivityDate = Date.today(),
+            OwnerId      = UserInfo.getUserId()
+        );
+        insert pendingReview;
+
+        Test.startTest();
+        List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getMyDueTasks();
+        Test.stopTest();
+
+        for (TaskDueReminderController.DueTask dt : results) {
+            System.assertNotEquals(pendingReview.Id, dt.Id,
+                'A task pending someone else\'s review has nothing left for the assignee to do - it should not show as still due.');
+        }
+    }
+
+    @IsTest
+    static void testGetTasksAssignedByMe_excludesPendingReviewStatus() {
+        Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User delegate = new User(
+            ProfileId = sysAdmin.Id,
+            LastName = 'ReviewDelegate',
+            Email = 'taskduereminder.reviewdelegate@test.example',
+            Username = 'taskduereminder.reviewdelegate+' + System.now().getTime() + '@test.example',
+            Alias = 'revdel1',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US'
+        );
+        insert delegate;
+
+        Task pendingReview = new Task(
+            Subject      = 'Delegated Pending Review Task',
+            Status       = 'Pending Review',
+            ActivityDate = Date.today(),
+            OwnerId      = delegate.Id
+        );
+        insert pendingReview;
+
+        Test.startTest();
+        List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getTasksAssignedByMe();
+        Test.stopTest();
+
+        for (TaskDueReminderController.DueTask dt : results) {
+            System.assertNotEquals(pendingReview.Id, dt.Id,
+                'A delegated task pending review is no longer actionable by anyone but its Reviewer - it should not show here.');
+        }
+    }
+
+    @IsTest
+    static void testGetTasksToReview_returnsOnlyMyPendingReviewTasks() {
+        Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User otherReviewer = new User(
+            ProfileId = sysAdmin.Id,
+            LastName = 'OtherReviewer',
+            Email = 'taskduereminder.otherreviewer@test.example',
+            Username = 'taskduereminder.otherreviewer+' + System.now().getTime() + '@test.example',
+            Alias = 'orev1',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US'
+        );
+        insert otherReviewer;
+
+        Task myReview = new Task(
+            Subject      = 'My Review Task',
+            Status       = 'Pending Review',
+            ActivityDate = Date.today(),
+            OwnerId      = UserInfo.getUserId(),
+            Reviewer__c  = UserInfo.getUserId()
+        );
+
+        Task someoneElsesReview = new Task(
+            Subject      = 'Someone Elses Review Task',
+            Status       = 'Pending Review',
+            ActivityDate = Date.today(),
+            OwnerId      = UserInfo.getUserId(),
+            Reviewer__c  = otherReviewer.Id
+        );
+
+        Task notYetSubmitted = new Task(
+            Subject      = 'Not Yet Submitted Task',
+            Status       = 'Open',
+            ActivityDate = Date.today(),
+            OwnerId      = UserInfo.getUserId(),
+            Reviewer__c  = UserInfo.getUserId()
+        );
+
+        insert new List<Task>{ myReview, someoneElsesReview, notYetSubmitted };
+
+        Test.startTest();
+        List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getTasksToReview();
+        Test.stopTest();
+
+        Set<Id> resultIds = new Set<Id>();
+        for (TaskDueReminderController.DueTask dt : results) {
+            resultIds.add(dt.Id);
+        }
+
+        System.assert(resultIds.contains(myReview.Id), 'A task pending my review should be returned.');
+        System.assert(!resultIds.contains(someoneElsesReview.Id), 'A task pending someone else\'s review should not be returned.');
+        System.assert(!resultIds.contains(notYetSubmitted.Id), 'A task not yet submitted for review should not be returned.');
+    }
 }

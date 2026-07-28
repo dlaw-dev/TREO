@@ -142,6 +142,20 @@
     border-radius: 50%;
 }
 
+.review-feedback-banner {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.25rem;
+    background: #fdf1d1;
+    color: #825a00;
+    font-size: 0.8125rem;
+}
+
+.review-feedback-banner-label {
+    font-weight: 700;
+    margin-right: 0.35rem;
+}
+
 .waiting-on-pill-remove:hover,
 .waiting-on-pill-remove:focus {
     color: var(--lwc-colorTextError, #ba0517);

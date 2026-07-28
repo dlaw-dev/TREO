@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Reviewer__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Optional - when set, completing this task sends it to this person for review (Status = Pending Review) instead of marking it Completed directly. Only this user may Approve or Send Back a task pending their review.</description>
+    <label>Reviewer</label>
+    <referenceTo>User</referenceTo>
+    <relationshipLabel>Tasks to Review</relationshipLabel>
+    <relationshipName>Tasks_To_Review</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

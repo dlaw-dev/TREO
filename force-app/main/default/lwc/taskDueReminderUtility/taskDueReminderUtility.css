@@ -338,6 +338,13 @@
     margin-top: 0.15rem;
 }
 
+.reminder-review-feedback {
+    font-size: 0.7rem;
+    color: #825a00;
+    font-style: italic;
+    margin-top: 0.15rem;
+}
+
 .reminder-item-side {
     display: flex;
     align-items: center;

@@ -127,6 +127,8 @@ function blankTaskRow(id) {
         waitingOnTaskLabel: '',
         isChainStep: false,
         chainPredecessorSubject: '',
+        selectedReviewer: null,
+        reviewFeedback: '',
         stagedFiles: [],
         fileWarning: '',
         isDragOver: false,
@@ -203,6 +205,8 @@ export default class TaskCreateModalAction extends LightningModal {
                 waitingOnTaskLabel: dto.waitingOnTaskSubject || '',
                 isChainStep: !!dto.isChainStep,
                 chainPredecessorSubject: dto.chainPredecessorSubject || '',
+                selectedReviewer: dto.reviewerId ? { id: dto.reviewerId, name: dto.reviewerName } : null,
+                reviewFeedback: dto.reviewFeedback || '',
                 existingAttachments: (dto.attachments || []).map(a => ({
                     ...a,
                     viewUrl: `/lightning/r/ContentDocument/${a.contentDocumentId}/view`
@@ -233,6 +237,12 @@ export default class TaskCreateModalAction extends LightningModal {
     waitingSearchKeyword = '';
     waitingSearchRequestId = 0;
     @track waitingResults = [];
+
+    _activeReviewerRowId;
+    reviewerSearchTimeout;
+    reviewerSearchKeyword = '';
+    reviewerSearchRequestId = 0;
+    @track reviewerResults = [];
 
     activeTab = 'newTask';
 
@@ -495,6 +505,7 @@ export default class TaskCreateModalAction extends LightningModal {
         return this.draftTasks.map((t, index) => {
             const isAssigneeActive = this._activeAssigneeRowId === t._id;
             const isWaitingActive = this._activeWaitingRowId === t._id;
+            const isReviewerActive = this._activeReviewerRowId === t._id;
             const reminderRows = this._reminderOptionRowsFor(t.selectedReminderTypes);
 
             return {
@@ -504,7 +515,10 @@ export default class TaskCreateModalAction extends LightningModal {
                 subjectContainerId: `subject-search-container-${t._id}`,
                 assigneeContainerId: `assignee-search-container-${t._id}`,
                 waitingContainerId: `waiting-search-container-${t._id}`,
+                reviewerContainerId: `reviewer-search-container-${t._id}`,
                 hasSelectedAssignee: t.selectedUsers.length > 0,
+                hasSelectedReviewer: !!t.selectedReviewer,
+                hasReviewFeedback: !!t.reviewFeedback,
                 isReminderDisabled: !t.activityDate,
                 moreDetailsIcon: t.isMoreDetailsOpen ? 'utility:chevrondown' : 'utility:chevronright',
                 userSearchKeyword: isAssigneeActive ? this.userSearchKeyword : '',
@@ -514,6 +528,7 @@ export default class TaskCreateModalAction extends LightningModal {
                     ? `Part of a task chain — waiting on "${t.chainPredecessorSubject}"`
                     : 'Part of a task chain — waiting on an earlier step',
                 waitingSearchKeyword: isWaitingActive ? this.waitingSearchKeyword : '',
+                reviewerSearchKeyword: isReviewerActive ? this.reviewerSearchKeyword : '',
                 // Earlier rows in this same batch aren't saved yet, so they can't
                 // be found via searchTasksForMatter - offer them directly instead.
                 // Only rows ABOVE this one are eligible, since saveAll() saves
@@ -1299,6 +1314,7 @@ export default class TaskCreateModalAction extends LightningModal {
         this.closeSubjectSearch();
         this.closeWaitingSearch();
         this.closeStepSearch();
+        this.closeReviewerSearch();
     }
 
     handleUserSearch(e) {
@@ -1646,6 +1662,101 @@ export default class TaskCreateModalAction extends LightningModal {
     }
 
     /* -------------------------
+       Reviewer (optional) - same search-a-person pattern as Assignee.
+       When set, completing this task sends it to this person for review
+       instead of marking it Completed outright.
+    -------------------------- */
+
+    handleReviewerFocus(e) {
+        const rowId = e.currentTarget.dataset.id;
+        const keyword = this._activeReviewerRowId === rowId ? (this.reviewerSearchKeyword || '') : '';
+        this.searchReviewerInternal(rowId, keyword);
+    }
+
+    handleReviewerBlur() {
+        this.closeReviewerSearch();
+    }
+
+    handleReviewerSearch(e) {
+        const rowId = e.currentTarget.dataset.id;
+        clearTimeout(this.reviewerSearchTimeout);
+
+        const val = e.target.value;
+        this.reviewerSearchKeyword = val || '';
+        this._activeReviewerRowId = rowId;
+
+        this.reviewerSearchTimeout = setTimeout(() => {
+            this.searchReviewerInternal(rowId, val || '');
+        }, 300);
+    }
+
+    handleReviewerKeydown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const rowId = e.currentTarget.dataset.id;
+            const keyword = e.target.value || '';
+            this.reviewerSearchKeyword = keyword;
+            this.searchReviewerInternal(rowId, keyword);
+        }
+    }
+
+    async searchReviewerInternal(rowId, keyword) {
+        this._activeReviewerRowId = rowId;
+        this.reviewerSearchKeyword = keyword;
+        const requestId = (this.reviewerSearchRequestId || 0) + 1;
+        this.reviewerSearchRequestId = requestId;
+
+        try {
+            const results = await searchUsers({ keyword });
+
+            if (this._activeReviewerRowId !== rowId || requestId !== this.reviewerSearchRequestId) return;
+
+            this.reviewerResults = results;
+            this._refreshReviewerPortal(rowId);
+        } catch (err) {
+            if (this._activeReviewerRowId === rowId && requestId === this.reviewerSearchRequestId) {
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Could not load users',
+                    message: err?.body?.message || 'An error occurred while searching users.',
+                    variant: 'error'
+                }));
+                this.reviewerResults = [];
+                this._refreshReviewerPortal(rowId);
+            }
+        }
+    }
+
+    _refreshReviewerPortal(rowId) {
+        this._showPortal(
+            `reviewer-search-container-${rowId}`,
+            this.reviewerResults,
+            (btn, u) => { btn.textContent = u.Name; },
+            (u) => this._selectReviewer(rowId, u)
+        );
+    }
+
+    closeReviewerSearch() {
+        this._activeReviewerRowId = undefined;
+        this.reviewerSearchRequestId = (this.reviewerSearchRequestId || 0) + 1;
+        this.reviewerResults = [];
+        this.reviewerSearchKeyword = '';
+        clearTimeout(this.reviewerSearchTimeout);
+        this._hidePortal();
+    }
+
+    _selectReviewer(rowId, u) {
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId
+            ? { ...t, selectedReviewer: { id: u.Id, name: u.Name } }
+            : t));
+        this.closeReviewerSearch();
+    }
+
+    removeReviewer(e) {
+        const rowId = e.target.dataset.rowId;
+        this.draftTasks = this.draftTasks.map(t => (t._id === rowId ? { ...t, selectedReviewer: null } : t));
+    }
+
+    /* -------------------------
        Validation
     -------------------------- */
 
@@ -1727,7 +1838,8 @@ export default class TaskCreateModalAction extends LightningModal {
                         description: t.description,
                         reminderTypes: t.selectedReminderTypes,
                         waitingOnTaskId,
-                        attachments: t.stagedFiles
+                        attachments: t.stagedFiles,
+                        reviewerId: t.selectedReviewer?.id || null
                     });
                     savedIdByDraftId.set(t._id, newId);
                     results.push({ status: 'fulfilled', value: newId });
@@ -1780,7 +1892,8 @@ export default class TaskCreateModalAction extends LightningModal {
                 priority: t.priority,
                 description: t.description,
                 waitingOnTaskId,
-                newAttachments: t.stagedFiles
+                newAttachments: t.stagedFiles,
+                reviewerId: t.selectedReviewer?.id || null
             });
 
             publish(this.messageContext, TASK_CHANGED, {});
@@ -1806,6 +1919,7 @@ export default class TaskCreateModalAction extends LightningModal {
         clearTimeout(this.userSearchTimeout);
         clearTimeout(this.waitingSearchTimeout);
         clearTimeout(this.stepSearchTimeout);
+        clearTimeout(this.reviewerSearchTimeout);
         this._unmountPortal();
         this.draftTasks.forEach(t => t.stagedFiles.forEach(f => {
             if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);

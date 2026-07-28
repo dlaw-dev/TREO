@@ -19,4 +19,10 @@
         <label>Completed</label>
         <closed>true</closed>
     </standardValue>
+    <standardValue>
+        <fullName>Pending Review</fullName>
+        <default>false</default>
+        <label>Pending Review</label>
+        <closed>false</closed>
+    </standardValue>
 </StandardValueSet>

@@ -94,4 +94,14 @@
         <editable>true</editable>
         <readable>true</readable>
     </fieldPermissions>
+    <fieldPermissions>
+        <field>Task.Reviewer__c</field>
+        <editable>true</editable>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <field>Task.Review_Feedback__c</field>
+        <editable>true</editable>
+        <readable>true</readable>
+    </fieldPermissions>
 </Profile>

@@ -307,6 +307,54 @@
 }
 .task-skip-btn:hover { background: #e5e5e5; border-color: #969492; }
 
+.task-review-pill {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #825a00;
+    white-space: nowrap;
+    margin-right: 4px;
+}
+
+.task-approve-btn {
+    padding: 2px 8px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--slds-g-color-success-1, #2e844a);
+    background: #f3faf4;
+    border: 1px solid #91d5a8;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-right: 4px;
+}
+.task-approve-btn:hover { background: #d4efdb; border-color: var(--slds-g-color-success-1, #2e844a); }
+.task-approve-btn:disabled {
+    color: var(--slds-g-color-on-surface-2, #a6a6a6);
+    background: var(--slds-g-color-surface-2, #f3f2f2);
+    border-color: var(--slds-g-color-border-1, #dddbda);
+    cursor: not-allowed;
+}
+
+.task-sendback-btn {
+    padding: 2px 8px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #706e6b;
+    background: #f3f2f2;
+    border: 1px solid #c9c7c5;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-right: 4px;
+}
+.task-sendback-btn:hover { background: #e5e5e5; border-color: #969492; }
+.task-sendback-btn:disabled {
+    color: var(--slds-g-color-on-surface-2, #a6a6a6);
+    background: var(--slds-g-color-surface-2, #f3f2f2);
+    border-color: var(--slds-g-color-border-1, #dddbda);
+    cursor: not-allowed;
+}
+
 .due-badge {
     font-size: 0.6875rem;
     font-weight: 600;

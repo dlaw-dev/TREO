@@ -9,10 +9,13 @@ import TASK_CHANGED from '@salesforce/messageChannel/taskChanged__c';
 import getMyDueTasks from '@salesforce/apex/TaskDueReminderController.getMyDueTasks';
 import getTasksAssignedByMe from '@salesforce/apex/TaskDueReminderController.getTasksAssignedByMe';
 import getMyWaitingTasks from '@salesforce/apex/TaskDueReminderController.getMyWaitingTasks';
+import getTasksToReview from '@salesforce/apex/TaskDueReminderController.getTasksToReview';
 import getCompletedTodayCount from '@salesforce/apex/TaskDueReminderController.getCompletedTodayCount';
 import snoozeTask from '@salesforce/apex/TaskDueReminderController.snoozeTask';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
 import bypassTask from '@salesforce/apex/TaskUiController.bypassTask';
+import approveTask from '@salesforce/apex/TaskUiController.approveTask';
+import sendBackTask from '@salesforce/apex/TaskUiController.sendBackTask';
 import CURRENT_USER_ID from '@salesforce/user/Id';
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
@@ -104,6 +107,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     tasks = [];
     delegatedTasks = [];
     waitingTasks = [];
+    reviewTasks = [];
     activeTab = 'assignedToMe';
     removingIds = new Set();
     openSnoozeMenuId;
@@ -182,12 +186,13 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
 
     closeAttachmentMenu() {
         const anyOpen = (list) => list.some((t) => t.isAttachmentMenuOpen);
-        if (!anyOpen(this.tasks) && !anyOpen(this.delegatedTasks) && !anyOpen(this.waitingTasks)) return;
+        if (!anyOpen(this.tasks) && !anyOpen(this.delegatedTasks) && !anyOpen(this.waitingTasks) && !anyOpen(this.reviewTasks)) return;
 
         const close = (list) => list.map((t) => ({ ...t, isAttachmentMenuOpen: false }));
         this.tasks = close(this.tasks);
         this.delegatedTasks = close(this.delegatedTasks);
         this.waitingTasks = close(this.waitingTasks);
+        this.reviewTasks = close(this.reviewTasks);
     }
 
     async ensureBaseUtilityLabel() {
@@ -222,6 +227,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 waitingOnLabel: t.Status === 'Waiting' && t.WaitingOnOwnerName
                     ? `Waiting on ${t.WaitingOnOwnerName} to finish "${t.WaitingOnSubject}"`
                     : null,
+                reviewFeedbackLabel: t.ReviewFeedback ? `Sent back: "${t.ReviewFeedback}"` : null,
                 canReassign: t.OwnerId === CURRENT_USER_ID || t.CreatedById === CURRENT_USER_ID,
                 attachments,
                 hasAttachments: attachments.length > 0,
@@ -232,13 +238,14 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     async refreshTasks() {
-        // The four calls are independent - fetch them concurrently instead
+        // The five calls are independent - fetch them concurrently instead
         // of one after another so a refresh takes as long as the slowest
-        // call, not the sum of all four.
-        const [dueOutcome, delegatedOutcome, waitingOutcome, completedTodayOutcome] = await Promise.allSettled([
+        // call, not the sum of all five.
+        const [dueOutcome, delegatedOutcome, waitingOutcome, reviewOutcome, completedTodayOutcome] = await Promise.allSettled([
             getMyDueTasks(),
             getTasksAssignedByMe(),
             getMyWaitingTasks(),
+            getTasksToReview(),
             getCompletedTodayCount()
         ]);
 
@@ -299,6 +306,16 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             // eslint-disable-next-line no-console
             console.error('Failed to load waiting tasks:', message);
         }
+
+        if (reviewOutcome.status === 'fulfilled') {
+            this.reviewTasks = this.decorateTasks(reviewOutcome.value);
+        } else {
+            const message =
+                reviewOutcome.reason?.body?.message || reviewOutcome.reason?.message || 'Unknown error';
+
+            // eslint-disable-next-line no-console
+            console.error('Failed to load tasks to review:', message);
+        }
     }
 
     openPanel() {
@@ -344,6 +361,10 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         return this.activeTab === 'waiting';
     }
 
+    get isReviewTab() {
+        return this.activeTab === 'toReview';
+    }
+
     get assignedToMeTabClass() {
         return this.isAssignedToMeTab ? 'tab-button tab-button-active' : 'tab-button';
     }
@@ -354,6 +375,10 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
 
     get waitingTabClass() {
         return this.isWaitingTab ? 'tab-button tab-button-active' : 'tab-button';
+    }
+
+    get reviewTabClass() {
+        return this.isReviewTab ? 'tab-button tab-button-active' : 'tab-button';
     }
 
     get assignedToMeCount() {
@@ -368,7 +393,12 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         return this.waitingTasks.length;
     }
 
+    get reviewCount() {
+        return this.reviewTasks.length;
+    }
+
     get currentTasks() {
+        if (this.isReviewTab) return this.reviewTasks;
         if (this.isAssignedByMeTab) return this.delegatedTasks;
         if (this.isWaitingTab) return this.waitingTasks;
         return this.tasks;
@@ -412,6 +442,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     withMenuState(list) {
         const isAssignedToMe = this.isAssignedToMeTab;
         const isAssignedByMe = this.isAssignedByMeTab;
+        const isReview = this.isReviewTab;
         return list.map((t) => {
             const isOpen = this.openSnoozeMenuId === t.Id;
             const classes = ['reminder-item'];
@@ -433,6 +464,8 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 // reassign-to-self round trip first.
                 showSkip: (isAssignedToMe || isAssignedByMe) && !!t.IsChainStep && t.canReassign,
                 showSnoozeButton: isAssignedToMe && !t.isSnoozed,
+                showApprove: isReview,
+                showSendBack: isReview,
                 showOwnerOrStatusPills: !isAssignedToMe,
                 itemClass: classes.join(' ')
             };
@@ -440,7 +473,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     get activeExpanded() {
-        return this.isWaitingTab ? this.expandedWaiting : this.expanded;
+        return (this.isWaitingTab || this.isReviewTab) ? this.expandedWaiting : this.expanded;
     }
 
     get groups() {
@@ -523,6 +556,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     get emptyStateTitle() {
         if (this.isAssignedByMeTab) return 'Nothing outstanding';
         if (this.isWaitingTab) return 'Nothing waiting on you';
+        if (this.isReviewTab) return 'Nothing to review';
         return "You're all caught up!";
     }
 
@@ -585,7 +619,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         const key = event.currentTarget.dataset.key;
         const next = { ...this.activeExpanded, [key]: !this.activeExpanded[key] };
 
-        if (this.isWaitingTab) {
+        if (this.isWaitingTab || this.isReviewTab) {
             this.expandedWaiting = next;
         } else {
             this.expanded = next;
@@ -610,7 +644,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             noDueDate: target
         };
 
-        if (this.isWaitingTab) {
+        if (this.isWaitingTab || this.isReviewTab) {
             this.expandedWaiting = next;
         } else {
             this.expanded = next;
@@ -765,6 +799,78 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         }
     }
 
+    async handleApprove(event) {
+        event.stopPropagation();
+        const taskId = event.currentTarget.dataset.id;
+        const task = this.reviewTasks.find((t) => t.Id === taskId);
+
+        try {
+            const finishedChain = await approveTask({ taskId });
+            this.scheduleRemoval(taskId);
+            this.suppressNextTaskChangedEcho = true;
+            publish(this.messageContext, TASK_CHANGED, {});
+
+            this.dispatchEvent(
+                new ShowToastEvent(
+                    finishedChain
+                        ? {
+                              title: '🎉 Chain complete!',
+                              message: 'Every step in this task chain is done.',
+                              variant: 'success'
+                          }
+                        : {
+                              title: 'Approved',
+                              message: `"${task?.Subject}" was approved.`,
+                              variant: 'success'
+                          }
+                )
+            );
+        } catch (error) {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Could not approve task',
+                    message: error?.body?.message || 'Please try again.',
+                    variant: 'error'
+                })
+            );
+        }
+    }
+
+    async handleSendBack(event) {
+        event.stopPropagation();
+        const taskId = event.currentTarget.dataset.id;
+        const task = this.reviewTasks.find((t) => t.Id === taskId);
+
+        // eslint-disable-next-line no-alert
+        const reason = window.prompt(
+            `Send "${task?.Subject}" back to ${task?.OwnerName || 'the assignee'}? Let them know why (optional):`
+        );
+        if (reason === null) return; // cancelled
+
+        try {
+            await sendBackTask({ taskId, reason });
+            this.scheduleRemoval(taskId);
+            this.suppressNextTaskChangedEcho = true;
+            publish(this.messageContext, TASK_CHANGED, {});
+
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Sent back',
+                    message: `"${task?.Subject}" was sent back to ${task?.OwnerName || 'the assignee'}.`,
+                    variant: 'success'
+                })
+            );
+        } catch (error) {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Could not send task back',
+                    message: error?.body?.message || 'Please try again.',
+                    variant: 'error'
+                })
+            );
+        }
+    }
+
     async handleReassign(event) {
         event.stopPropagation();
         const taskId = event.currentTarget.dataset.id;
@@ -800,7 +906,8 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         const rowId = event.currentTarget.dataset.id;
         const task = this.tasks.find((t) => t.Id === rowId)
             || this.delegatedTasks.find((t) => t.Id === rowId)
-            || this.waitingTasks.find((t) => t.Id === rowId);
+            || this.waitingTasks.find((t) => t.Id === rowId)
+            || this.reviewTasks.find((t) => t.Id === rowId);
         if (!task) return;
 
         if (task.attachments.length === 1) {
@@ -815,6 +922,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         this.tasks = toggle(this.tasks);
         this.delegatedTasks = toggle(this.delegatedTasks);
         this.waitingTasks = toggle(this.waitingTasks);
+        this.reviewTasks = toggle(this.reviewTasks);
     }
 
     // The row itself navigates to the task on click (handleOpenTask) - file

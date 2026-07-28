@@ -25,6 +25,14 @@
                 data-tab="waiting"
                 onclick={handleTabClick}
             >Waiting<span class="tab-count">{waitingCount}</span></button>
+            <button
+                type="button"
+                role="tab"
+                aria-selected={isReviewTab}
+                class={reviewTabClass}
+                data-tab="toReview"
+                onclick={handleTabClick}
+            >To Review<span class="tab-count">{reviewCount}</span></button>
         </div>
         <template if:true={showToolbar}>
             <div class="panel-toolbar">
@@ -109,6 +117,9 @@
                                             <template if:true={task.waitingOnLabel}>
                                                 <div class="reminder-waiting-on">{task.waitingOnLabel}</div>
                                             </template>
+                                            <template if:true={task.reviewFeedbackLabel}>
+                                                <div class="reminder-review-feedback">{task.reviewFeedbackLabel}</div>
+                                            </template>
                                         </div>
                                         <div class="reminder-item-side">
                                             <template if:true={task.showComplete}>
@@ -131,6 +142,28 @@
                                                     title="Skip this step without completing it"
                                                     data-id={task.Id}
                                                     onclick={handleBypass}
+                                                ></lightning-button-icon>
+                                            </template>
+                                            <template if:true={task.showApprove}>
+                                                <lightning-button-icon
+                                                    icon-name="utility:check"
+                                                    variant="success"
+                                                    size="small"
+                                                    alternative-text="Approve"
+                                                    title="Approve - marks this task complete"
+                                                    data-id={task.Id}
+                                                    onclick={handleApprove}
+                                                ></lightning-button-icon>
+                                            </template>
+                                            <template if:true={task.showSendBack}>
+                                                <lightning-button-icon
+                                                    icon-name="utility:undo"
+                                                    variant="border"
+                                                    size="small"
+                                                    alternative-text="Send back"
+                                                    title="Send back to the assignee"
+                                                    data-id={task.Id}
+                                                    onclick={handleSendBack}
                                                 ></lightning-button-icon>
                                             </template>
                                             <template if:true={task.canReassign}>

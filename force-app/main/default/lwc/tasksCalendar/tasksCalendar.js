@@ -11,6 +11,8 @@ import CURRENT_USER_ID from '@salesforce/user/Id';
 import getTasksForMatter from '@salesforce/apex/TaskCalendarController.getTasksForMatter';
 import completeTask from '@salesforce/apex/TaskUiController.completeTask';
 import bypassTask from '@salesforce/apex/TaskUiController.bypassTask';
+import approveTask from '@salesforce/apex/TaskUiController.approveTask';
+import sendBackTask from '@salesforce/apex/TaskUiController.sendBackTask';
 
 export default class TasksCalendar extends NavigationMixin(LightningElement) {
 
@@ -151,6 +153,8 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             const isCompleted = t.Status === 'Completed';
             const isBypassed = isCompleted && !!t.IsBypassed;
             const isWaiting   = t.Status === 'Waiting';
+            const isPendingReview = t.Status === 'Pending Review';
+            const isReviewer = !!t.ReviewerId && t.ReviewerId === CURRENT_USER_ID;
             const canReassign = t.OwnerId === CURRENT_USER_ID || t.CreatedById === CURRENT_USER_ID;
             const isActionInFlight = this._actionInFlightIds.has(t.Id);
             const waitingTitle = t.WaitingOnSubject
@@ -165,17 +169,26 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
                 isCompleted,
                 isBypassed,
                 isWaiting,
+                isPendingReview,
                 waitingTitle,
+                reviewFeedbackTitle: t.ReviewFeedback ? `Sent back: "${t.ReviewFeedback}"` : null,
                 dueLabel:        label,
                 dueBadgeClass:   cls,
                 rowClass:        isCompleted ? 'tasks-row tasks-row--completed' : 'tasks-row',
                 isAssignee,
-                showMarkDone:    !isCompleted && !isWaiting,
+                // Once a step is pending someone else's review, the
+                // assignee has nothing left to do until it comes back -
+                // same reasoning as excluding Waiting.
+                showMarkDone:    !isCompleted && !isWaiting && !isPendingReview,
                 disableMarkDone: !isAssignee || isActionInFlight,
                 markDoneTitle:   isAssignee ? 'Mark as complete' : `Only ${t.OwnerName || 'the assignee'} can complete this task`,
                 canReassign,
-                showSkip:        !isCompleted && !isWaiting && !!t.IsChainStep && canReassign,
+                showSkip:        !isCompleted && !isWaiting && !isPendingReview && !!t.IsChainStep && canReassign,
                 disableSkip:     isActionInFlight,
+                showApprove:     isPendingReview && isReviewer,
+                showSendBack:    isPendingReview && isReviewer,
+                disableApprove:  isActionInFlight,
+                disableSendBack: isActionInFlight,
                 attachments,
                 hasAttachments:  attachments.length > 0,
                 attachmentTitle: attachments.length === 1 ? '1 attachment' : `${attachments.length} attachments`,
@@ -407,6 +420,70 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         } catch (e) {
             this.dispatchEvent(new ShowToastEvent({
                 title: 'Error',
+                message: e.body?.message || e.message,
+                variant: 'error'
+            }));
+        } finally {
+            this._actionInFlightIds.delete(taskId);
+            this._rebuild();
+        }
+    }
+
+    async handleApprove(event) {
+        const taskId = event.currentTarget.dataset.id;
+        if (this._actionInFlightIds.has(taskId)) return;
+
+        const row = (this.tasks || []).find(t => t.Id === taskId);
+        if (!row) return;
+
+        this._actionInFlightIds.add(taskId);
+        this._rebuild();
+        try {
+            const finishedChain = await approveTask({ taskId });
+            this.dispatchEvent(new ShowToastEvent(
+                finishedChain
+                    ? { title: '🎉 Chain complete!', message: 'Every step in this task chain is done.', variant: 'success' }
+                    : { title: 'Approved', message: `"${row.Subject}" was approved.`, variant: 'success' }
+            ));
+            publish(this.messageContext, TASK_CHANGED, {});
+            await refreshApex(this.wiredResult);
+        } catch (e) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Could not approve task',
+                message: e.body?.message || e.message,
+                variant: 'error'
+            }));
+        } finally {
+            this._actionInFlightIds.delete(taskId);
+            this._rebuild();
+        }
+    }
+
+    async handleSendBack(event) {
+        const taskId = event.currentTarget.dataset.id;
+        if (this._actionInFlightIds.has(taskId)) return;
+
+        const row = (this.tasks || []).find(t => t.Id === taskId);
+        if (!row) return;
+
+        // eslint-disable-next-line no-alert
+        const reason = window.prompt(`Send "${row.Subject}" back to ${row.OwnerName || 'the assignee'}? Let them know why (optional):`);
+        if (reason === null) return; // cancelled
+
+        this._actionInFlightIds.add(taskId);
+        this._rebuild();
+        try {
+            await sendBackTask({ taskId, reason });
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Sent back',
+                message: `"${row.Subject}" was sent back to ${row.OwnerName || 'the assignee'}.`,
+                variant: 'success'
+            }));
+            publish(this.messageContext, TASK_CHANGED, {});
+            await refreshApex(this.wiredResult);
+        } catch (e) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Could not send task back',
                 message: e.body?.message || e.message,
                 variant: 'error'
             }));

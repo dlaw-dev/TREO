@@ -88,11 +88,20 @@
                       <template if:true={t.isWaiting}>
                         <span class="task-waiting-pill" title={t.waitingTitle}>⏳ Waiting</span>
                       </template>
+                      <template if:true={t.isPendingReview}>
+                        <span class="task-review-pill" title={t.reviewFeedbackTitle}>🔍 Pending Review</span>
+                      </template>
                       <template if:true={t.showMarkDone}>
                         <button type="button" class="task-done-btn" data-id={t.Id} onclick={handleTaskCompleteBtn} disabled={t.disableMarkDone} title={t.markDoneTitle}>Mark Done</button>
                       </template>
                       <template if:true={t.showSkip}>
                         <button type="button" class="task-skip-btn" data-id={t.Id} onclick={handleBypass} disabled={t.disableSkip} title="Skip this step without completing it">Skip</button>
+                      </template>
+                      <template if:true={t.showApprove}>
+                        <button type="button" class="task-approve-btn" data-id={t.Id} onclick={handleApprove} disabled={t.disableApprove} title="Approve - marks this task complete">Approve</button>
+                      </template>
+                      <template if:true={t.showSendBack}>
+                        <button type="button" class="task-sendback-btn" data-id={t.Id} onclick={handleSendBack} disabled={t.disableSendBack} title="Send back to the assignee">Send Back</button>
                       </template>
                       <template if:true={t.canReassign}>
                         <button type="button" class="task-reassign-btn" data-id={t.Id} onclick={handleReassign} title="Edit or reassign this task">Edit/Reassign</button>

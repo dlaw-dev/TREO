@@ -21,7 +21,10 @@ public with sharing class TaskCalendarController {
                    Waiting_On_Task__c,
                    CreatedById,
                    Subtask_Template_Item__c,
-                   Bypassed__c
+                   Bypassed__c,
+                   Reviewer__c,
+                   Reviewer__r.Name,
+                   Review_Feedback__c
             FROM Task
             WHERE IsDeleted = false
               AND (WhatId = :parentId OR NEOS_Matter__c = :parentId)
@@ -116,6 +119,9 @@ public with sharing class TaskCalendarController {
         @AuraEnabled public String WaitingOnOwnerName;
         @AuraEnabled public Boolean IsChainStep;
         @AuraEnabled public Boolean IsBypassed;
+        @AuraEnabled public Id      ReviewerId;
+        @AuraEnabled public String  ReviewerName;
+        @AuraEnabled public String  ReviewFeedback;
         // Deliberately not named "Attachments" - a plain custom Apex class
         // property with that exact name silently ends up null after an
         // @AuraEnabled round-trip (confirmed empirically - looks like a
@@ -138,6 +144,9 @@ public with sharing class TaskCalendarController {
             AttachmentDtos      = (attachments != null) ? attachments : new List<TaskUiController.TaskAttachmentDto>();
             IsChainStep         = t.Subtask_Template_Item__c != null;
             IsBypassed          = t.Bypassed__c;
+            ReviewerId          = t.Reviewer__c;
+            ReviewerName        = (t.Reviewer__c == null) ? null : t.Reviewer__r.Name;
+            ReviewFeedback      = t.Review_Feedback__c;
 
             if (waitingOnTask != null) {
                 WaitingOnSubject   = waitingOnTask.Subject;

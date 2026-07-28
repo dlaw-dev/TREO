@@ -44,11 +44,13 @@ public with sharing class TaskDueReminderController {
                    CreatedById,
                    Snoozed_Until__c,
                    Subtask_Template_Item__c,
-                   Bypassed__c
+                   Bypassed__c,
+                   Review_Feedback__c
             FROM Task
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
+              AND Status != 'Pending Review'
               AND ActivityDate != null
               AND ActivityDate <= :upperBound
             ORDER BY ActivityDate ASC
@@ -73,11 +75,13 @@ public with sharing class TaskDueReminderController {
                    CreatedById,
                    Snoozed_Until__c,
                    Subtask_Template_Item__c,
-                   Bypassed__c
+                   Bypassed__c,
+                   Review_Feedback__c
             FROM Task
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
+              AND Status != 'Pending Review'
               AND ActivityDate = null
             ORDER BY CreatedDate DESC
             LIMIT 20
@@ -113,12 +117,14 @@ public with sharing class TaskDueReminderController {
                    Owner.Name,
                    CreatedById,
                    Subtask_Template_Item__c,
-                   Bypassed__c
+                   Bypassed__c,
+                   Review_Feedback__c
             FROM Task
             WHERE CreatedById = :currentUserId
               AND OwnerId != :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
+              AND Status != 'Pending Review'
               AND ActivityDate != null
               AND ActivityDate <= :upperBound
             ORDER BY ActivityDate ASC
@@ -142,12 +148,14 @@ public with sharing class TaskDueReminderController {
                    Owner.Name,
                    CreatedById,
                    Subtask_Template_Item__c,
-                   Bypassed__c
+                   Bypassed__c,
+                   Review_Feedback__c
             FROM Task
             WHERE CreatedById = :currentUserId
               AND OwnerId != :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
+              AND Status != 'Pending Review'
               AND ActivityDate = null
             ORDER BY CreatedDate DESC
             LIMIT 20
@@ -192,6 +200,7 @@ public with sharing class TaskDueReminderController {
                    Parent_Task__c,
                    Subtask_Template_Item__c,
                    Bypassed__c,
+                   Review_Feedback__c,
                    Subtask_Template_Item__r.Assignee_Type__c,
                    Subtask_Template_Item__r.Static_Assignee__c,
                    Subtask_Template_Item__r.Dynamic_Assignee_Field__c,
@@ -219,6 +228,7 @@ public with sharing class TaskDueReminderController {
                    Parent_Task__c,
                    Subtask_Template_Item__c,
                    Bypassed__c,
+                   Review_Feedback__c,
                    Subtask_Template_Item__r.Assignee_Type__c,
                    Subtask_Template_Item__r.Static_Assignee__c,
                    Subtask_Template_Item__r.Dynamic_Assignee_Field__c,
@@ -307,6 +317,49 @@ public with sharing class TaskDueReminderController {
     }
 
     /**
+     * Tasks pending this user's review - Reviewer__c is a plain, always-
+     * current-owner-independent lookup, so unlike getMyWaitingTasks() this
+     * needs no assignee resolution at all: it's simply "tasks where I am
+     * the Reviewer and they're waiting on my decision".
+     */
+    @AuraEnabled(cacheable=false)
+    public static List<DueTask> getTasksToReview() {
+        Date todayDate = Date.today();
+        Id currentUserId = UserInfo.getUserId();
+
+        List<DueTask> results = new List<DueTask>();
+
+        for (Task t : [
+            SELECT Id,
+                   Subject,
+                   ActivityDate,
+                   Priority,
+                   Status,
+                   Task_Subtype__c,
+                   NEOS_Matter__c,
+                   NEOS_Matter__r.Name,
+                   WhatId,
+                   What.Name,
+                   OwnerId,
+                   Owner.Name,
+                   CreatedById,
+                   Subtask_Template_Item__c,
+                   Bypassed__c,
+                   Review_Feedback__c
+            FROM Task
+            WHERE Reviewer__c = :currentUserId
+              AND Status = 'Pending Review'
+            ORDER BY CreatedDate DESC
+            LIMIT 200
+        ]) {
+            results.add(new DueTask(t, todayDate));
+        }
+
+        attachAttachments(results);
+        return results;
+    }
+
+    /**
      * Ad hoc (non-chain) tasks a user manually marked Waiting on another
      * task via the New Task modal. Unlike chain steps, these already have
      * a concrete OwnerId up front, so no assignee resolution is needed -
@@ -329,7 +382,8 @@ public with sharing class TaskDueReminderController {
                    CreatedById,
                    Waiting_On_Task__c,
                    Subtask_Template_Item__c,
-                   Bypassed__c
+                   Bypassed__c,
+                   Review_Feedback__c
             FROM Task
             WHERE Status = 'Waiting'
               AND Subtask_Template_Item__c = null
@@ -410,6 +464,7 @@ public with sharing class TaskDueReminderController {
         @AuraEnabled public Boolean IsSnoozed;
         @AuraEnabled public Boolean IsChainStep;
         @AuraEnabled public Boolean IsBypassed;
+        @AuraEnabled public String  ReviewFeedback;
         @AuraEnabled public List<TaskUiController.TaskAttachmentDto> AttachmentDtos;
 
         public DueTask(Task t, Date todayDate) {
@@ -424,6 +479,7 @@ public with sharing class TaskDueReminderController {
             CreatedById  = t.CreatedById;
             IsChainStep  = t.Subtask_Template_Item__c != null;
             IsBypassed   = t.Bypassed__c;
+            ReviewFeedback = t.Review_Feedback__c;
 
             if (t.ActivityDate != null) {
                 DaysUntil = todayDate.daysBetween(t.ActivityDate);
