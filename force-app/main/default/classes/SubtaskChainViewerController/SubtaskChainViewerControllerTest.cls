@@ -8,22 +8,23 @@ private class SubtaskChainViewerControllerTest {
         Subtask_Template__c template = new Subtask_Template__c(Name = 'Viewer Test Template');
         insert template;
 
-        insert new List<Subtask_Template_Item__c>{
-            new Subtask_Template_Item__c(
-                Subtask_Template__c = template.Id,
-                Sequence_Order__c   = 1,
-                Subject__c          = 'Step One',
-                Assignee_Type__c    = 'Static User',
-                Static_Assignee__c  = staticAssignee.Id
-            ),
-            new Subtask_Template_Item__c(
-                Subtask_Template__c        = template.Id,
-                Sequence_Order__c          = 2,
-                Subject__c                 = 'Step Two',
-                Assignee_Type__c           = 'Dynamic Matter Field',
-                Dynamic_Assignee_Field__c  = 'Senior_Attorney__c'
-            )
-        };
+        Subtask_Template_Item__c stepOne = new Subtask_Template_Item__c(
+            Subtask_Template__c = template.Id,
+            Sequence_Order__c   = 1,
+            Subject__c          = 'Step One',
+            Assignee_Type__c    = 'Static User',
+            Static_Assignee__c  = staticAssignee.Id
+        );
+        insert stepOne;
+
+        insert new Subtask_Template_Item__c(
+            Subtask_Template__c        = template.Id,
+            Sequence_Order__c          = 2,
+            Subject__c                 = 'Step Two',
+            Assignee_Type__c           = 'Dynamic Matter Field',
+            Dynamic_Assignee_Field__c  = 'Senior_Attorney__c',
+            Depends_On_Step__c         = stepOne.Id
+        );
 
         NEOS_Matter__c matter = new NEOS_Matter__c(Name = 'Test Matter', Case_Title__c = 'Test Case');
         insert matter;

@@ -22,18 +22,28 @@ public with sharing class TaskTriggerActions {
             }
 
             Set<Id> completedItemIds = new Set<Id>();
+            Set<Id> chainIds = new Set<Id>();
             for (Task t : completingSubtasks) {
                 completedItemIds.add(t.Subtask_Template_Item__c);
+                chainIds.add(t.Parent_Task__c);
             }
             Map<Id, List<Subtask_Template_Item__c>> dependentsByCompletedItemId = queryDependentItemsBulk(completedItemIds);
 
-            // Keyed by the dependent item's own Id, not the completing
-            // task's - a single completing step can unlock several
-            // dependents at once (branching), and each dependent item's Id
-            // is unique across the whole batch regardless.
-            Map<Id, Subtask_Template_Item__c> itemToResolveByDependentItemId = new Map<Id, Subtask_Template_Item__c>();
-            Map<Id, Id> matterIdByDependentItemId = new Map<Id, Id>();
-            Map<Id, Task> completingTaskByDependentItemId = new Map<Id, Task>();
+            Set<Id> dependentItemIds = new Set<Id>();
+            for (List<Subtask_Template_Item__c> deps : dependentsByCompletedItemId.values()) {
+                for (Subtask_Template_Item__c dep : deps) dependentItemIds.add(dep.Id);
+            }
+
+            // The same template (and so the same dependent item Id) can be
+            // shared by many chains completing in the same batch - keying
+            // by the dependent item's own Id alone would collide across
+            // chains. The already-instantiated placeholder Task for this
+            // (item, chain) pair is genuinely unique, so key on that instead.
+            Map<String, Task> placeholderByCompositeKey = queryPlaceholdersBulk(dependentItemIds, chainIds);
+
+            Map<Id, Subtask_Template_Item__c> itemToResolveByPlaceholderId = new Map<Id, Subtask_Template_Item__c>();
+            Map<Id, Id> matterIdByPlaceholderId = new Map<Id, Id>();
+            Map<Id, Task> completingTaskByPlaceholderId = new Map<Id, Task>();
 
             for (Task t : completingSubtasks) {
                 List<Subtask_Template_Item__c> dependents = dependentsByCompletedItemId.get(t.Subtask_Template_Item__c);
@@ -42,20 +52,23 @@ public with sharing class TaskTriggerActions {
                 for (Subtask_Template_Item__c dependent : dependents) {
                     if (dependent.Assignee_Type__c != 'Dynamic Matter Field') continue;
 
-                    itemToResolveByDependentItemId.put(dependent.Id, dependent);
-                    matterIdByDependentItemId.put(dependent.Id, t.NEOS_Matter__c);
-                    completingTaskByDependentItemId.put(dependent.Id, t);
+                    Task placeholder = placeholderByCompositeKey.get(compositeKey(dependent.Id, t.Parent_Task__c));
+                    if (placeholder == null) continue;
+
+                    itemToResolveByPlaceholderId.put(placeholder.Id, dependent);
+                    matterIdByPlaceholderId.put(placeholder.Id, t.NEOS_Matter__c);
+                    completingTaskByPlaceholderId.put(placeholder.Id, t);
                 }
             }
 
-            Map<Id, Id> resolvedAssigneeByDependentItemId = SubtaskAssigneeResolver.resolveAssigneesBulk(
-                itemToResolveByDependentItemId, matterIdByDependentItemId);
+            Map<Id, Id> resolvedAssigneeByPlaceholderId = SubtaskAssigneeResolver.resolveAssigneesBulk(
+                itemToResolveByPlaceholderId, matterIdByPlaceholderId);
 
-            for (Id dependentItemId : itemToResolveByDependentItemId.keySet()) {
-                if (resolvedAssigneeByDependentItemId.get(dependentItemId) != null) continue;
+            for (Id placeholderId : itemToResolveByPlaceholderId.keySet()) {
+                if (resolvedAssigneeByPlaceholderId.get(placeholderId) != null) continue;
 
-                Subtask_Template_Item__c dependent = itemToResolveByDependentItemId.get(dependentItemId);
-                completingTaskByDependentItemId.get(dependentItemId).addError(
+                Subtask_Template_Item__c dependent = itemToResolveByPlaceholderId.get(placeholderId);
+                completingTaskByPlaceholderId.get(placeholderId).addError(
                     'Please set "' + dependent.Dynamic_Assignee_Field__c
                     + '" on the Matter before completing this task, so "'
                     + dependent.Subject__c + '" can be assigned.');
@@ -73,54 +86,62 @@ public with sharing class TaskTriggerActions {
             }
 
             Set<Id> completedItemIds = new Set<Id>();
+            Set<Id> chainIds = new Set<Id>();
             for (Task t : completedSubtasks) {
                 completedItemIds.add(t.Subtask_Template_Item__c);
+                chainIds.add(t.Parent_Task__c);
             }
             Map<Id, List<Subtask_Template_Item__c>> dependentsByCompletedItemId = queryDependentItemsBulk(completedItemIds);
 
-            // One entry per (completing task, dependent item) pair, keyed
-            // by the dependent item's own Id - see note above on why that's
-            // safely unique across the whole batch.
-            Map<Id, Subtask_Template_Item__c> dependentItemById = new Map<Id, Subtask_Template_Item__c>();
-            Map<Id, Id> matterIdByDependentItemId = new Map<Id, Id>();
-            Map<Id, Id> chainIdByDependentItemId = new Map<Id, Id>();
+            Set<Id> dependentItemIds = new Set<Id>();
+            for (List<Subtask_Template_Item__c> deps : dependentsByCompletedItemId.values()) {
+                for (Subtask_Template_Item__c dep : deps) dependentItemIds.add(dep.Id);
+            }
+
+            // The same template (and so the same dependent item Id) can be
+            // shared by many chains completing in the same batch - keying
+            // by the dependent item's own Id alone would collide across
+            // chains. The already-instantiated placeholder Task for this
+            // (item, chain) pair is genuinely unique, so key on that instead.
+            Map<String, Task> placeholderByCompositeKey = queryPlaceholdersBulk(dependentItemIds, chainIds);
+
+            Map<Id, Subtask_Template_Item__c> itemByPlaceholderId = new Map<Id, Subtask_Template_Item__c>();
+            Map<Id, Id> matterIdByPlaceholderId = new Map<Id, Id>();
+            Map<Id, Task> placeholderById = new Map<Id, Task>();
 
             for (Task t : completedSubtasks) {
                 List<Subtask_Template_Item__c> dependents = dependentsByCompletedItemId.get(t.Subtask_Template_Item__c);
                 if (dependents == null) continue;
 
                 for (Subtask_Template_Item__c dependent : dependents) {
-                    dependentItemById.put(dependent.Id, dependent);
-                    matterIdByDependentItemId.put(dependent.Id, t.NEOS_Matter__c);
-                    chainIdByDependentItemId.put(dependent.Id, t.Parent_Task__c);
+                    Task placeholder = placeholderByCompositeKey.get(compositeKey(dependent.Id, t.Parent_Task__c));
+                    if (placeholder == null || placeholder.Status != 'Waiting') {
+                        continue; // no placeholder, or it was already activated/advanced - never regress it
+                    }
+
+                    itemByPlaceholderId.put(placeholder.Id, dependent);
+                    matterIdByPlaceholderId.put(placeholder.Id, t.NEOS_Matter__c);
+                    placeholderById.put(placeholder.Id, placeholder);
                 }
             }
 
-            if (dependentItemById.isEmpty()) {
+            if (placeholderById.isEmpty()) {
                 return;
             }
 
-            Map<Id, Id> resolvedAssigneeByDependentItemId = SubtaskAssigneeResolver.resolveAssigneesBulk(
-                dependentItemById, matterIdByDependentItemId);
-
-            Map<String, Task> placeholderByCompositeKey = queryPlaceholdersBulk(
-                dependentItemById.keySet(), new Set<Id>(chainIdByDependentItemId.values()));
+            Map<Id, Id> resolvedAssigneeByPlaceholderId = SubtaskAssigneeResolver.resolveAssigneesBulk(
+                itemByPlaceholderId, matterIdByPlaceholderId);
 
             List<Task> tasksToUpdate = new List<Task>();
 
-            for (Id dependentItemId : dependentItemById.keySet()) {
-                Id assigneeId = resolvedAssigneeByDependentItemId.get(dependentItemId);
+            for (Id placeholderId : placeholderById.keySet()) {
+                Id assigneeId = resolvedAssigneeByPlaceholderId.get(placeholderId);
 
                 if (assigneeId == null) {
                     continue; // the before-update safety rail should have blocked this already
                 }
 
-                Task placeholder = placeholderByCompositeKey.get(
-                    compositeKey(dependentItemId, chainIdByDependentItemId.get(dependentItemId)));
-
-                if (placeholder == null || placeholder.Status != 'Waiting') {
-                    continue; // no placeholder, or it was already activated/advanced - never regress it
-                }
+                Task placeholder = placeholderById.get(placeholderId);
 
                 // Someone may have already manually reassigned this
                 // not-yet-active step via Edit/Reassign - respect that
@@ -148,29 +169,6 @@ public with sharing class TaskTriggerActions {
                     }
                 }
             }
-        }
-
-        private String compositeKey(Id templateItemId, Id chainId) {
-            return templateItemId + ':' + chainId;
-        }
-
-        private Map<String, Task> queryPlaceholdersBulk(Set<Id> dependentItemIds, Set<Id> chainIds) {
-            Map<String, Task> results = new Map<String, Task>();
-
-            if (dependentItemIds.isEmpty() || chainIds.isEmpty()) {
-                return results;
-            }
-
-            for (Task placeholder : [
-                SELECT Id, OwnerId, Status, ActivityDate, Subtask_Template_Item__c, Parent_Task__c, Manually_Reassigned__c
-                FROM Task
-                WHERE Subtask_Template_Item__c IN :dependentItemIds
-                  AND Parent_Task__c IN :chainIds
-            ]) {
-                results.put(compositeKey(placeholder.Subtask_Template_Item__c, placeholder.Parent_Task__c), placeholder);
-            }
-
-            return results;
         }
     }
 
@@ -257,6 +255,37 @@ public with sharing class TaskTriggerActions {
                 results.put(dependent.Depends_On_Step__c, new List<Subtask_Template_Item__c>());
             }
             results.get(dependent.Depends_On_Step__c).add(dependent);
+        }
+
+        return results;
+    }
+
+    private static String compositeKey(Id templateItemId, Id chainId) {
+        return templateItemId + ':' + chainId;
+    }
+
+    /**
+     * Looks up the already-instantiated placeholder Task for each
+     * (dependent template item, chain) pair - shared by both the
+     * before-update validator and the after-update activator, since each
+     * needs to correlate a dependent item back to a real, unique Task Id
+     * (the template item Id alone isn't unique once the same template is
+     * applied to more than one chain in the same batch).
+     */
+    private static Map<String, Task> queryPlaceholdersBulk(Set<Id> dependentItemIds, Set<Id> chainIds) {
+        Map<String, Task> results = new Map<String, Task>();
+
+        if (dependentItemIds.isEmpty() || chainIds.isEmpty()) {
+            return results;
+        }
+
+        for (Task placeholder : [
+            SELECT Id, OwnerId, Status, ActivityDate, Subtask_Template_Item__c, Parent_Task__c, Manually_Reassigned__c
+            FROM Task
+            WHERE Subtask_Template_Item__c IN :dependentItemIds
+              AND Parent_Task__c IN :chainIds
+        ]) {
+            results.put(compositeKey(placeholder.Subtask_Template_Item__c, placeholder.Parent_Task__c), placeholder);
         }
 
         return results;

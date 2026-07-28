@@ -649,14 +649,17 @@ private class TaskUiControllerTest {
             Assignee_Type__c    = 'Static User',
             Static_Assignee__c  = owner.Id
         );
+        insert step1;
+
         Subtask_Template_Item__c step2 = new Subtask_Template_Item__c(
             Subtask_Template__c = template.Id,
             Sequence_Order__c   = 2,
             Subject__c          = 'Step Two',
             Assignee_Type__c    = 'Static User',
-            Static_Assignee__c  = owner.Id
+            Static_Assignee__c  = owner.Id,
+            Depends_On_Step__c  = step1.Id
         );
-        insert new List<Subtask_Template_Item__c>{ step1, step2 };
+        insert step2;
 
         Task chainRoot = new Task(
             Subject                  = 'Step One',

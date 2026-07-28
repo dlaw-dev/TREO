@@ -7,22 +7,23 @@ private class TaskTriggerActionsTest {
         Subtask_Template__c template = new Subtask_Template__c(Name = 'Test Attorney Assignment');
         insert template;
 
-        insert new List<Subtask_Template_Item__c>{
-            new Subtask_Template_Item__c(
-                Subtask_Template__c = template.Id,
-                Sequence_Order__c   = 1,
-                Subject__c          = 'Assign Senior Attorney',
-                Assignee_Type__c    = 'Static User',
-                Static_Assignee__c  = staticAssignee.Id
-            ),
-            new Subtask_Template_Item__c(
-                Subtask_Template__c        = template.Id,
-                Sequence_Order__c          = 2,
-                Subject__c                 = 'Assign Associate Attorney',
-                Assignee_Type__c           = 'Dynamic Matter Field',
-                Dynamic_Assignee_Field__c  = 'Senior_Attorney__c'
-            )
-        };
+        Subtask_Template_Item__c stepOne = new Subtask_Template_Item__c(
+            Subtask_Template__c = template.Id,
+            Sequence_Order__c   = 1,
+            Subject__c          = 'Assign Senior Attorney',
+            Assignee_Type__c    = 'Static User',
+            Static_Assignee__c  = staticAssignee.Id
+        );
+        insert stepOne;
+
+        insert new Subtask_Template_Item__c(
+            Subtask_Template__c        = template.Id,
+            Sequence_Order__c          = 2,
+            Subject__c                 = 'Assign Associate Attorney',
+            Assignee_Type__c           = 'Dynamic Matter Field',
+            Dynamic_Assignee_Field__c  = 'Senior_Attorney__c',
+            Depends_On_Step__c         = stepOne.Id
+        );
 
         return template;
     }
@@ -297,5 +298,109 @@ private class TaskTriggerActionsTest {
 
         Task reloaded = [SELECT Status FROM Task WHERE Id = :unrelatedWaiting.Id];
         System.assertEquals('Waiting', reloaded.Status);
+    }
+
+    /* =========================================================
+       Branching chains
+    ========================================================== */
+
+    private static Subtask_Template__c buildBranchingTemplate() {
+        User staticAssignee = [SELECT Id FROM User WHERE Name = 'David Yeremian' AND IsActive = true LIMIT 1];
+
+        // 1 -> (2 and 3 together) ; 2 depends on 1, 3 depends on 1, master(4) depends on 2 only.
+        Subtask_Template__c template = new Subtask_Template__c(Name = 'Test Branching Template');
+        insert template;
+
+        Subtask_Template_Item__c stepOne = new Subtask_Template_Item__c(
+            Subtask_Template__c = template.Id,
+            Sequence_Order__c   = 1,
+            Subject__c          = 'Step One',
+            Assignee_Type__c    = 'Static User',
+            Static_Assignee__c  = staticAssignee.Id
+        );
+        insert stepOne;
+
+        List<Subtask_Template_Item__c> dependents = new List<Subtask_Template_Item__c>{
+            new Subtask_Template_Item__c(
+                Subtask_Template__c = template.Id,
+                Sequence_Order__c   = 2,
+                Subject__c          = 'Step Two',
+                Assignee_Type__c    = 'Static User',
+                Static_Assignee__c  = staticAssignee.Id,
+                Depends_On_Step__c  = stepOne.Id
+            ),
+            new Subtask_Template_Item__c(
+                Subtask_Template__c = template.Id,
+                Sequence_Order__c   = 3,
+                Subject__c          = 'Step Three (side quest)',
+                Assignee_Type__c    = 'Static User',
+                Static_Assignee__c  = staticAssignee.Id,
+                Depends_On_Step__c  = stepOne.Id
+            )
+        };
+        insert dependents;
+
+        insert new Subtask_Template_Item__c(
+            Subtask_Template__c = template.Id,
+            Sequence_Order__c   = 4,
+            Subject__c          = 'Step Four (Master)',
+            Assignee_Type__c    = 'Static User',
+            Static_Assignee__c  = staticAssignee.Id,
+            Depends_On_Step__c  = dependents[0].Id
+        );
+
+        return template;
+    }
+
+    @IsTest
+    static void testChainAdvances_completingOneStepActivatesBothDependentsAtOnce() {
+        Subtask_Template__c template = buildBranchingTemplate();
+        NEOS_Matter__c matter = createMatter();
+
+        Id masterId = SubtaskTemplateApplier.apply(template.Id, matter.Id);
+
+        Task stepOne = [SELECT Id, Status FROM Task WHERE Subject = 'Step One' AND Parent_Task__c = :masterId];
+        System.assertEquals('Open', stepOne.Status);
+
+        Test.startTest();
+        stepOne.Status = 'Completed';
+        update stepOne;
+        Test.stopTest();
+
+        Task stepTwo = [SELECT Status FROM Task WHERE Subject = 'Step Two' AND Parent_Task__c = :masterId];
+        Task stepThree = [SELECT Status FROM Task WHERE Subject = 'Step Three (side quest)' AND Parent_Task__c = :masterId];
+
+        System.assertEquals('Open', stepTwo.Status, 'Completing the shared dependency should activate both dependents at once.');
+        System.assertEquals('Open', stepThree.Status, 'Completing the shared dependency should activate both dependents at once.');
+    }
+
+    @IsTest
+    static void testCompleteTask_completingOneLeafBranchAloneDoesNotCompleteWholeChain() {
+        Subtask_Template__c template = buildBranchingTemplate();
+        NEOS_Matter__c matter = createMatter();
+
+        Id masterId = SubtaskTemplateApplier.apply(template.Id, matter.Id);
+
+        Task stepOne = [SELECT Id, Status FROM Task WHERE Subject = 'Step One' AND Parent_Task__c = :masterId];
+        stepOne.Status = 'Completed';
+        update stepOne;
+
+        Task stepThree = [SELECT Id FROM Task WHERE Subject = 'Step Three (side quest)' AND Parent_Task__c = :masterId];
+
+        Test.startTest();
+        Boolean chainCompleteAfterOneLeaf = TaskUiController.completeTask(stepThree.Id);
+        Test.stopTest();
+
+        System.assertEquals(false, chainCompleteAfterOneLeaf,
+            'Completing only the side-quest leaf must not report the whole (multi-branch) chain as complete.');
+
+        Task stepTwo = [SELECT Id FROM Task WHERE Subject = 'Step Two' AND Parent_Task__c = :masterId];
+        Task master = [SELECT Id FROM Task WHERE Id = :masterId];
+
+        Boolean chainCompleteAfterStepTwo = TaskUiController.completeTask(stepTwo.Id);
+        System.assertEquals(false, chainCompleteAfterStepTwo, 'Master step is still open - chain is not yet complete.');
+
+        Boolean chainCompleteAfterMaster = TaskUiController.completeTask(master.Id);
+        System.assertEquals(true, chainCompleteAfterMaster, 'Every branch is now complete - the chain should report complete.');
     }
 }
