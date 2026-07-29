@@ -2,6 +2,7 @@ public with sharing class TaskTriggerHandler {
 
     @TestVisible
     private static List<TaskTriggerAction> beforeUpdateActions = new List<TaskTriggerAction>{
+        new TaskTriggerActions.RedirectReviewedCompletionsBeforeUpdate(),
         new TaskTriggerActions.ValidateNextStepReadyBeforeComplete()
     };
 

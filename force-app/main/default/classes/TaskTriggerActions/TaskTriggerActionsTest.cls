@@ -453,4 +453,90 @@ private class TaskTriggerActionsTest {
         Boolean chainCompleteAfterMaster = TaskUiController.completeTask(master.Id);
         System.assertEquals(true, chainCompleteAfterMaster, 'Every branch is now complete - the chain should report complete.');
     }
+
+    /* =========================================================
+       Reviewer redirect (universal, trigger-enforced)
+    ========================================================== */
+
+    @IsTest
+    static void testManualCompletion_withReviewerSet_redirectsToPendingReview() {
+        User owner = [SELECT Id FROM User WHERE Name = 'David Yeremian' AND IsActive = true LIMIT 1];
+        User reviewer = [SELECT Id FROM User WHERE IsActive = true AND Id != :owner.Id LIMIT 1];
+
+        Task t = new Task(Subject = 'Manually Completed', Status = 'Open', OwnerId = owner.Id, Reviewer__c = reviewer.Id);
+        insert t;
+
+        Test.startTest();
+        t.Status = 'Completed';
+        update t;
+        Test.stopTest();
+
+        Task reloaded = [SELECT Status FROM Task WHERE Id = :t.Id];
+        System.assertEquals('Pending Review', reloaded.Status,
+            'Any path that marks a reviewed task Completed - not just the custom Mark Done button - should redirect to Pending Review.');
+    }
+
+    @IsTest
+    static void testApprovalTransition_fromPendingReviewToCompleted_isNotReRedirected() {
+        User owner = [SELECT Id FROM User WHERE Name = 'David Yeremian' AND IsActive = true LIMIT 1];
+        User reviewer = [SELECT Id FROM User WHERE IsActive = true AND Id != :owner.Id LIMIT 1];
+
+        Task t = new Task(Subject = 'Awaiting Approval', Status = 'Pending Review', OwnerId = owner.Id, Reviewer__c = reviewer.Id);
+        insert t;
+
+        Test.startTest();
+        t.Status = 'Completed';
+        update t;
+        Test.stopTest();
+
+        Task reloaded = [SELECT Status FROM Task WHERE Id = :t.Id];
+        System.assertEquals('Completed', reloaded.Status,
+            'A task actually being approved out of Pending Review must not be redirected back into review.');
+    }
+
+    @IsTest
+    static void testChainStepWithReviewer_dependentDoesNotActivateUntilApproved() {
+        Subtask_Template__c template = buildSeniorToAssociateTemplate();
+        NEOS_Matter__c matter = createMatter();
+
+        User seniorAttorney = [
+            SELECT Id FROM User
+            WHERE UserRole.Name = 'Senior Counsel' AND IsActive = true
+            LIMIT 1
+        ];
+        matter.Senior_Attorney__c = seniorAttorney.Id;
+        update matter;
+
+        User reviewer = [SELECT Id FROM User WHERE IsActive = true AND Id != :seniorAttorney.Id LIMIT 1];
+
+        Id masterId = SubtaskTemplateApplier.apply(template.Id, matter.Id);
+
+        Task firstTask = [
+            SELECT Id, Status FROM Task
+            WHERE Parent_Task__c = :masterId AND Id != :masterId
+            LIMIT 1
+        ];
+        firstTask.Reviewer__c = reviewer.Id;
+        update firstTask;
+
+        Test.startTest();
+        firstTask.Status = 'Completed';
+        update firstTask;
+        Test.stopTest();
+
+        Task firstReloaded = [SELECT Status FROM Task WHERE Id = :firstTask.Id];
+        System.assertEquals('Pending Review', firstReloaded.Status);
+
+        Task master = [SELECT Status FROM Task WHERE Id = :masterId];
+        System.assertEquals('Waiting', master.Status,
+            'The dependent step must not activate while its predecessor is only Pending Review, not actually Completed.');
+
+        // Simulate approval - the dependent should now activate.
+        firstTask.Status = 'Completed';
+        update firstTask;
+
+        Task masterAfterApproval = [SELECT Status FROM Task WHERE Id = :masterId];
+        System.assertEquals('Open', masterAfterApproval.Status,
+            'Once actually approved (Pending Review -> Completed), the dependent step should activate as normal.');
+    }
 }

@@ -453,17 +453,15 @@ public with sharing class TaskUiController {
     @AuraEnabled
     public static Boolean completeTask(Id taskId) {
         try {
-            Task t = [SELECT Id, Subtask_Template_Item__c, Parent_Task__c, Reviewer__c, Status FROM Task WHERE Id = :taskId LIMIT 1];
+            Task t = [SELECT Id, Subtask_Template_Item__c, Parent_Task__c, Status FROM Task WHERE Id = :taskId LIMIT 1];
 
             if (t.Status == 'Completed' || t.Status == 'Pending Review') {
                 throw new AuraHandledException('This task is already ' + (t.Status == 'Completed' ? 'complete' : 'pending review') + '.');
             }
 
-            if (t.Reviewer__c != null) {
-                update new Task(Id = taskId, Status = 'Pending Review', Review_Feedback__c = null);
-                return false;
-            }
-
+            // If a Reviewer is set, TaskTriggerActions.RedirectReviewedCompletionsBeforeUpdate
+            // redirects this to Pending Review instead - handled once, in the
+            // trigger, so every completion path (not just this method) gets it.
             t.Status = 'Completed';
             update t;
 

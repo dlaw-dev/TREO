@@ -12,6 +12,33 @@
  */
 public with sharing class TaskTriggerActions {
 
+    /**
+     * Any path that marks a task Completed while it has a Reviewer set -
+     * the custom Mark Done button, a native checkbox/inline edit, Data
+     * Loader, Flow, or anything else - is redirected to Pending Review
+     * instead, so review enforcement can't be bypassed by skipping the
+     * custom UI. Must run before ValidateNextStepReadyBeforeComplete so a
+     * chain step redirected here is never mistaken for a real chain-
+     * advancing completion. A task actually being approved (moving from
+     * Pending Review to Completed) is left alone.
+     */
+    public class RedirectReviewedCompletionsBeforeUpdate implements TaskTriggerAction {
+
+        public void run(List<Task> newRecords, Map<Id, Task> oldMap) {
+            for (Task t : newRecords) {
+                Task oldTask = oldMap.get(t.Id);
+
+                if (t.Status == 'Completed'
+                    && oldTask.Status != 'Completed'
+                    && oldTask.Status != 'Pending Review'
+                    && t.Reviewer__c != null) {
+                    t.Status = 'Pending Review';
+                    t.Review_Feedback__c = null;
+                }
+            }
+        }
+    }
+
     public class ValidateNextStepReadyBeforeComplete implements TaskTriggerAction {
 
         public void run(List<Task> newRecords, Map<Id, Task> oldMap) {
