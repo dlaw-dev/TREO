@@ -12,6 +12,7 @@
                 class={newTaskTabClass}
                 data-tab="newTask"
                 onclick={handleTabClick}>New Task</button>
+            <template if:true={isAdmin}>
             <button
                 type="button"
                 role="tab"
@@ -19,6 +20,7 @@
                 class={useTemplateTabClass}
                 data-tab="useTemplate"
                 onclick={handleTabClick}>Use Task Template</button>
+            </template>
         </div>
         </template>
 
