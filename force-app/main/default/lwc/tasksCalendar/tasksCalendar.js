@@ -14,6 +14,11 @@ import bypassTask from '@salesforce/apex/TaskUiController.bypassTask';
 import approveTask from '@salesforce/apex/TaskUiController.approveTask';
 import sendBackTask from '@salesforce/apex/TaskUiController.sendBackTask';
 
+// Matches Task.Review_Feedback__c's actual field length - truncating here
+// avoids a raw DML "value too large" error surfacing after the prompt has
+// already closed and the typed reason is gone.
+const REVIEW_FEEDBACK_MAX_LENGTH = 255;
+
 export default class TasksCalendar extends NavigationMixin(LightningElement) {
 
     @api recordId; // NEOS_Matter__c Id
@@ -171,7 +176,10 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
                 isWaiting,
                 isPendingReview,
                 waitingTitle,
-                reviewFeedbackTitle: t.ReviewFeedback ? `Sent back: "${t.ReviewFeedback}"` : null,
+                reviewFeedbackTitle: [
+                    t.ReviewerName ? `Pending review by ${t.ReviewerName}` : null,
+                    t.ReviewFeedback ? `Last sent back: "${t.ReviewFeedback}"` : null
+                ].filter(Boolean).join(' — ') || null,
                 dueLabel:        label,
                 dueBadgeClass:   cls,
                 rowClass:        isCompleted ? 'tasks-row tasks-row--completed' : 'tasks-row',
@@ -473,7 +481,7 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
         this._actionInFlightIds.add(taskId);
         this._rebuild();
         try {
-            await sendBackTask({ taskId, reason });
+            await sendBackTask({ taskId, reason: reason.slice(0, REVIEW_FEEDBACK_MAX_LENGTH) });
             this.dispatchEvent(new ShowToastEvent({
                 title: 'Sent back',
                 message: `"${row.Subject}" was sent back to ${row.OwnerName || 'the assignee'}.`,

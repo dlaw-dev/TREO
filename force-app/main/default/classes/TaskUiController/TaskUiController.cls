@@ -82,6 +82,8 @@ public with sharing class TaskUiController {
                 if (validOwners.containsKey(oid)) { primaryOwnerId = oid; break; }
             }
 
+            validateReviewer(reviewerId, primaryOwnerId);
+
             Task t = new Task(
                 WhatId                    = relatedId,
                 NEOS_Matter__c            = relatedId,
@@ -309,6 +311,8 @@ public with sharing class TaskUiController {
                 throw new AuraHandledException('Selected assignee is not allowed.');
             }
 
+            validateReviewer(reviewerId, ownerId);
+
             Task toUpdate = new Task(
                 Id                 = taskId,
                 OwnerId             = ownerId,
@@ -449,7 +453,11 @@ public with sharing class TaskUiController {
     @AuraEnabled
     public static Boolean completeTask(Id taskId) {
         try {
-            Task t = [SELECT Id, Subtask_Template_Item__c, Parent_Task__c, Reviewer__c FROM Task WHERE Id = :taskId LIMIT 1];
+            Task t = [SELECT Id, Subtask_Template_Item__c, Parent_Task__c, Reviewer__c, Status FROM Task WHERE Id = :taskId LIMIT 1];
+
+            if (t.Status == 'Completed' || t.Status == 'Pending Review') {
+                throw new AuraHandledException('This task is already ' + (t.Status == 'Completed' ? 'complete' : 'pending review') + '.');
+            }
 
             if (t.Reviewer__c != null) {
                 update new Task(Id = taskId, Status = 'Pending Review', Review_Feedback__c = null);
@@ -460,6 +468,8 @@ public with sharing class TaskUiController {
             update t;
 
             return t.Subtask_Template_Item__c != null && isEntireChainComplete(t.Parent_Task__c);
+        } catch (AuraHandledException e) {
+            throw e;
         } catch (Exception e) {
             throw new AuraHandledException('Error completing task: ' + e.getMessage());
         }
@@ -475,9 +485,9 @@ public with sharing class TaskUiController {
     @AuraEnabled
     public static Boolean approveTask(Id taskId) {
         try {
-            Task t = [SELECT Id, Subtask_Template_Item__c, Parent_Task__c, Reviewer__c, Status FROM Task WHERE Id = :taskId LIMIT 1];
+            Task t = [SELECT Id, Subtask_Template_Item__c, Parent_Task__c, Reviewer__c, Status, CreatedById FROM Task WHERE Id = :taskId LIMIT 1];
 
-            assertCanReview(t.Reviewer__c);
+            assertCanReview(t.Reviewer__c, t.CreatedById);
 
             if (t.Status != 'Pending Review') {
                 throw new AuraHandledException('This task is not pending review.');
@@ -503,9 +513,9 @@ public with sharing class TaskUiController {
     @AuraEnabled
     public static void sendBackTask(Id taskId, String reason) {
         try {
-            Task t = [SELECT Id, Reviewer__c, Status FROM Task WHERE Id = :taskId LIMIT 1];
+            Task t = [SELECT Id, Reviewer__c, Status, CreatedById FROM Task WHERE Id = :taskId LIMIT 1];
 
-            assertCanReview(t.Reviewer__c);
+            assertCanReview(t.Reviewer__c, t.CreatedById);
 
             if (t.Status != 'Pending Review') {
                 throw new AuraHandledException('This task is not pending review.');
@@ -514,7 +524,7 @@ public with sharing class TaskUiController {
             update new Task(
                 Id                  = taskId,
                 Status              = 'Open',
-                Review_Feedback__c  = reason
+                Review_Feedback__c  = String.isBlank(reason) ? reason : reason.left(255)
             );
         } catch (AuraHandledException e) {
             throw e;
@@ -523,9 +533,53 @@ public with sharing class TaskUiController {
         }
     }
 
-    private static void assertCanReview(Id reviewerId) {
-        if (reviewerId == null || UserInfo.getUserId() != reviewerId) {
-            throw new AuraHandledException('Only the assigned reviewer can approve or send back this task.');
+    // The assigned Reviewer is normally the only one who may act - but if
+    // that person is no longer active (or Reviewer__c was cleared) the task
+    // would otherwise be permanently stuck in Pending Review with no one
+    // able to move it, so the task's creator (who set up the review in the
+    // first place) can step in as a fallback.
+    private static void assertCanReview(Id reviewerId, Id createdById) {
+        Id runningUserId = UserInfo.getUserId();
+
+        if (reviewerId != null && runningUserId == reviewerId) {
+            return;
+        }
+
+        Boolean reviewerStillActive = false;
+        if (reviewerId != null) {
+            Integer activeCount = [SELECT COUNT() FROM User WHERE Id = :reviewerId AND IsActive = true];
+            reviewerStillActive = activeCount > 0;
+        }
+
+        if (!reviewerStillActive && runningUserId == createdById) {
+            return;
+        }
+
+        throw new AuraHandledException('Only the assigned reviewer can approve or send back this task.');
+    }
+
+    // Static User assignee-style eligibility check (active, standard,
+    // allowed profile) applied to the optional Reviewer, plus a guard
+    // against the assignee reviewing their own work - the whole point of a
+    // reviewer is a second set of eyes.
+    private static void validateReviewer(Id reviewerId, Id ownerId) {
+        if (reviewerId == null) return;
+
+        if (reviewerId == ownerId) {
+            throw new AuraHandledException('The Reviewer can\'t be the same person as the Assignee.');
+        }
+
+        List<User> validReviewers = [
+            SELECT Id
+            FROM User
+            WHERE Id = :reviewerId
+              AND IsActive = true
+              AND UserType = 'Standard'
+              AND Profile.Name IN :ALLOWED_PROFILE_NAMES
+        ];
+
+        if (validReviewers.isEmpty()) {
+            throw new AuraHandledException('Selected reviewer is not allowed.');
         }
     }
 

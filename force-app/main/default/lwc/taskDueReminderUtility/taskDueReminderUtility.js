@@ -21,6 +21,10 @@ import CURRENT_USER_ID from '@salesforce/user/Id';
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
 const REMOVE_ANIMATION_MS = 220;
 const DEFAULT_UTILITY_LABEL = 'Task Hub';
+// Matches Task.Review_Feedback__c's actual field length - truncating here
+// avoids a raw DML "value too large" error surfacing after the prompt has
+// already closed and the typed reason is gone.
+const REVIEW_FEEDBACK_MAX_LENGTH = 255;
 
 const SNOOZE_OPTIONS = [
     { duration: 'ONE_HOUR', label: '1 Hour' },
@@ -768,7 +772,8 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         const taskId = event.currentTarget.dataset.id;
         const task = this.tasks.find((t) => t.Id === taskId)
             || this.delegatedTasks.find((t) => t.Id === taskId)
-            || this.waitingTasks.find((t) => t.Id === taskId);
+            || this.waitingTasks.find((t) => t.Id === taskId)
+            || this.reviewTasks.find((t) => t.Id === taskId);
 
         // eslint-disable-next-line no-alert
         if (!window.confirm(`Skip "${task?.Subject}" without completing it? Any step(s) that depend on it will still activate.`)) {
@@ -848,7 +853,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         if (reason === null) return; // cancelled
 
         try {
-            await sendBackTask({ taskId, reason });
+            await sendBackTask({ taskId, reason: reason.slice(0, REVIEW_FEEDBACK_MAX_LENGTH) });
             this.scheduleRemoval(taskId);
             this.suppressNextTaskChangedEcho = true;
             publish(this.messageContext, TASK_CHANGED, {});
@@ -874,11 +879,13 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     async handleReassign(event) {
         event.stopPropagation();
         const taskId = event.currentTarget.dataset.id;
-        // The button renders across all three tabs (due/delegated/waiting),
-        // each backed by its own array - the clicked task may live in any of them.
+        // The button renders across all four tabs (due/delegated/waiting/
+        // review), each backed by its own array - the clicked task may live
+        // in any of them.
         const task = this.tasks.find((t) => t.Id === taskId)
             || this.delegatedTasks.find((t) => t.Id === taskId)
-            || this.waitingTasks.find((t) => t.Id === taskId);
+            || this.waitingTasks.find((t) => t.Id === taskId)
+            || this.reviewTasks.find((t) => t.Id === taskId);
 
         try {
             const result = await TaskCreateModalAction.open({

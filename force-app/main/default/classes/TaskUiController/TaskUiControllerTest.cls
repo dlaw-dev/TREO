@@ -1165,4 +1165,183 @@ private class TaskUiControllerTest {
         System.assertEquals(reviewer.Name, dto.reviewerName);
         System.assertEquals('Please fix the formatting.', dto.reviewFeedback);
     }
+
+    /* =========================================================
+       Reviewer - eligibility validation, self-review, rescue path
+    ========================================================== */
+
+    @IsTest
+    static void testSaveTask_reviewerSameAsAssignee_throws() {
+        NEOS_Matter__c matter = createMatter();
+        User owner = createAllowedUser('RevOwner10', 'taskuicontroller.revowner10');
+
+        Boolean exceptionThrown = false;
+        Test.startTest();
+        try {
+            TaskUiController.saveTask(
+                matter.Id, new List<Id>{ owner.Id }, 'Self Review', Date.today(), 'Not Started', 'Normal',
+                'desc', null, null, getInternalExternalTypeValue(), null, null, null, owner.Id
+            );
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown, 'The assignee cannot review their own work.');
+    }
+
+    @IsTest
+    static void testSaveTask_reviewerNotEligible_throws() {
+        NEOS_Matter__c matter = createMatter();
+        User owner = createAllowedUser('RevOwner11', 'taskuicontroller.revowner11');
+
+        Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User inactiveReviewer = new User(
+            ProfileId = sysAdmin.Id,
+            LastName = 'InactiveReviewer',
+            Email = 'inactive.reviewer@test.example',
+            Username = 'inactive.reviewer+' + System.now().getTime() + '@test.example',
+            Alias = 'inactrev',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US',
+            IsActive = false
+        );
+        insert inactiveReviewer;
+
+        Boolean exceptionThrown = false;
+        Test.startTest();
+        try {
+            TaskUiController.saveTask(
+                matter.Id, new List<Id>{ owner.Id }, 'Bad Reviewer', Date.today(), 'Not Started', 'Normal',
+                'desc', null, null, getInternalExternalTypeValue(), null, null, null, inactiveReviewer.Id
+            );
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown, 'An inactive user cannot be set as Reviewer.');
+    }
+
+    @IsTest
+    static void testUpdateTask_reviewerSameAsAssignee_throws() {
+        NEOS_Matter__c matter = createMatter();
+        User owner = createAllowedUser('RevOwner12', 'taskuicontroller.revowner12');
+
+        Task t = new Task(Subject = 'Existing Task', Status = 'Not Started', OwnerId = owner.Id, NEOS_Matter__c = matter.Id);
+        insert t;
+
+        Boolean exceptionThrown = false;
+        Test.startTest();
+        try {
+            TaskUiController.updateTask(
+                t.Id, owner.Id, 'Existing Task', Date.today(), 'Not Started', 'Normal', 'desc', null, null, owner.Id
+            );
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown, 'The assignee cannot review their own work.');
+    }
+
+    @IsTest
+    static void testApproveTask_reviewerDeactivated_creatorCanRescue() {
+        User owner = createAllowedUser('RevOwner13', 'taskuicontroller.revowner13');
+        User reviewer = createAllowedUser('Reviewer13', 'taskuicontroller.reviewer13');
+
+        Task t = new Task(
+            Subject     = 'Reviewer Went Inactive',
+            Status      = 'Pending Review',
+            OwnerId     = owner.Id,
+            Reviewer__c = reviewer.Id
+        );
+        insert t;
+
+        reviewer.IsActive = false;
+        update reviewer;
+
+        // The running user (System Administrator context, same as CreatedById
+        // for this insert) steps in since the assigned Reviewer is no longer active.
+        Test.startTest();
+        TaskUiController.approveTask(t.Id);
+        Test.stopTest();
+
+        Task reloaded = [SELECT Status FROM Task WHERE Id = :t.Id];
+        System.assertEquals('Completed', reloaded.Status,
+            'The task creator should be able to rescue a task whose Reviewer is no longer active.');
+    }
+
+    @IsTest
+    static void testApproveTask_reviewerActiveButNotCreatorOrReviewer_throws() {
+        User owner = createAllowedUser('RevOwner14', 'taskuicontroller.revowner14');
+        User reviewer = createAllowedUser('Reviewer14', 'taskuicontroller.reviewer14');
+        User outsider = createAllowedUser('RevOutsider3', 'taskuicontroller.revoutsider3');
+
+        Task t = new Task(
+            Subject     = 'Still Has A Reviewer',
+            Status      = 'Pending Review',
+            OwnerId     = owner.Id,
+            Reviewer__c = reviewer.Id
+        );
+        insert t;
+
+        Boolean exceptionThrown = false;
+        Test.startTest();
+        System.runAs(outsider) {
+            try {
+                TaskUiController.approveTask(t.Id);
+            } catch (AuraHandledException e) {
+                exceptionThrown = true;
+            }
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown,
+            'While the Reviewer is still active, only the Reviewer (or, as a rescue, the creator) may act - not an unrelated user.');
+    }
+
+    @IsTest
+    static void testCompleteTask_alreadyCompleted_throws() {
+        User owner = createAllowedUser('RevOwner15', 'taskuicontroller.revowner15');
+        Task t = new Task(Subject = 'Already Done', Status = 'Completed', OwnerId = owner.Id);
+        insert t;
+
+        Boolean exceptionThrown = false;
+        Test.startTest();
+        try {
+            TaskUiController.completeTask(t.Id);
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown);
+    }
+
+    @IsTest
+    static void testCompleteTask_alreadyPendingReview_throws() {
+        User owner = createAllowedUser('RevOwner16', 'taskuicontroller.revowner16');
+        User reviewer = createAllowedUser('Reviewer16', 'taskuicontroller.reviewer16');
+        Task t = new Task(
+            Subject     = 'Already Submitted',
+            Status      = 'Pending Review',
+            OwnerId     = owner.Id,
+            Reviewer__c = reviewer.Id
+        );
+        insert t;
+
+        Boolean exceptionThrown = false;
+        Test.startTest();
+        try {
+            TaskUiController.completeTask(t.Id);
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown);
+    }
 }
