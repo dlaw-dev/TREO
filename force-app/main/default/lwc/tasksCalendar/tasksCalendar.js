@@ -160,7 +160,7 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             const isWaiting   = t.Status === 'Waiting';
             const isPendingReview = t.Status === 'Pending Review';
             const isReviewer = !!t.ReviewerId && t.ReviewerId === CURRENT_USER_ID;
-            const canReassign = t.OwnerId === CURRENT_USER_ID || t.CreatedById === CURRENT_USER_ID;
+            const canReassign = !isCompleted && (t.OwnerId === CURRENT_USER_ID || t.CreatedById === CURRENT_USER_ID);
             const isActionInFlight = this._actionInFlightIds.has(t.Id);
             const waitingTitle = t.WaitingOnSubject
                 ? `Waiting on "${t.WaitingOnSubject}"${t.WaitingOnOwnerName ? ` (${t.WaitingOnOwnerName})` : ''}`
