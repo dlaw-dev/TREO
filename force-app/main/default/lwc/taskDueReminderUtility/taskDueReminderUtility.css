@@ -461,19 +461,6 @@
     color: #825a00;
 }
 
-.pending-review-pill {
-    display: inline-flex;
-    align-items: center;
-    height: 1.25rem;
-    padding: 0 0.5rem;
-    border-radius: 1rem;
-    font-size: 0.65rem;
-    font-weight: 700;
-    white-space: nowrap;
-    background-color: #ede7f8;
-    color: #5b4b9e;
-}
-
 .reminder-empty {
     display: flex;
     flex-direction: column;

@@ -544,7 +544,7 @@ private class TaskDueReminderControllerTest {
     ========================================================== */
 
     @IsTest
-    static void testGetMyDueTasks_includesPendingReviewStatus() {
+    static void testGetMyDueTasks_excludesPendingReviewStatus() {
         Task pendingReview = new Task(
             Subject      = 'Pending Review Task',
             Status       = 'Pending Review',
@@ -557,16 +557,14 @@ private class TaskDueReminderControllerTest {
         List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getMyDueTasks();
         Test.stopTest();
 
-        Boolean found = false;
         for (TaskDueReminderController.DueTask dt : results) {
-            if (dt.Id == pendingReview.Id) found = true;
+            System.assertNotEquals(pendingReview.Id, dt.Id,
+                'A task pending review isn\'t really "assigned to" its owner in any actionable sense - it belongs in the Pending/To Review tab instead, not Due.');
         }
-        System.assertEquals(true, found,
-            'A task pending review is still due today and should stay visible to the assignee, just not actionable - disappearing entirely would look like it vanished.');
     }
 
     @IsTest
-    static void testGetTasksAssignedByMe_includesPendingReviewStatus() {
+    static void testGetTasksAssignedByMe_excludesPendingReviewStatus() {
         Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
         User delegate = new User(
             ProfileId = sysAdmin.Id,
@@ -593,18 +591,16 @@ private class TaskDueReminderControllerTest {
         List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getTasksAssignedByMe();
         Test.stopTest();
 
-        Boolean found = false;
         for (TaskDueReminderController.DueTask dt : results) {
-            if (dt.Id == pendingReview.Id) found = true;
+            System.assertNotEquals(pendingReview.Id, dt.Id,
+                'A delegated task pending review is no longer actionable by its delegator either - it belongs in the Pending/To Review tab instead, not Delegated.');
         }
-        System.assertEquals(true, found,
-            'A delegated task pending review should stay visible to whoever assigned it, just not actionable by them - disappearing entirely would hide real progress.');
     }
 
     @IsTest
-    static void testGetTasksToReview_returnsOnlyMyPendingReviewTasks() {
+    static void testGetTasksToReview_includesReviewerQueueAndMyOwnPendingItems() {
         Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
-        User otherReviewer = new User(
+        User otherUser = new User(
             ProfileId = sysAdmin.Id,
             LastName = 'OtherReviewer',
             Email = 'taskduereminder.otherreviewer@test.example',
@@ -615,22 +611,26 @@ private class TaskDueReminderControllerTest {
             EmailEncodingKey = 'UTF-8',
             LanguageLocaleKey = 'en_US'
         );
-        insert otherReviewer;
+        insert otherUser;
 
+        // I'm the Reviewer here - actionable, shows in "To Review".
         Task myReview = new Task(
             Subject      = 'My Review Task',
             Status       = 'Pending Review',
             ActivityDate = Date.today(),
-            OwnerId      = UserInfo.getUserId(),
+            OwnerId      = otherUser.Id,
             Reviewer__c  = UserInfo.getUserId()
         );
 
-        Task someoneElsesReview = new Task(
-            Subject      = 'Someone Elses Review Task',
+        // My own task, but someone else is reviewing it - not actionable by
+        // me, but should still show in "Pending Review" so it doesn't just
+        // disappear from my view.
+        Task myOwnPendingTask = new Task(
+            Subject      = 'My Own Pending Task',
             Status       = 'Pending Review',
             ActivityDate = Date.today(),
             OwnerId      = UserInfo.getUserId(),
-            Reviewer__c  = otherReviewer.Id
+            Reviewer__c  = otherUser.Id
         );
 
         Task notYetSubmitted = new Task(
@@ -641,19 +641,41 @@ private class TaskDueReminderControllerTest {
             Reviewer__c  = UserInfo.getUserId()
         );
 
-        insert new List<Task>{ myReview, someoneElsesReview, notYetSubmitted };
+        insert new List<Task>{ myReview, myOwnPendingTask, notYetSubmitted };
+
+        // No connection to me at all - not owner, reviewer, or (crucially)
+        // creator, which defaults to whoever runs the insert - so this one
+        // has to actually be inserted as otherUser, not just owned by them.
+        Task fullyUnrelatedTask = new Task(
+            Subject      = 'Fully Unrelated Task',
+            Status       = 'Pending Review',
+            ActivityDate = Date.today(),
+            OwnerId      = otherUser.Id,
+            Reviewer__c  = otherUser.Id
+        );
+        System.runAs(otherUser) {
+            insert fullyUnrelatedTask;
+        }
 
         Test.startTest();
         List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getTasksToReview();
         Test.stopTest();
 
-        Set<Id> resultIds = new Set<Id>();
+        Map<Id, TaskDueReminderController.DueTask> byId = new Map<Id, TaskDueReminderController.DueTask>();
         for (TaskDueReminderController.DueTask dt : results) {
-            resultIds.add(dt.Id);
+            byId.put(dt.Id, dt);
         }
 
-        System.assert(resultIds.contains(myReview.Id), 'A task pending my review should be returned.');
-        System.assert(!resultIds.contains(someoneElsesReview.Id), 'A task pending someone else\'s review should not be returned.');
-        System.assert(!resultIds.contains(notYetSubmitted.Id), 'A task not yet submitted for review should not be returned.');
+        System.assert(byId.containsKey(myReview.Id), 'A task pending my review should be returned.');
+        System.assertEquals(true, byId.get(myReview.Id).IsReviewer, 'I am the Reviewer on this one - it should be actionable.');
+
+        System.assert(byId.containsKey(myOwnPendingTask.Id),
+            'My own task pending someone else\'s review should still show here, just flagged as not mine to act on.');
+        System.assertEquals(false, byId.get(myOwnPendingTask.Id).IsReviewer, 'I am not the Reviewer on this one.');
+        System.assertEquals('OtherReviewer', byId.get(myOwnPendingTask.Id).ReviewerName,
+            'Should surface who the actual Reviewer is, so I know who I\'m waiting on.');
+
+        System.assert(!byId.containsKey(notYetSubmitted.Id), 'A task not yet submitted for review should not be returned.');
+        System.assert(!byId.containsKey(fullyUnrelatedTask.Id), 'A task with no connection to me at all should not be returned.');
     }
 }

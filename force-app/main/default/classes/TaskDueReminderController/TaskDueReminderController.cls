@@ -50,6 +50,7 @@ public with sharing class TaskDueReminderController {
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
+              AND Status != 'Pending Review'
               AND ActivityDate != null
               AND ActivityDate <= :upperBound
             ORDER BY ActivityDate ASC
@@ -80,6 +81,7 @@ public with sharing class TaskDueReminderController {
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
+              AND Status != 'Pending Review'
               AND ActivityDate = null
             ORDER BY CreatedDate DESC
             LIMIT 20
@@ -122,6 +124,7 @@ public with sharing class TaskDueReminderController {
               AND OwnerId != :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
+              AND Status != 'Pending Review'
               AND ActivityDate != null
               AND ActivityDate <= :upperBound
             ORDER BY ActivityDate ASC
@@ -152,6 +155,7 @@ public with sharing class TaskDueReminderController {
               AND OwnerId != :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
+              AND Status != 'Pending Review'
               AND ActivityDate = null
             ORDER BY CreatedDate DESC
             LIMIT 20
@@ -325,6 +329,13 @@ public with sharing class TaskDueReminderController {
 
         List<DueTask> results = new List<DueTask>();
 
+        // Two audiences share this one tab: tasks where I'm the Reviewer
+        // (actionable - Approve/Send Back) and tasks of mine that are simply
+        // pending someone else's review (informational only - there's
+        // nothing for the owner or creator to do until it comes back). A
+        // task pending review isn't really "assigned to" its owner in any
+        // actionable sense, so it doesn't belong in the Due/Delegated tabs -
+        // it belongs here, alongside the reviewer's own queue.
         for (Task t : [
             SELECT Id,
                    Subject,
@@ -339,16 +350,21 @@ public with sharing class TaskDueReminderController {
                    OwnerId,
                    Owner.Name,
                    CreatedById,
+                   Reviewer__c,
+                   Reviewer__r.Name,
                    Subtask_Template_Item__c,
                    Bypassed__c,
                    Review_Feedback__c
             FROM Task
-            WHERE Reviewer__c = :currentUserId
-              AND Status = 'Pending Review'
+            WHERE Status = 'Pending Review'
+              AND (Reviewer__c = :currentUserId OR OwnerId = :currentUserId OR CreatedById = :currentUserId)
             ORDER BY CreatedDate DESC
             LIMIT 200
         ]) {
-            results.add(new DueTask(t, todayDate));
+            DueTask dto = new DueTask(t, todayDate);
+            dto.IsReviewer = (t.Reviewer__c == currentUserId);
+            dto.ReviewerName = t.Reviewer__r != null ? t.Reviewer__r.Name : null;
+            results.add(dto);
         }
 
         attachAttachments(results);
@@ -461,6 +477,8 @@ public with sharing class TaskDueReminderController {
         @AuraEnabled public Boolean IsChainStep;
         @AuraEnabled public Boolean IsBypassed;
         @AuraEnabled public String  ReviewFeedback;
+        @AuraEnabled public Boolean IsReviewer;
+        @AuraEnabled public String  ReviewerName;
         @AuraEnabled public List<TaskUiController.TaskAttachmentDto> AttachmentDtos;
 
         public DueTask(Task t, Date todayDate) {

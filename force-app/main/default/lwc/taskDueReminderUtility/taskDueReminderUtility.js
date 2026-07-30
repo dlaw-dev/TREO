@@ -149,6 +149,13 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         noDueDate: true
     };
 
+    // The Pending/To Review tab groups by role instead of by due date - see
+    // the groups getter.
+    expandedReview = {
+        toReview: true,
+        pendingReview: true
+    };
+
     _boundCloseAttachmentMenu;
 
     connectedCallback() {
@@ -225,7 +232,6 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 priorityClass: priorityClassFor(t.Priority),
                 showPriorityPill: !!t.Priority && t.Priority !== 'Normal',
                 isWaiting: t.Status === 'Waiting',
-                isPendingReview: t.Status === 'Pending Review',
                 isSnoozed: !!t.IsSnoozed,
                 snoozedUntilLabel: snoozedUntilLabelFor(t.SnoozedUntil),
                 showOwnerPill: t.Status !== 'Waiting' && !!t.OwnerName,
@@ -233,6 +239,10 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                     ? `Waiting on ${t.WaitingOnOwnerName} to finish "${t.WaitingOnSubject}"`
                     : null,
                 reviewFeedbackLabel: t.ReviewFeedback ? `Sent back: "${t.ReviewFeedback}"` : null,
+                // Only meaningful on the Pending/To Review tab's "Pending
+                // Review" group (rows where I'm not the Reviewer) - tells me
+                // who I'm actually waiting on.
+                reviewerLabel: !t.IsReviewer && t.ReviewerName ? `Reviewer: ${t.ReviewerName}` : null,
                 canReassign: t.OwnerId === CURRENT_USER_ID || t.CreatedById === CURRENT_USER_ID,
                 attachments,
                 hasAttachments: attachments.length > 0,
@@ -460,21 +470,20 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 snoozeOptions: this.snoozeOptions,
                 // Completing is still allowed on a snoozed task - only the
                 // "Snooze" action itself is hidden once it's already snoozed.
-                // A task pending someone else's review has nothing left for
-                // the assignee to do until it comes back - same reasoning as
-                // excluding Waiting - so it's shown (with a pill) but not
-                // actionable here.
-                showComplete: isAssignedToMe && !t.isPendingReview,
+                showComplete: isAssignedToMe,
                 // bypassTask permits either the current assignee OR the
                 // original assigner (creator) to skip - the Assigned By Me
                 // tab is exactly that second case (every row there has
                 // CreatedById === current user by construction), so it
                 // needs its own Skip button rather than requiring a
                 // reassign-to-self round trip first.
-                showSkip: (isAssignedToMe || isAssignedByMe) && !!t.IsChainStep && t.canReassign && !t.isPendingReview,
+                showSkip: (isAssignedToMe || isAssignedByMe) && !!t.IsChainStep && t.canReassign,
                 showSnoozeButton: isAssignedToMe && !t.isSnoozed,
-                showApprove: isReview,
-                showSendBack: isReview,
+                // The Pending/To Review tab holds two audiences at once -
+                // only the actual Reviewer gets action buttons; a row that's
+                // just someone's own pending task is informational only.
+                showApprove: isReview && !!t.IsReviewer,
+                showSendBack: isReview && !!t.IsReviewer,
                 showOwnerOrStatusPills: !isAssignedToMe,
                 itemClass: classes.join(' ')
             };
@@ -482,11 +491,42 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     }
 
     get activeExpanded() {
-        return (this.isWaitingTab || this.isReviewTab) ? this.expandedWaiting : this.expanded;
+        if (this.isReviewTab) return this.expandedReview;
+        return this.isWaitingTab ? this.expandedWaiting : this.expanded;
     }
 
     get groups() {
         const expandedState = this.activeExpanded;
+
+        if (this.isReviewTab) {
+            const decorated = this.withMenuState(this.currentTasks);
+            return [
+                {
+                    key: 'toReview',
+                    label: 'To Review',
+                    icon: 'utility:preview',
+                    iconVariant: 'brand',
+                    headerClass: 'reminder-header reminder-header_today',
+                    tasks: decorated.filter((t) => t.IsReviewer),
+                    expanded: expandedState.toReview
+                },
+                {
+                    key: 'pendingReview',
+                    label: 'Pending Review',
+                    icon: 'utility:clock',
+                    iconVariant: 'neutral',
+                    headerClass: 'reminder-header reminder-header_none',
+                    tasks: decorated.filter((t) => !t.IsReviewer),
+                    expanded: expandedState.pendingReview
+                }
+            ]
+                .filter((group) => group.tasks.length > 0)
+                .map((group) => ({
+                    ...group,
+                    count: group.tasks.length,
+                    chevron: group.expanded ? 'utility:chevrondown' : 'utility:chevronright'
+                }));
+        }
 
         return [
             {
@@ -565,7 +605,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     get emptyStateTitle() {
         if (this.isAssignedByMeTab) return 'Nothing outstanding';
         if (this.isWaitingTab) return 'Nothing waiting on you';
-        if (this.isReviewTab) return 'Nothing to review';
+        if (this.isReviewTab) return 'Nothing pending or to review';
         return "You're all caught up!";
     }
 
@@ -628,7 +668,9 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         const key = event.currentTarget.dataset.key;
         const next = { ...this.activeExpanded, [key]: !this.activeExpanded[key] };
 
-        if (this.isWaitingTab || this.isReviewTab) {
+        if (this.isReviewTab) {
+            this.expandedReview = next;
+        } else if (this.isWaitingTab) {
             this.expandedWaiting = next;
         } else {
             this.expanded = next;
@@ -644,6 +686,12 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
 
     handleToggleAll() {
         const target = !this.isAllExpanded;
+
+        if (this.isReviewTab) {
+            this.expandedReview = { toReview: target, pendingReview: target };
+            return;
+        }
+
         const next = {
             overdue: target,
             today: target,
@@ -653,7 +701,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             noDueDate: target
         };
 
-        if (this.isWaitingTab || this.isReviewTab) {
+        if (this.isWaitingTab) {
             this.expandedWaiting = next;
         } else {
             this.expanded = next;

@@ -32,7 +32,7 @@
                 class={reviewTabClass}
                 data-tab="toReview"
                 onclick={handleTabClick}
-            >To Review<span class="tab-count">{reviewCount}</span></button>
+            >Pending / To Review<span class="tab-count">{reviewCount}</span></button>
         </div>
         <template if:true={showToolbar}>
             <div class="panel-toolbar">
@@ -88,9 +88,6 @@
                                                 <template if:true={task.isWaiting}>
                                                     <span class="waiting-pill">Waiting</span>
                                                 </template>
-                                                <template if:true={task.isPendingReview}>
-                                                    <span class="pending-review-pill">Pending Review</span>
-                                                </template>
                                                 <template if:true={task.hasAttachments}>
                                                     <button type="button" class="attachment-clip-btn" data-id={task.Id} onclick={handleAttachmentClick} title={task.attachmentTitle}>📎</button>
                                                 </template>
@@ -119,6 +116,9 @@
                                             </div>
                                             <template if:true={task.waitingOnLabel}>
                                                 <div class="reminder-waiting-on">{task.waitingOnLabel}</div>
+                                            </template>
+                                            <template if:true={task.reviewerLabel}>
+                                                <div class="reminder-waiting-on">{task.reviewerLabel}</div>
                                             </template>
                                             <template if:true={task.reviewFeedbackLabel}>
                                                 <div class="reminder-review-feedback">{task.reviewFeedbackLabel}</div>
