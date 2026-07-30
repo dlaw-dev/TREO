@@ -243,7 +243,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 // Review" group (rows where I'm not the Reviewer) - tells me
                 // who I'm actually waiting on.
                 reviewerLabel: !t.IsReviewer && t.ReviewerName ? `Reviewer: ${t.ReviewerName}` : null,
-                canReassign: t.OwnerId === CURRENT_USER_ID || t.CreatedById === CURRENT_USER_ID,
+                canReassign: t.Status !== 'Pending Review' && (t.OwnerId === CURRENT_USER_ID || t.CreatedById === CURRENT_USER_ID),
                 attachments,
                 hasAttachments: attachments.length > 0,
                 attachmentTitle: attachments.length === 1 ? '1 attachment' : `${attachments.length} attachments`,

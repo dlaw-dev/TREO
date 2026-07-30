@@ -191,7 +191,7 @@ public with sharing class TaskUiController {
             LIMIT 1
         ];
 
-        assertCanEditTask(t.OwnerId, t.CreatedById);
+        assertCanEditTask(t.OwnerId, t.CreatedById, t.Status);
 
         TaskForEditDto dto = new TaskForEditDto();
         dto.id = t.Id;
@@ -264,10 +264,17 @@ public with sharing class TaskUiController {
     // Only the task's current assignee or its original assigner (creator)
     // may edit/reassign it - per management's requirement, this is stricter
     // than plain record-sharing visibility.
-    private static void assertCanEditTask(Id currentOwnerId, Id createdById) {
+    private static void assertCanEditTask(Id currentOwnerId, Id createdById, String status) {
         Id runningUserId = UserInfo.getUserId();
         if (runningUserId != currentOwnerId && runningUserId != createdById) {
             throw new AuraHandledException('Only the person this task is assigned to, or the person who assigned it, can edit or reassign it.');
+        }
+        // Once submitted for review, the task is effectively locked from
+        // the assignee/creator's side - editing (including reassigning it
+        // away) mid-review would let them dodge or undermine the Reviewer's
+        // decision. Only approveTask/sendBackTask may change it from here.
+        if (status == 'Pending Review') {
+            throw new AuraHandledException('This task is pending review and can\'t be edited until the Reviewer approves or sends it back.');
         }
     }
 
@@ -296,7 +303,7 @@ public with sharing class TaskUiController {
             }
 
             Task existing = [SELECT OwnerId, CreatedById, Status FROM Task WHERE Id = :taskId LIMIT 1];
-            assertCanEditTask(existing.OwnerId, existing.CreatedById);
+            assertCanEditTask(existing.OwnerId, existing.CreatedById, existing.Status);
 
             List<User> validOwners = [
                 SELECT Id
@@ -365,7 +372,7 @@ public with sharing class TaskUiController {
                 LIMIT 1
             ];
 
-            assertCanEditTask(t.OwnerId, t.CreatedById);
+            assertCanEditTask(t.OwnerId, t.CreatedById, t.Status);
 
             if (t.Subtask_Template_Item__c == null) {
                 throw new AuraHandledException('Only steps in a task chain can be skipped.');

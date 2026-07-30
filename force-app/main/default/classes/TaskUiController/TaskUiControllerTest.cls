@@ -1344,4 +1344,88 @@ private class TaskUiControllerTest {
 
         System.assertEquals(true, exceptionThrown);
     }
+
+    /* =========================================================
+       Reviewer - editing/reassigning/skipping is locked mid-review
+    ========================================================== */
+
+    @IsTest
+    static void testUpdateTask_pendingReview_throws() {
+        User owner = createAllowedUser('RevOwner17', 'taskuicontroller.revowner17');
+        User reviewer = createAllowedUser('Reviewer17', 'taskuicontroller.reviewer17');
+        Task t = new Task(
+            Subject     = 'Mid Review',
+            Status      = 'Pending Review',
+            OwnerId     = owner.Id,
+            Reviewer__c = reviewer.Id
+        );
+        insert t;
+
+        Boolean exceptionThrown = false;
+        Test.startTest();
+        try {
+            TaskUiController.updateTask(
+                t.Id, owner.Id, 'Sneaky Edit', Date.today(), 'Pending Review', 'Normal', 'desc', null, null, reviewer.Id
+            );
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown,
+            'A task pending review should be locked from editing/reassigning until the Reviewer acts.');
+
+        Task unchanged = [SELECT Subject FROM Task WHERE Id = :t.Id];
+        System.assertEquals('Mid Review', unchanged.Subject);
+    }
+
+    @IsTest
+    static void testGetTaskForEdit_pendingReview_throws() {
+        User owner = createAllowedUser('RevOwner18', 'taskuicontroller.revowner18');
+        User reviewer = createAllowedUser('Reviewer18', 'taskuicontroller.reviewer18');
+        Task t = new Task(
+            Subject     = 'Locked For Edit',
+            Status      = 'Pending Review',
+            OwnerId     = owner.Id,
+            Reviewer__c = reviewer.Id
+        );
+        insert t;
+
+        Boolean exceptionThrown = false;
+        Test.startTest();
+        try {
+            TaskUiController.getTaskForEdit(t.Id);
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown,
+            'The edit modal itself should refuse to load a task pending review, not just block the save.');
+    }
+
+    @IsTest
+    static void testBypassTask_pendingReview_throws() {
+        User owner = createAllowedUser('RevOwner19', 'taskuicontroller.revowner19');
+        User reviewer = createAllowedUser('Reviewer19', 'taskuicontroller.reviewer19');
+        Task t = new Task(
+            Subject     = 'Chain Step Mid Review',
+            Status      = 'Pending Review',
+            OwnerId     = owner.Id,
+            Reviewer__c = reviewer.Id
+        );
+        insert t;
+
+        Boolean exceptionThrown = false;
+        Test.startTest();
+        try {
+            TaskUiController.bypassTask(t.Id);
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown,
+            'Skip should also be blocked while a task is pending review.');
+    }
 }
