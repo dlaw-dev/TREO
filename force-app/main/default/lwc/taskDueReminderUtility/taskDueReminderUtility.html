@@ -88,6 +88,9 @@
                                                 <template if:true={task.isWaiting}>
                                                     <span class="waiting-pill">Waiting</span>
                                                 </template>
+                                                <template if:true={task.isPendingReview}>
+                                                    <span class="pending-review-pill">Pending Review</span>
+                                                </template>
                                                 <template if:true={task.hasAttachments}>
                                                     <button type="button" class="attachment-clip-btn" data-id={task.Id} onclick={handleAttachmentClick} title={task.attachmentTitle}>📎</button>
                                                 </template>

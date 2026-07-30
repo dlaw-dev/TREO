@@ -544,7 +544,7 @@ private class TaskDueReminderControllerTest {
     ========================================================== */
 
     @IsTest
-    static void testGetMyDueTasks_excludesPendingReviewStatus() {
+    static void testGetMyDueTasks_includesPendingReviewStatus() {
         Task pendingReview = new Task(
             Subject      = 'Pending Review Task',
             Status       = 'Pending Review',
@@ -557,14 +557,16 @@ private class TaskDueReminderControllerTest {
         List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getMyDueTasks();
         Test.stopTest();
 
+        Boolean found = false;
         for (TaskDueReminderController.DueTask dt : results) {
-            System.assertNotEquals(pendingReview.Id, dt.Id,
-                'A task pending someone else\'s review has nothing left for the assignee to do - it should not show as still due.');
+            if (dt.Id == pendingReview.Id) found = true;
         }
+        System.assertEquals(true, found,
+            'A task pending review is still due today and should stay visible to the assignee, just not actionable - disappearing entirely would look like it vanished.');
     }
 
     @IsTest
-    static void testGetTasksAssignedByMe_excludesPendingReviewStatus() {
+    static void testGetTasksAssignedByMe_includesPendingReviewStatus() {
         Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
         User delegate = new User(
             ProfileId = sysAdmin.Id,
@@ -591,10 +593,12 @@ private class TaskDueReminderControllerTest {
         List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getTasksAssignedByMe();
         Test.stopTest();
 
+        Boolean found = false;
         for (TaskDueReminderController.DueTask dt : results) {
-            System.assertNotEquals(pendingReview.Id, dt.Id,
-                'A delegated task pending review is no longer actionable by anyone but its Reviewer - it should not show here.');
+            if (dt.Id == pendingReview.Id) found = true;
         }
+        System.assertEquals(true, found,
+            'A delegated task pending review should stay visible to whoever assigned it, just not actionable by them - disappearing entirely would hide real progress.');
     }
 
     @IsTest

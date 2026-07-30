@@ -225,6 +225,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 priorityClass: priorityClassFor(t.Priority),
                 showPriorityPill: !!t.Priority && t.Priority !== 'Normal',
                 isWaiting: t.Status === 'Waiting',
+                isPendingReview: t.Status === 'Pending Review',
                 isSnoozed: !!t.IsSnoozed,
                 snoozedUntilLabel: snoozedUntilLabelFor(t.SnoozedUntil),
                 showOwnerPill: t.Status !== 'Waiting' && !!t.OwnerName,
@@ -459,14 +460,18 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 snoozeOptions: this.snoozeOptions,
                 // Completing is still allowed on a snoozed task - only the
                 // "Snooze" action itself is hidden once it's already snoozed.
-                showComplete: isAssignedToMe,
+                // A task pending someone else's review has nothing left for
+                // the assignee to do until it comes back - same reasoning as
+                // excluding Waiting - so it's shown (with a pill) but not
+                // actionable here.
+                showComplete: isAssignedToMe && !t.isPendingReview,
                 // bypassTask permits either the current assignee OR the
                 // original assigner (creator) to skip - the Assigned By Me
                 // tab is exactly that second case (every row there has
                 // CreatedById === current user by construction), so it
                 // needs its own Skip button rather than requiring a
                 // reassign-to-self round trip first.
-                showSkip: (isAssignedToMe || isAssignedByMe) && !!t.IsChainStep && t.canReassign,
+                showSkip: (isAssignedToMe || isAssignedByMe) && !!t.IsChainStep && t.canReassign && !t.isPendingReview,
                 showSnoozeButton: isAssignedToMe && !t.isSnoozed,
                 showApprove: isReview,
                 showSendBack: isReview,

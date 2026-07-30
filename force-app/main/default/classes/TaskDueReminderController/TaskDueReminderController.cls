@@ -50,7 +50,6 @@ public with sharing class TaskDueReminderController {
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
-              AND Status != 'Pending Review'
               AND ActivityDate != null
               AND ActivityDate <= :upperBound
             ORDER BY ActivityDate ASC
@@ -81,7 +80,6 @@ public with sharing class TaskDueReminderController {
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
-              AND Status != 'Pending Review'
               AND ActivityDate = null
             ORDER BY CreatedDate DESC
             LIMIT 20
@@ -124,7 +122,6 @@ public with sharing class TaskDueReminderController {
               AND OwnerId != :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
-              AND Status != 'Pending Review'
               AND ActivityDate != null
               AND ActivityDate <= :upperBound
             ORDER BY ActivityDate ASC
@@ -155,7 +152,6 @@ public with sharing class TaskDueReminderController {
               AND OwnerId != :currentUserId
               AND Status != 'Completed'
               AND Status != 'Waiting'
-              AND Status != 'Pending Review'
               AND ActivityDate = null
             ORDER BY CreatedDate DESC
             LIMIT 20
