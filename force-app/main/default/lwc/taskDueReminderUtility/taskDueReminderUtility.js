@@ -436,12 +436,23 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         return this.currentTasks.filter((t) => t.DaysUntil === 1);
     }
 
+    // "This Week" means the rest of the current calendar week (through
+    // Saturday), not a rolling 7 days - otherwise a task due next Monday
+    // shows as "This Week" on a Thursday, which reads as due much sooner
+    // than it is. Matches the "Week" filter's own cutoff in tasksCalendar.
+    // Clamped to at least 1 so thisMonthTasks never re-catches tomorrow's
+    // DaysUntil === 1 tasks when today is Saturday (cutoff would be 0).
+    get _thisWeekCutoffDays() {
+        return Math.max(1, 6 - new Date().getDay());
+    }
+
     get thisWeekTasks() {
-        return this.currentTasks.filter((t) => t.DaysUntil > 1 && t.DaysUntil <= 7);
+        const cutoff = this._thisWeekCutoffDays;
+        return this.currentTasks.filter((t) => t.DaysUntil > 1 && t.DaysUntil <= cutoff);
     }
 
     get thisMonthTasks() {
-        return this.currentTasks.filter((t) => t.DaysUntil > 7);
+        return this.currentTasks.filter((t) => t.DaysUntil > this._thisWeekCutoffDays);
     }
 
     get noDueDateTasks() {
