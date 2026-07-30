@@ -134,6 +134,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         tomorrow: true,
         thisWeek: true,
         thisMonth: false,
+        nextMonth: false,
         noDueDate: false
     };
 
@@ -146,6 +147,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         tomorrow: true,
         thisWeek: true,
         thisMonth: true,
+        nextMonth: true,
         noDueDate: true
     };
 
@@ -446,13 +448,31 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         return Math.max(1, 6 - new Date().getDay());
     }
 
+    // Same reasoning as the week cutoff, one level up: "This Month" means
+    // the rest of the current calendar month, not an arbitrary window -
+    // otherwise a task due in early next month shows as "This Month" when
+    // today is near month-end. Clamped to at least the week cutoff so the
+    // month bucket never ends up narrower than the week bucket it sits
+    // after (which would otherwise happen in the last few days of a month).
+    get _thisMonthCutoffDays() {
+        const now = new Date();
+        const daysLeftInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
+        return Math.max(this._thisWeekCutoffDays, daysLeftInMonth);
+    }
+
     get thisWeekTasks() {
         const cutoff = this._thisWeekCutoffDays;
         return this.currentTasks.filter((t) => t.DaysUntil > 1 && t.DaysUntil <= cutoff);
     }
 
     get thisMonthTasks() {
-        return this.currentTasks.filter((t) => t.DaysUntil > this._thisWeekCutoffDays);
+        const weekCutoff = this._thisWeekCutoffDays;
+        const monthCutoff = this._thisMonthCutoffDays;
+        return this.currentTasks.filter((t) => t.DaysUntil > weekCutoff && t.DaysUntil <= monthCutoff);
+    }
+
+    get nextMonthTasks() {
+        return this.currentTasks.filter((t) => t.DaysUntil > this._thisMonthCutoffDays);
     }
 
     get noDueDateTasks() {
@@ -586,6 +606,15 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 expanded: expandedState.thisMonth
             },
             {
+                key: 'nextMonth',
+                label: 'Next Month',
+                icon: 'utility:event',
+                iconVariant: 'neutral',
+                headerClass: 'reminder-header reminder-header_month',
+                tasks: this.withMenuState(this.nextMonthTasks),
+                expanded: expandedState.nextMonth
+            },
+            {
                 key: 'noDueDate',
                 label: 'No Due Date',
                 icon: 'utility:dash',
@@ -709,6 +738,7 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             tomorrow: target,
             thisWeek: target,
             thisMonth: target,
+            nextMonth: target,
             noDueDate: target
         };
 
