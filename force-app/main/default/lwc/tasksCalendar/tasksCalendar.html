@@ -92,7 +92,7 @@
                         <span class="task-review-pill" title={t.reviewFeedbackTitle}>🔍 Pending Review</span>
                       </template>
                       <template if:true={t.showMarkDone}>
-                        <button type="button" class="task-done-btn" data-id={t.Id} onclick={handleTaskCompleteBtn} disabled={t.disableMarkDone} title={t.markDoneTitle}>Mark Done</button>
+                        <button type="button" class="task-done-btn" data-id={t.Id} onclick={handleTaskCompleteBtn} disabled={t.disableMarkDone} title={t.markDoneTitle}>{t.markDoneLabel}</button>
                       </template>
                       <template if:true={t.showSkip}>
                         <button type="button" class="task-skip-btn" data-id={t.Id} onclick={handleBypass} disabled={t.disableSkip} title="Skip this step without completing it">Skip</button>

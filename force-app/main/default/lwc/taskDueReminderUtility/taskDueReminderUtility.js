@@ -502,6 +502,12 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 // Completing is still allowed on a snoozed task - only the
                 // "Snooze" action itself is hidden once it's already snoozed.
                 showComplete: isAssignedToMe,
+                // Completing a reviewed task doesn't actually finish it - it
+                // hands off to the Reviewer - so the button should say that
+                // plainly rather than claim "Complete" and then not do that.
+                completeIcon: t.ReviewerName ? 'utility:send' : 'utility:check',
+                completeAltText: t.ReviewerName ? 'Send for review' : 'Complete task',
+                completeTitle: t.ReviewerName ? `Send to ${t.ReviewerName} for review` : 'Mark complete',
                 // bypassTask permits either the current assignee OR the
                 // original assigner (creator) to skip - the Assigned By Me
                 // tab is exactly that second case (every row there has

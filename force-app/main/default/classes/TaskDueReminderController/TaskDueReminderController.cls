@@ -45,7 +45,9 @@ public with sharing class TaskDueReminderController {
                    Snoozed_Until__c,
                    Subtask_Template_Item__c,
                    Bypassed__c,
-                   Review_Feedback__c
+                   Review_Feedback__c,
+                   Reviewer__c,
+                   Reviewer__r.Name
             FROM Task
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
@@ -56,7 +58,9 @@ public with sharing class TaskDueReminderController {
             ORDER BY ActivityDate ASC
             LIMIT 150
         ]) {
-            results.add(new DueTask(t, todayDate, nowDt));
+            DueTask dto = new DueTask(t, todayDate, nowDt);
+            dto.ReviewerName = t.Reviewer__r != null ? t.Reviewer__r.Name : null;
+            results.add(dto);
         }
 
         for (Task t : [
@@ -76,7 +80,9 @@ public with sharing class TaskDueReminderController {
                    Snoozed_Until__c,
                    Subtask_Template_Item__c,
                    Bypassed__c,
-                   Review_Feedback__c
+                   Review_Feedback__c,
+                   Reviewer__c,
+                   Reviewer__r.Name
             FROM Task
             WHERE OwnerId = :currentUserId
               AND Status != 'Completed'
@@ -86,7 +92,9 @@ public with sharing class TaskDueReminderController {
             ORDER BY CreatedDate DESC
             LIMIT 20
         ]) {
-            results.add(new DueTask(t, todayDate, nowDt));
+            DueTask dto = new DueTask(t, todayDate, nowDt);
+            dto.ReviewerName = t.Reviewer__r != null ? t.Reviewer__r.Name : null;
+            results.add(dto);
         }
 
         attachAttachments(results);

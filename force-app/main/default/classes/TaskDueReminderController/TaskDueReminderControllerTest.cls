@@ -564,6 +564,44 @@ private class TaskDueReminderControllerTest {
     }
 
     @IsTest
+    static void testGetMyDueTasks_surfacesReviewerNameWhenSet() {
+        Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User reviewer = new User(
+            ProfileId = sysAdmin.Id,
+            LastName = 'DueTabReviewer',
+            Email = 'taskduereminder.duetabreviewer@test.example',
+            Username = 'taskduereminder.duetabreviewer+' + System.now().getTime() + '@test.example',
+            Alias = 'duerev1',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US'
+        );
+        insert reviewer;
+
+        Task t = new Task(
+            Subject      = 'Not Yet Submitted',
+            Status       = 'Open',
+            ActivityDate = Date.today(),
+            OwnerId      = UserInfo.getUserId(),
+            Reviewer__c  = reviewer.Id
+        );
+        insert t;
+
+        Test.startTest();
+        List<TaskDueReminderController.DueTask> results = TaskDueReminderController.getMyDueTasks();
+        Test.stopTest();
+
+        TaskDueReminderController.DueTask found = null;
+        for (TaskDueReminderController.DueTask dt : results) {
+            if (dt.Id == t.Id) found = dt;
+        }
+        System.assertNotEquals(null, found, 'The task should still show on the Due tab before it\'s been submitted for review.');
+        System.assertEquals('DueTabReviewer', found.ReviewerName,
+            'Reviewer name should surface here so the UI can swap Complete for Send to Review.');
+    }
+
+    @IsTest
     static void testGetTasksAssignedByMe_excludesPendingReviewStatus() {
         Profile sysAdmin = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
         User delegate = new User(

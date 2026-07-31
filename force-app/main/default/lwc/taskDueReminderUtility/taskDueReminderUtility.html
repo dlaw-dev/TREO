@@ -127,11 +127,11 @@
                                         <div class="reminder-item-side">
                                             <template if:true={task.showComplete}>
                                                 <lightning-button-icon
-                                                    icon-name="utility:check"
+                                                    icon-name={task.completeIcon}
                                                     variant="success"
                                                     size="small"
-                                                    alternative-text="Complete task"
-                                                    title="Mark complete"
+                                                    alternative-text={task.completeAltText}
+                                                    title={task.completeTitle}
                                                     data-id={task.Id}
                                                     onclick={handleComplete}
                                                 ></lightning-button-icon>

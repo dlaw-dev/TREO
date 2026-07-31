@@ -160,6 +160,7 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
             const isWaiting   = t.Status === 'Waiting';
             const isPendingReview = t.Status === 'Pending Review';
             const isReviewer = !!t.ReviewerId && t.ReviewerId === CURRENT_USER_ID;
+            const hasReviewer = !!t.ReviewerId;
             const canReassign = !isCompleted && !isPendingReview && (t.OwnerId === CURRENT_USER_ID || t.CreatedById === CURRENT_USER_ID);
             const isActionInFlight = this._actionInFlightIds.has(t.Id);
             const waitingTitle = t.WaitingOnSubject
@@ -189,7 +190,13 @@ export default class TasksCalendar extends NavigationMixin(LightningElement) {
                 // same reasoning as excluding Waiting.
                 showMarkDone:    !isCompleted && !isWaiting && !isPendingReview,
                 disableMarkDone: !isAssignee || isActionInFlight,
-                markDoneTitle:   isAssignee ? 'Mark as complete' : `Only ${t.OwnerName || 'the assignee'} can complete this task`,
+                // Completing a reviewed task doesn't actually finish it - it
+                // hands off to the Reviewer - so the button should say that
+                // plainly rather than claim "Mark Done" and then not do that.
+                markDoneLabel:   hasReviewer ? 'Send to Review' : 'Mark Done',
+                markDoneTitle:   isAssignee
+                    ? (hasReviewer ? `Send to ${t.ReviewerName || 'the Reviewer'} for review` : 'Mark as complete')
+                    : `Only ${t.OwnerName || 'the assignee'} can complete this task`,
                 canReassign,
                 showSkip:        !isCompleted && !isWaiting && !isPendingReview && !!t.IsChainStep && canReassign,
                 disableSkip:     isActionInFlight,
