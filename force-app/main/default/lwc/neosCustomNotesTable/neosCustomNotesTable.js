@@ -31,7 +31,10 @@ export default class NeosMatterNotesTable extends NavigationMixin(LightningEleme
     isFlowOpen = false;
 
     get flowInputVariables() {
-        return [{ name: 'NeosMatterRecord', type: 'SObject', value: { Id: this.recordId } }];
+        return [
+            { name: 'NeosMatterRecord', type: 'SObject', value: { Id: this.recordId } },
+            { name: 'recordId', type: 'String', value: this.recordId }
+        ];
     }
 
     openFlow() { this.isFlowOpen = true; }

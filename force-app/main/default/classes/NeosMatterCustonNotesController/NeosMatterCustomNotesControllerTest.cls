@@ -62,6 +62,49 @@ private class NeosMatterCustomNotesControllerTest {
     }
 
     @IsTest
+    static void testGetCustomNotes_returnsNotesForInvolvedParty() {
+        NEOS_Matter__c matter = new NEOS_Matter__c(Name = 'Party Matter', Case_Title__c = 'Party Matter');
+        insert matter;
+
+        Account acc = new Account(Name = 'Test Party Account');
+        insert acc;
+
+        Involved_Parties__c party = new Involved_Parties__c(
+            Matter__c = matter.Id,
+            Involved_Party__c = acc.Id,
+            Relationship__c = 'Client'
+        );
+        insert party;
+
+        NEOS_Notes__c n1 = new NEOS_Notes__c(
+            Party__c = party.Id,
+            Note_Title__c = 'Party Note 1',
+            Note_Description__c = 'Desc 1',
+            Note_Category__c = 'Other',
+            Pinned_Note__c = false
+        );
+
+        NEOS_Notes__c n2 = new NEOS_Notes__c(
+            Party__c = party.Id,
+            Note_Title__c = 'Party Note 2',
+            Note_Description__c = 'Desc 2',
+            Note_Category__c = 'Other',
+            Pinned_Note__c = true
+        );
+
+        insert new List<NEOS_Notes__c>{ n1, n2 };
+
+        Test.startTest();
+        List<NEOS_Notes__c> customResults = NeosMatterCustomNotesController.getCustomNotes(party.Id);
+        List<NEOS_Notes__c> pinnedResults = NeosMatterCustomNotesController.getPinnedNotes(party.Id);
+        Test.stopTest();
+
+        System.assertEquals(2, customResults.size(), 'Should return both notes for the involved party');
+        System.assertEquals(1, pinnedResults.size(), 'Should return only the pinned note for the involved party');
+        System.assertEquals(n2.Id, pinnedResults[0].Id, 'Should return the pinned note');
+    }
+
+    @IsTest
     static void testNullParentId_returnsEmpty() {
         Test.startTest();
         List<NEOS_Notes__c> customNotes = NeosMatterCustomNotesController.getCustomNotes(null);
