@@ -7,6 +7,14 @@
 
 .comparison-table table {
     table-layout: fixed;
+    width: 100%;
+}
+
+.comparison-table th,
+.comparison-table td {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .comparison-table th:first-child,
@@ -18,33 +26,9 @@
 
 .comparison-table td.cell-value {
     white-space: pre-wrap;
-    word-break: break-word;
 }
 
 .fac-ripe-line {
     margin-top: 0.5rem;
     color: #706e6b;
-}
-
-@media print {
-    :host {
-        visibility: visible !important;
-    }
-
-    lightning-modal-header,
-    lightning-modal-footer {
-        visibility: hidden !important;
-    }
-
-    .comparison-table {
-        visibility: visible !important;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-    }
-
-    .comparison-table * {
-        visibility: visible !important;
-    }
 }
