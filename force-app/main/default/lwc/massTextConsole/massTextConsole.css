@@ -1,0 +1,16 @@
+.touchpoint-message-cell {
+    max-width: 320px;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.confirm-recipient-list {
+    max-height: 200px;
+    overflow-y: auto;
+    list-style: disc;
+    padding-left: 1.5rem;
+}
+
+.confirm-message-preview {
+    white-space: pre-wrap;
+}
