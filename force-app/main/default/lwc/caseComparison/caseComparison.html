@@ -1,0 +1,45 @@
+<template>
+    <lightning-modal-header label="Case Comparison"></lightning-modal-header>
+    <lightning-modal-body>
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </template>
+
+        <template if:false={isLoading}>
+            <div class="comparison-table">
+                <div class="comparison-title">D.LAW RELATED CASE COMPARISON</div>
+                <table class="slds-table slds-table_bordered slds-table_cell-buffer">
+                    <thead>
+                        <tr class="slds-line-height_reset">
+                            <th scope="col" class="slds-text-title_caps">Category</th>
+                            <th scope="col" class="slds-text-title_caps">{dLawHeader}</th>
+                            <th scope="col" class="slds-text-title_caps">{otherHeader}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={rows} for:item="r">
+                            <tr key={r.label} class="slds-hint-parent">
+                                <td class="row-label">{r.label}</td>
+                                <td class="cell-value">
+                                    <div>{r.dLawValue}</div>
+                                    <template if:true={r.showFacRipeLine}>
+                                        <div class="fac-ripe-line">FAC Adding PAGA Claim Ripe:</div>
+                                    </template>
+                                </td>
+                                <td class="cell-value">
+                                    <div>{r.otherValue}</div>
+                                    <template if:true={r.showFacRipeLine}>
+                                        <div class="fac-ripe-line">FAC Adding PAGA Claim Ripe:</div>
+                                    </template>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </template>
+    </lightning-modal-body>
+    <lightning-modal-footer>
+        <lightning-button label="Print / Save as PDF" variant="brand" onclick={handlePrint}></lightning-button>
+    </lightning-modal-footer>
+</template>

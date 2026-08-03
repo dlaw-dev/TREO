@@ -1,0 +1,50 @@
+.comparison-title {
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+}
+
+.comparison-table table {
+    table-layout: fixed;
+}
+
+.comparison-table th:first-child,
+.comparison-table td.row-label {
+    width: 22%;
+    font-weight: 600;
+    background-color: #f3f2f2;
+}
+
+.comparison-table td.cell-value {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.fac-ripe-line {
+    margin-top: 0.5rem;
+    color: #706e6b;
+}
+
+@media print {
+    :host {
+        visibility: visible !important;
+    }
+
+    lightning-modal-header,
+    lightning-modal-footer {
+        visibility: hidden !important;
+    }
+
+    .comparison-table {
+        visibility: visible !important;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+    }
+
+    .comparison-table * {
+        visibility: visible !important;
+    }
+}
