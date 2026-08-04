@@ -7,7 +7,16 @@
 
         <template if:false={isLoading}>
             <div class="comparison-table">
-                <div class="comparison-title">D.LAW RELATED CASE COMPARISON</div>
+                <div class="comparison-title-row">
+                    <div class="comparison-title">D.LAW RELATED CASE COMPARISON</div>
+                    <lightning-button-icon
+                        icon-name={editIconName}
+                        variant="border-filled"
+                        alternative-text={editButtonLabel}
+                        title={editButtonLabel}
+                        onclick={handleToggleEdit}>
+                    </lightning-button-icon>
+                </div>
                 <table class="slds-table slds-table_bordered slds-table_cell-buffer">
                     <thead>
                         <tr class="slds-line-height_reset">
@@ -17,29 +26,197 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <template for:each={rows} for:item="r">
-                            <tr key={r.label} class="slds-hint-parent">
-                                <td class="row-label">{r.label}</td>
-                                <td class="cell-value">
-                                    <div>{r.dLawValue}</div>
-                                    <template if:true={r.showFacRipeLine}>
-                                        <div class="fac-ripe-line">FAC Adding PAGA Claim Ripe:</div>
-                                    </template>
-                                </td>
-                                <td class="cell-value">
-                                    <div>{r.otherValue}</div>
-                                    <template if:true={r.showFacRipeLine}>
-                                        <div class="fac-ripe-line">FAC Adding PAGA Claim Ripe:</div>
-                                    </template>
-                                </td>
-                            </tr>
-                        </template>
+                        <tr class="slds-hint-parent">
+                            <td class="row-label">Complaint Filing Date</td>
+                            <td class="cell-value">
+                                <template if:false={isEditing}>{matterComplaintFiledDateDisplay}</template>
+                                <template if:true={isEditing}>
+                                    <lightning-input type="date" variant="label-hidden" label="Complaint Filing Date (D.Law)" value={matterEdits.complaintFiledDate} data-field="complaintFiledDate" onchange={handleMatterFieldChange}></lightning-input>
+                                </template>
+                            </td>
+                            <td class="cell-value">
+                                <template if:false={isEditing}>{filingComplaintFiledDateDisplay}</template>
+                                <template if:true={isEditing}>
+                                    <lightning-input type="date" variant="label-hidden" label="Complaint Filing Date (Other)" value={filingEdits.complaintFiledDate} data-field="complaintFiledDate" onchange={handleFilingFieldChange}></lightning-input>
+                                </template>
+                            </td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <td class="row-label">LWDA Filing Date</td>
+                            <td class="cell-value">
+                                <template if:false={isEditing}>{matterLwdaFilingDateDisplay}</template>
+                                <template if:true={isEditing}>
+                                    <lightning-input type="date" variant="label-hidden" label="LWDA Filing Date (D.Law)" value={matterEdits.lwdaFilingDate} data-field="lwdaFilingDate" onchange={handleMatterFieldChange}></lightning-input>
+                                </template>
+                            </td>
+                            <td class="cell-value">
+                                <template if:false={isEditing}>{filingLwdaFilingDateDisplay}</template>
+                                <template if:true={isEditing}>
+                                    <lightning-input type="date" variant="label-hidden" label="LWDA Filing Date (Other)" value={filingEdits.lwdaFilingDate} data-field="lwdaFilingDate" onchange={handleFilingFieldChange}></lightning-input>
+                                </template>
+                            </td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <td class="row-label">LWDA Number</td>
+                            <td class="cell-value">
+                                <template if:false={isEditing}>{matterEdits.lwdaNumber}</template>
+                                <template if:true={isEditing}>
+                                    <lightning-input variant="label-hidden" label="LWDA Number (D.Law)" value={matterEdits.lwdaNumber} data-field="lwdaNumber" onchange={handleMatterFieldChange}></lightning-input>
+                                </template>
+                            </td>
+                            <td class="cell-value">
+                                <template if:false={isEditing}>{filingEdits.lwdaNumber}</template>
+                                <template if:true={isEditing}>
+                                    <lightning-input variant="label-hidden" label="LWDA Number (Other)" value={filingEdits.lwdaNumber} data-field="lwdaNumber" onchange={handleFilingFieldChange}></lightning-input>
+                                </template>
+                            </td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <td class="row-label">Plaintiff Attorneys</td>
+                            <td class="cell-value">{plaintiffAttorneysRow.dLawValue}</td>
+                            <td class="cell-value">{plaintiffAttorneysRow.otherValue}</td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <td class="row-label">Defendant Attorneys</td>
+                            <td class="cell-value">{defendantAttorneysRow.dLawValue}</td>
+                            <td class="cell-value">{defendantAttorneysRow.otherValue}</td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <td class="row-label">Venue</td>
+                            <td class="cell-value">{venueRow.dLawValue}</td>
+                            <td class="cell-value">{venueRow.otherValue}</td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <td class="row-label">Case Number</td>
+                            <td class="cell-value">
+                                <template if:false={isEditing}>
+                                    <div class="stacked-field">
+                                        <span class="field-caption">State Docket #</span>
+                                        <div>{matterEdits.stateDocket}</div>
+                                    </div>
+                                    <div class="stacked-field">
+                                        <span class="field-caption">Federal Docket #</span>
+                                        <div>{matterEdits.federalDocket}</div>
+                                    </div>
+                                </template>
+                                <template if:true={isEditing}>
+                                    <div class="stacked-field">
+                                        <span class="field-caption">State Docket #</span>
+                                        <lightning-input variant="label-hidden" label="State Docket # (D.Law)" value={matterEdits.stateDocket} data-field="stateDocket" onchange={handleMatterFieldChange}></lightning-input>
+                                    </div>
+                                    <div class="stacked-field">
+                                        <span class="field-caption">Federal Docket #</span>
+                                        <lightning-input variant="label-hidden" label="Federal Docket # (D.Law)" value={matterEdits.federalDocket} data-field="federalDocket" onchange={handleMatterFieldChange}></lightning-input>
+                                    </div>
+                                </template>
+                            </td>
+                            <td class="cell-value">
+                                <template if:false={isEditing}>{filingEdits.caseNumber}</template>
+                                <template if:true={isEditing}>
+                                    <lightning-input variant="label-hidden" label="Case Number (Other)" value={filingEdits.caseNumber} data-field="caseNumber" onchange={handleFilingFieldChange}></lightning-input>
+                                </template>
+                            </td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <td class="row-label">Defendants</td>
+                            <td class="cell-value">{defendantsRow.dLawValue}</td>
+                            <td class="cell-value">
+                                <template if:false={isEditing}>{filingEdits.defendants}</template>
+                                <template if:true={isEditing}>
+                                    <lightning-textarea variant="label-hidden" label="Defendants (Other)" value={filingEdits.defendants} data-field="defendants" onchange={handleFilingFieldChange}></lightning-textarea>
+                                </template>
+                            </td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <td class="row-label">Claims</td>
+                            <td class="cell-value">
+                                <template if:false={isEditing}>
+                                    <lightning-formatted-rich-text value={matterEdits.claims}></lightning-formatted-rich-text>
+                                </template>
+                                <template if:true={isEditing}>
+                                    <lightning-input-rich-text label="Claims (D.Law)" value={matterEdits.claims} data-field="claims" onchange={handleMatterFieldChange}></lightning-input-rich-text>
+                                </template>
+                            </td>
+                            <td class="cell-value">
+                                <template if:false={isEditing}>{filingEdits.claims}</template>
+                                <template if:true={isEditing}>
+                                    <lightning-textarea variant="label-hidden" label="Claims (Other)" value={filingEdits.claims} data-field="claims" onchange={handleFilingFieldChange}></lightning-textarea>
+                                </template>
+                            </td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <td class="row-label">Class/PAGA Definition</td>
+                            <td class="cell-value">
+                                <template if:false={isEditing}>
+                                    <div class="stacked-field">
+                                        <span class="field-caption">Class Definition</span>
+                                        <div>{matterEdits.classDefinition}</div>
+                                    </div>
+                                    <div class="stacked-field">
+                                        <span class="field-caption">PAGA Definition</span>
+                                        <div>{matterEdits.pagaDefinition}</div>
+                                    </div>
+                                </template>
+                                <template if:true={isEditing}>
+                                    <div class="stacked-field">
+                                        <span class="field-caption">Class Definition</span>
+                                        <lightning-textarea variant="label-hidden" label="Class Definition (D.Law)" value={matterEdits.classDefinition} data-field="classDefinition" onchange={handleMatterFieldChange}></lightning-textarea>
+                                    </div>
+                                    <div class="stacked-field">
+                                        <span class="field-caption">PAGA Definition</span>
+                                        <lightning-textarea variant="label-hidden" label="PAGA Definition (D.Law)" value={matterEdits.pagaDefinition} data-field="pagaDefinition" onchange={handleMatterFieldChange}></lightning-textarea>
+                                    </div>
+                                </template>
+                            </td>
+                            <td class="cell-value">
+                                <template if:false={isEditing}>{filingEdits.classDefinition}</template>
+                                <template if:true={isEditing}>
+                                    <lightning-textarea variant="label-hidden" label="Class/PAGA Definition (Other)" value={filingEdits.classDefinition} data-field="classDefinition" onchange={handleFilingFieldChange}></lightning-textarea>
+                                </template>
+                            </td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <td class="row-label">Case Status</td>
+                            <td class="cell-value">{caseStatusRow.dLawValue}</td>
+                            <td class="cell-value">{caseStatusRow.otherValue}</td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <td class="row-label">JPA Agreements</td>
+                            <td class="cell-value" colspan="2">
+                                <template if:true={hasJpaRows}>
+                                    <table class="jpa-subtable">
+                                        <thead>
+                                            <tr>
+                                                <th>Firm/Lawyer</th>
+                                                <th>JPA Portion</th>
+                                                <th>Fully Signed?</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={jpaRows} for:item="jpa">
+                                                <tr key={jpa.id}>
+                                                    <td>{jpa.firmOrLawyerName}</td>
+                                                    <td>{jpa.jpaPortion}</td>
+                                                    <td>{jpa.fullySigned}</td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </template>
+                                <template if:false={hasJpaRows}>
+                                    <span class="jpa-empty">No JPA records on this matter.</span>
+                                </template>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </template>
     </lightning-modal-body>
     <lightning-modal-footer>
-        <lightning-button label="Print / Save as PDF" variant="brand" onclick={handlePrint}></lightning-button>
+        <lightning-button label="Print / Save as PDF" class="slds-m-right_x-small" onclick={handlePrint}></lightning-button>
+        <template if:true={isEditing}>
+            <lightning-button label="Save Changes" variant="brand" onclick={handleSave} disabled={isSaving}></lightning-button>
+        </template>
     </lightning-modal-footer>
 </template>

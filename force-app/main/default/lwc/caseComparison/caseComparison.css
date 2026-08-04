@@ -1,8 +1,14 @@
+.comparison-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
 .comparison-title {
-    text-align: center;
     font-weight: 700;
     letter-spacing: 0.05em;
-    margin-bottom: 0.75rem;
 }
 
 .comparison-table table {
@@ -28,7 +34,34 @@
     white-space: pre-wrap;
 }
 
-.fac-ripe-line {
+.stacked-field {
     margin-top: 0.5rem;
+}
+
+.stacked-field:first-child {
+    margin-top: 0;
+}
+
+.field-caption {
+    display: block;
+    font-size: 0.75rem;
+    color: #706e6b;
+    margin-bottom: 0.125rem;
+}
+
+.jpa-subtable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.jpa-subtable th,
+.jpa-subtable td {
+    border: 1px solid #dddbda;
+    padding: 0.25rem 0.5rem;
+    font-weight: normal;
+    text-align: left;
+}
+
+.jpa-empty {
     color: #706e6b;
 }
