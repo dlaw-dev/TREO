@@ -2,6 +2,8 @@
     <lightning-modal-header label={modalTitle}></lightning-modal-header>
 
     <lightning-modal-body onclick={handleModalOutsideSearchClick}>
+        <h2 class="tcma-modal-title">{modalTitle}</h2>
+
 
         <template if:false={isEditMode}>
         <div class="modal-tabs" role="tablist">

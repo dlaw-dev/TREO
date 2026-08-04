@@ -35,6 +35,7 @@ const DROPDOWN_MIN_HEIGHT_PX = 60;
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 const SUBJECT_SUGGESTIONS = [
+    'Calendar',
     'Call Client',
     'Call Court',
     "Call Court's Clerk",
@@ -1474,10 +1475,26 @@ export default class TaskCreateModalAction extends LightningModal {
         const toRead = valid.filter(f => !existingNames.has(f.name));
         if (toRead.length === 0) return;
 
-        const previewUrlByName = new Map(toRead.map(f => [f.name, URL.createObjectURL(f)]));
+        // Built defensively, file by file - a single file's Blob URL failing
+        // (seen for some non-image types under certain browser/security-
+        // extension configurations) used to throw out of the surrounding
+        // .map() and abort the whole batch before the Promise.all below ever
+        // ran, silently dropping every file in the drop/selection with no
+        // error surfaced anywhere.
+        const previewUrlByName = new Map();
+        toRead.forEach(f => {
+            try {
+                previewUrlByName.set(f.name, URL.createObjectURL(f));
+            } catch (e) {
+                console.error('taskCreateModalAction: could not create preview URL for', f.name, e);
+            }
+        });
 
         Promise.all(
-            toRead.map(f => this._readFileAsBase64(f).catch(() => ({ _failed: true, name: f.name })))
+            toRead.map(f => this._readFileAsBase64(f).catch(e => {
+                console.error('taskCreateModalAction: could not read file', f.name, e);
+                return { _failed: true, name: f.name };
+            }))
         ).then(results => {
             const failed = results.filter(r => r._failed);
             const succeeded = results.filter(r => !r._failed)
@@ -1490,6 +1507,25 @@ export default class TaskCreateModalAction extends LightningModal {
                     : t.fileWarning;
                 return { ...t, stagedFiles, fileWarning: nextWarning };
             });
+
+            // A toast alongside the existing inline warning text - the inline
+            // text lives below a drop zone that's easy to miss, and this
+            // exact silent-failure symptom (no banner, no visible error) is
+            // what's currently being investigated.
+            if (failed.length > 0) {
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Could not attach file(s)',
+                    message: `Failed to read: ${failed.map(f => f.name).join(', ')}`,
+                    variant: 'error'
+                }));
+            }
+        }).catch(e => {
+            console.error('taskCreateModalAction: unexpected error processing files', e);
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Could not attach file(s)',
+                message: e?.message || 'An unexpected error occurred while attaching the file(s). Check the browser console for details.',
+                variant: 'error'
+            }));
         });
     }
 

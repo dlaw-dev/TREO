@@ -1,4 +1,48 @@
 /*
+   This modal (lightning-modal-header/body + lightning-input/combobox/textarea)
+   only partially inherits the org's Dark Mode theme - e.g. the modal-header
+   title text picks up a light color meant for a dark surface, but the modal
+   surface itself stays white, so text goes invisible. --slds-c-* component
+   hooks aren't supported under SLDS 2 (confirmed via Salesforce's own SLDS2
+   dark-mode docs), so pin the *global* hooks instead - these are the same
+   --slds-g-color-* tokens tasksCalendar.css uses and that base components
+   read internally. Pinning them here guarantees this modal always renders
+   with a consistent, legible light palette regardless of the platform's
+   dark-mode state.
+*/
+:host {
+    color-scheme: light;
+    --slds-g-color-surface-1: #ffffff;
+    --slds-g-color-surface-2: #f9f9f9;
+    --slds-g-color-surface-container-1: #ffffff;
+    --slds-g-color-on-surface-1: #181818;
+    --slds-g-color-on-surface-2: #706e6b;
+    --slds-g-color-border-1: #d8dde6;
+    --slds-g-color-border-2: #d8dde6;
+}
+
+/*
+   lightning-modal-header's title text renders in its own shadow DOM with no
+   reachable style hook (neither --slds-c-* nor --slds-g-* affect it here),
+   and under dark mode it goes pale-on-white and unreadable. Hide that header
+   entirely (its accessible label attribute is still set for screen readers)
+   and render our own title below instead - same single title, just on
+   markup we control, so it's readable in both modes.
+*/
+lightning-modal-header {
+    display: none;
+}
+
+.tcma-modal-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #181818;
+    margin: 0 0 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #d8dde6;
+}
+
+/*
    .search-dropdown is rendered into a portal moved to document.body (see
    taskCreateModalAction.js _showPortal) so it can escape lightning-modal-body's
    clipping - position/left/top/bottom/width/max-height are all set inline by
@@ -21,6 +65,7 @@
     padding: 0.5rem 0.75rem;
     text-align: left;
     background: none;
+    color: var(--lwc-colorTextDefault, #16325c);
     border: none;
     border-bottom: 1px solid var(--lwc-colorBorder, #d8dde6);
     cursor: pointer;
