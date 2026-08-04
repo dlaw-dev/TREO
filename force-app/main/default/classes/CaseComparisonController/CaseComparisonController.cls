@@ -50,6 +50,33 @@ public with sharing class CaseComparisonController {
         @AuraEnabled public FilingEditableValues filingEdits;
     }
 
+    // Matter-launched view — one column per related Topfiling instead of a single "other" side.
+    public class MatterComparisonRow {
+        @AuraEnabled public String label;
+        @AuraEnabled public String dLawValue;
+        @AuraEnabled public List<String> otherValues; // one per filingColumns entry, same order
+    }
+
+    public class FilingColumn {
+        @AuraEnabled public Id filingId;
+        @AuraEnabled public String header;
+        @AuraEnabled public FilingEditableValues edits;
+    }
+
+    public class FilingColumnEdits {
+        @AuraEnabled public Id filingId;
+        @AuraEnabled public FilingEditableValues edits;
+    }
+
+    public class MatterComparisonData {
+        @AuraEnabled public Id matterId;
+        @AuraEnabled public String matterCaseName;
+        @AuraEnabled public MatterEditableValues matterEdits;
+        @AuraEnabled public List<MatterComparisonRow> rows;
+        @AuraEnabled public List<FilingColumn> filingColumns;
+        @AuraEnabled public List<JpaRow> jpaRows;
+    }
+
     @AuraEnabled(cacheable=true)
     public static ComparisonData getComparison(Id topfilingId) {
         return buildComparisonData(topfilingId);
@@ -60,23 +87,10 @@ public with sharing class CaseComparisonController {
         Topfiling__c filing = getFiling(topfilingId);
 
         Topfiling__c filingToUpdate = new Topfiling__c(Id = filing.Id);
-        filingToUpdate.Date_Filed_Court__c = parseIsoDate(filingEdits.complaintFiledDate);
-        filingToUpdate.Court_Case_No__c = filingEdits.caseNumber;
-        filingToUpdate.Claims_Alleged__c = filingEdits.claims;
-        filingToUpdate.Class_PAGA_Definition__c = filingEdits.classDefinition;
-        filingToUpdate.Defendants__c = filingEdits.defendants;
-        filingToUpdate.LWDA_No__c = filingEdits.lwdaNumber;
-        filingToUpdate.Date_Filed_LWDA__c = parseIsoDate(filingEdits.lwdaFilingDate);
+        applyFilingEditsTo(filingToUpdate, filingEdits);
 
         NEOS_Matter__c matterToUpdate = new NEOS_Matter__c(Id = filing.TREO_Matter__c);
-        matterToUpdate.Complaint_Filed_Date__c = parseIsoDate(matterEdits.complaintFiledDate);
-        matterToUpdate.State_Docket__c = matterEdits.stateDocket;
-        matterToUpdate.FederalDocket__c = matterEdits.federalDocket;
-        matterToUpdate.Causes_of_Action__c = matterEdits.claims;
-        matterToUpdate.Class_Definition__c = matterEdits.classDefinition;
-        matterToUpdate.PAGA_Definition__c = matterEdits.pagaDefinition;
-        matterToUpdate.LWDA__c = matterEdits.lwdaNumber;
-        matterToUpdate.LWDA_Filing_Date__c = parseIsoDate(matterEdits.lwdaFilingDate);
+        applyMatterEditsTo(matterToUpdate, matterEdits);
 
         try {
             update filingToUpdate;
@@ -86,6 +100,56 @@ public with sharing class CaseComparisonController {
         }
 
         return buildComparisonData(topfilingId);
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static MatterComparisonData getMatterComparison(Id matterId) {
+        return buildMatterComparisonData(matterId);
+    }
+
+    @AuraEnabled
+    public static MatterComparisonData saveMatterComparison(Id matterId, MatterEditableValues matterEdits, List<FilingColumnEdits> filingColumnEdits) {
+        NEOS_Matter__c matterToUpdate = new NEOS_Matter__c(Id = matterId);
+        applyMatterEditsTo(matterToUpdate, matterEdits);
+
+        List<Topfiling__c> filingsToUpdate = new List<Topfiling__c>();
+        for (FilingColumnEdits fce : filingColumnEdits) {
+            Topfiling__c f = new Topfiling__c(Id = fce.filingId);
+            applyFilingEditsTo(f, fce.edits);
+            filingsToUpdate.add(f);
+        }
+
+        try {
+            update matterToUpdate;
+            if (!filingsToUpdate.isEmpty()) {
+                update filingsToUpdate;
+            }
+        } catch (DmlException e) {
+            throw new AuraHandledException('Could not save changes: ' + e.getDmlMessage(0));
+        }
+
+        return buildMatterComparisonData(matterId);
+    }
+
+    private static void applyMatterEditsTo(NEOS_Matter__c target, MatterEditableValues edits) {
+        target.Complaint_Filed_Date__c = parseIsoDate(edits.complaintFiledDate);
+        target.State_Docket__c = edits.stateDocket;
+        target.FederalDocket__c = edits.federalDocket;
+        target.Causes_of_Action__c = edits.claims;
+        target.Class_Definition__c = edits.classDefinition;
+        target.PAGA_Definition__c = edits.pagaDefinition;
+        target.LWDA__c = edits.lwdaNumber;
+        target.LWDA_Filing_Date__c = parseIsoDate(edits.lwdaFilingDate);
+    }
+
+    private static void applyFilingEditsTo(Topfiling__c target, FilingEditableValues edits) {
+        target.Date_Filed_Court__c = parseIsoDate(edits.complaintFiledDate);
+        target.Court_Case_No__c = edits.caseNumber;
+        target.Claims_Alleged__c = edits.claims;
+        target.Class_PAGA_Definition__c = edits.classDefinition;
+        target.Defendants__c = edits.defendants;
+        target.LWDA_No__c = edits.lwdaNumber;
+        target.Date_Filed_LWDA__c = parseIsoDate(edits.lwdaFilingDate);
     }
 
     private static Topfiling__c getFiling(Id topfilingId) {
@@ -111,54 +175,11 @@ public with sharing class CaseComparisonController {
 
     private static ComparisonData buildComparisonData(Id topfilingId) {
         Topfiling__c filing = getFiling(topfilingId);
+        NEOS_Matter__c matter = queryMatter(filing.TREO_Matter__c);
 
-        List<NEOS_Matter__c> matters = [
-            SELECT Name, Case_Name__c, Complaint_Filed_Date__c,
-                   Senior_Attorney__r.Name, Associate_Attorney__r.Name,
-                   CourtJurisdiction__c, State_Court__r.Name, Federal_Court__r.Name,
-                   State_Docket__c, FederalDocket__c,
-                   Causes_of_Action__c, LWDA__c, LWDA_Filing_Date__c, Class_Definition__c, PAGA_Definition__c,
-                   Stage__c, Settlement_Status__c
-            FROM NEOS_Matter__c
-            WHERE Id = :filing.TREO_Matter__c
-            LIMIT 1
-        ];
-        if (matters.isEmpty()) {
-            throw new AuraHandledException('The Matter linked to this Topfiling record could not be found (it may have been deleted, or you may not have access to it).');
-        }
-        NEOS_Matter__c matter = matters[0];
-
-        List<String> defendantNames = new List<String>();
-        for (Involved_Parties__c ip : [
-            SELECT Involved_Party_Name__c
-            FROM Involved_Parties__c
-            WHERE Matter__c = :matter.Id AND Relationship__c = 'Defendant'
-        ]) {
-            defendantNames.add(ip.Involved_Party_Name__c);
-        }
-
-        List<String> opposingCounselNames = new List<String>();
-        for (Counsel_Junction__c cj : [
-            SELECT Counsel__r.Name
-            FROM Counsel_Junction__c
-            WHERE Matter__c = :matter.Id AND Type__c = 'Opposing Counsel'
-        ]) {
-            opposingCounselNames.add(cj.Counsel__r.Name);
-        }
-
-        List<JpaRow> jpaRows = new List<JpaRow>();
-        for (JPA__c j : [
-            SELECT Id, Firm_or_Lawyer_Name__r.Name, JPA_Portion__c, JPA_Fully_Signed__c
-            FROM JPA__c
-            WHERE Matter__c = :matter.Id
-        ]) {
-            JpaRow jr = new JpaRow();
-            jr.id = j.Id;
-            jr.firmOrLawyerName = j.Firm_or_Lawyer_Name__r?.Name;
-            jr.jpaPortion = formatPercent(j.JPA_Portion__c);
-            jr.fullySigned = j.JPA_Fully_Signed__c ? 'Yes' : 'No';
-            jpaRows.add(jr);
-        }
+        List<String> defendantNames = queryDefendantNames(matter.Id);
+        List<String> opposingCounselNames = queryOpposingCounselNames(matter.Id);
+        List<JpaRow> jpaRows = queryJpaRows(matter.Id);
 
         ComparisonData data = new ComparisonData();
         data.matterId = matter.Id;
@@ -185,26 +206,172 @@ public with sharing class CaseComparisonController {
         };
         data.jpaRows = jpaRows;
 
-        data.matterEdits = new MatterEditableValues();
-        data.matterEdits.complaintFiledDate = isoDate(matter.Complaint_Filed_Date__c);
-        data.matterEdits.lwdaFilingDate = isoDate(matter.LWDA_Filing_Date__c);
-        data.matterEdits.lwdaNumber = matter.LWDA__c;
-        data.matterEdits.stateDocket = matter.State_Docket__c;
-        data.matterEdits.federalDocket = matter.FederalDocket__c;
-        data.matterEdits.claims = matter.Causes_of_Action__c;
-        data.matterEdits.classDefinition = matter.Class_Definition__c;
-        data.matterEdits.pagaDefinition = matter.PAGA_Definition__c;
-
-        data.filingEdits = new FilingEditableValues();
-        data.filingEdits.complaintFiledDate = isoDate(filing.Date_Filed_Court__c);
-        data.filingEdits.lwdaFilingDate = isoDate(filing.Date_Filed_LWDA__c);
-        data.filingEdits.lwdaNumber = filing.LWDA_No__c;
-        data.filingEdits.caseNumber = filing.Court_Case_No__c;
-        data.filingEdits.claims = filing.Claims_Alleged__c;
-        data.filingEdits.classDefinition = filing.Class_PAGA_Definition__c;
-        data.filingEdits.defendants = filing.Defendants__c;
+        data.matterEdits = buildMatterEditableValues(matter);
+        data.filingEdits = buildFilingEditableValues(filing);
 
         return data;
+    }
+
+    private static MatterComparisonData buildMatterComparisonData(Id matterId) {
+        NEOS_Matter__c matter = queryMatter(matterId);
+        List<Topfiling__c> filings = getFilingsForMatter(matterId);
+
+        List<String> defendantNames = queryDefendantNames(matter.Id);
+        List<String> opposingCounselNames = queryOpposingCounselNames(matter.Id);
+        List<JpaRow> jpaRows = queryJpaRows(matter.Id);
+
+        List<String> plaintiffAttyOthers = new List<String>();
+        List<String> defendantAttyOthers = new List<String>();
+        List<String> venueOthers = new List<String>();
+        List<String> caseStatusOthers = new List<String>();
+        List<String> blankOthers = new List<String>();
+        List<FilingColumn> filingColumns = new List<FilingColumn>();
+
+        for (Topfiling__c filing : filings) {
+            plaintiffAttyOthers.add(joinNonBlank(new List<String>{ filing.Plaintiff_Law_Firm_or_Lawyer__r?.Name, filing.Plaintiff_Law_Firm_or_Lawyer_2__r?.Name }));
+            defendantAttyOthers.add(joinNonBlank(new List<String>{ filing.Defendant_Law_Firm_or_Lawyer__r?.Name, filing.Defendant_Law_Firm_or_Lawyer_2__r?.Name }));
+            venueOthers.add(filing.Court__r?.Name);
+            caseStatusOthers.add(filing.Case_Status__c);
+            blankOthers.add(null);
+
+            FilingColumn col = new FilingColumn();
+            col.filingId = filing.Id;
+            col.header = buildFilingHeader(filing);
+            col.edits = buildFilingEditableValues(filing);
+            filingColumns.add(col);
+        }
+
+        MatterComparisonData data = new MatterComparisonData();
+        data.matterId = matter.Id;
+        data.matterCaseName = String.isNotBlank(matter.Case_Name__c) ? matter.Case_Name__c : matter.Name;
+        data.filingColumns = filingColumns;
+        data.jpaRows = jpaRows;
+
+        data.rows = new List<MatterComparisonRow>{
+            matterRow('Plaintiff Attorneys',
+                joinNonBlank(new List<String>{ matter.Senior_Attorney__r?.Name, matter.Associate_Attorney__r?.Name }),
+                plaintiffAttyOthers),
+            matterRow('Defendant Attorneys',
+                blankToNull(String.join(opposingCounselNames, '; ')),
+                defendantAttyOthers),
+            matterRow('Venue',
+                joinNonBlank(new List<String>{ matter.State_Court__r?.Name != null ? matter.State_Court__r.Name : matter.Federal_Court__r?.Name, matter.CourtJurisdiction__c }),
+                venueOthers),
+            matterRow('Defendants', blankToNull(String.join(defendantNames, '; ')), blankOthers),
+            matterRow('Case Status',
+                joinNonBlank(new List<String>{ matter.Stage__c, matter.Settlement_Status__c }),
+                caseStatusOthers)
+        };
+
+        data.matterEdits = buildMatterEditableValues(matter);
+
+        return data;
+    }
+
+    private static NEOS_Matter__c queryMatter(Id matterId) {
+        List<NEOS_Matter__c> matters = [
+            SELECT Name, Case_Name__c, Complaint_Filed_Date__c,
+                   Senior_Attorney__r.Name, Associate_Attorney__r.Name,
+                   CourtJurisdiction__c, State_Court__r.Name, Federal_Court__r.Name,
+                   State_Docket__c, FederalDocket__c,
+                   Causes_of_Action__c, LWDA__c, LWDA_Filing_Date__c, Class_Definition__c, PAGA_Definition__c,
+                   Stage__c, Settlement_Status__c
+            FROM NEOS_Matter__c
+            WHERE Id = :matterId
+            LIMIT 1
+        ];
+        if (matters.isEmpty()) {
+            throw new AuraHandledException('The Matter could not be found (it may have been deleted, or you may not have access to it).');
+        }
+        return matters[0];
+    }
+
+    private static List<Topfiling__c> getFilingsForMatter(Id matterId) {
+        return [
+            SELECT Plaintiffs__c, Date_Filed_Court__c, Court_Case_No__c,
+                   Court__r.Name, Plaintiff_Law_Firm_or_Lawyer__r.Name, Plaintiff_Law_Firm_or_Lawyer_2__r.Name,
+                   Defendant_Law_Firm_or_Lawyer__r.Name, Defendant_Law_Firm_or_Lawyer_2__r.Name,
+                   Defendants__c, Claims_Alleged__c, LWDA_No__c, Date_Filed_LWDA__c, Class_PAGA_Definition__c,
+                   Case_Status__c
+            FROM Topfiling__c
+            WHERE TREO_Matter__c = :matterId
+            ORDER BY CreatedDate
+        ];
+    }
+
+    private static List<String> queryDefendantNames(Id matterId) {
+        List<String> defendantNames = new List<String>();
+        for (Involved_Parties__c ip : [
+            SELECT Involved_Party_Name__c
+            FROM Involved_Parties__c
+            WHERE Matter__c = :matterId AND Relationship__c = 'Defendant'
+        ]) {
+            defendantNames.add(ip.Involved_Party_Name__c);
+        }
+        return defendantNames;
+    }
+
+    private static List<String> queryOpposingCounselNames(Id matterId) {
+        List<String> opposingCounselNames = new List<String>();
+        for (Counsel_Junction__c cj : [
+            SELECT Counsel__r.Name
+            FROM Counsel_Junction__c
+            WHERE Matter__c = :matterId AND Type__c = 'Opposing Counsel'
+        ]) {
+            opposingCounselNames.add(cj.Counsel__r.Name);
+        }
+        return opposingCounselNames;
+    }
+
+    private static List<JpaRow> queryJpaRows(Id matterId) {
+        List<JpaRow> jpaRows = new List<JpaRow>();
+        for (JPA__c j : [
+            SELECT Id, Firm_or_Lawyer_Name__r.Name, JPA_Portion__c, JPA_Fully_Signed__c
+            FROM JPA__c
+            WHERE Matter__c = :matterId
+        ]) {
+            JpaRow jr = new JpaRow();
+            jr.id = j.Id;
+            jr.firmOrLawyerName = j.Firm_or_Lawyer_Name__r?.Name;
+            jr.jpaPortion = formatPercent(j.JPA_Portion__c);
+            jr.fullySigned = j.JPA_Fully_Signed__c ? 'Yes' : 'No';
+            jpaRows.add(jr);
+        }
+        return jpaRows;
+    }
+
+    private static MatterEditableValues buildMatterEditableValues(NEOS_Matter__c matter) {
+        MatterEditableValues me = new MatterEditableValues();
+        me.complaintFiledDate = isoDate(matter.Complaint_Filed_Date__c);
+        me.lwdaFilingDate = isoDate(matter.LWDA_Filing_Date__c);
+        me.lwdaNumber = matter.LWDA__c;
+        me.stateDocket = matter.State_Docket__c;
+        me.federalDocket = matter.FederalDocket__c;
+        me.claims = matter.Causes_of_Action__c;
+        me.classDefinition = matter.Class_Definition__c;
+        me.pagaDefinition = matter.PAGA_Definition__c;
+        return me;
+    }
+
+    private static FilingEditableValues buildFilingEditableValues(Topfiling__c filing) {
+        FilingEditableValues fe = new FilingEditableValues();
+        fe.complaintFiledDate = isoDate(filing.Date_Filed_Court__c);
+        fe.lwdaFilingDate = isoDate(filing.Date_Filed_LWDA__c);
+        fe.lwdaNumber = filing.LWDA_No__c;
+        fe.caseNumber = filing.Court_Case_No__c;
+        fe.claims = filing.Claims_Alleged__c;
+        fe.classDefinition = filing.Class_PAGA_Definition__c;
+        fe.defendants = filing.Defendants__c;
+        return fe;
+    }
+
+    private static String buildFilingHeader(Topfiling__c filing) {
+        String caseName = buildVCaseName(filing.Plaintiffs__c, filing.Defendants__c);
+        String firm = filing.Plaintiff_Law_Firm_or_Lawyer__r?.Name;
+        if (String.isBlank(caseName)) {
+            caseName = '';
+        }
+        return String.isNotBlank(firm) ? caseName + ' (' + firm + ')' : caseName;
     }
 
     private static ComparisonRow row(String label, String dLawValue, String otherValue) {
@@ -212,6 +379,14 @@ public with sharing class CaseComparisonController {
         r.label = label;
         r.dLawValue = dLawValue;
         r.otherValue = otherValue;
+        return r;
+    }
+
+    private static MatterComparisonRow matterRow(String label, String dLawValue, List<String> otherValues) {
+        MatterComparisonRow r = new MatterComparisonRow();
+        r.label = label;
+        r.dLawValue = dLawValue;
+        r.otherValues = otherValues;
         return r;
     }
 

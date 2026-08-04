@@ -1,0 +1,78 @@
+.comparison-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.comparison-title {
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.comparison-table {
+    overflow-x: auto;
+}
+
+.comparison-table table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 100%;
+}
+
+.comparison-table th,
+.comparison-table td {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.comparison-table th:first-child,
+.comparison-table td.row-label {
+    width: 18%;
+    font-weight: 600;
+    background-color: #f3f2f2;
+}
+
+.comparison-table td.cell-value {
+    white-space: pre-wrap;
+}
+
+.stacked-field {
+    margin-top: 0.5rem;
+}
+
+.stacked-field:first-child {
+    margin-top: 0;
+}
+
+.field-caption {
+    display: block;
+    font-size: 0.75rem;
+    color: #706e6b;
+    margin-bottom: 0.125rem;
+}
+
+.jpa-subtable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.jpa-subtable th,
+.jpa-subtable td {
+    border: 1px solid #dddbda;
+    padding: 0.25rem 0.5rem;
+    font-weight: normal;
+    text-align: left;
+}
+
+.jpa-empty {
+    color: #706e6b;
+}
+
+.no-filings-message {
+    color: #706e6b;
+    text-align: center;
+    padding: 1rem 0;
+}

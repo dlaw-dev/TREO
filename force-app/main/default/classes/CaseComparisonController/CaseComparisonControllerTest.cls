@@ -174,4 +174,97 @@ private class CaseComparisonControllerTest {
         System.assertEquals(Date.newInstance(2026, 3, 5), refreshedFiling.Date_Filed_Court__c);
         System.assertEquals('Acme Corp; Acme Subsidiary Inc.', refreshedFiling.Defendants__c);
     }
+
+    @IsTest
+    static void testGetMatterComparisonWithNoFilings() {
+        NEOS_Matter__c matter = makeMatter();
+
+        Test.startTest();
+        CaseComparisonController.MatterComparisonData data = CaseComparisonController.getMatterComparison(matter.Id);
+        Test.stopTest();
+
+        System.assertEquals(matter.Id, data.matterId);
+        System.assertEquals('Smith v. Acme Corp', data.matterCaseName);
+        System.assertEquals(0, data.filingColumns.size());
+
+        Map<String, CaseComparisonController.MatterComparisonRow> rowsByLabel = new Map<String, CaseComparisonController.MatterComparisonRow>();
+        for (CaseComparisonController.MatterComparisonRow r : data.rows) {
+            rowsByLabel.put(r.label, r);
+        }
+        System.assertEquals('Filed/Pending / Drafting MOU', rowsByLabel.get('Case Status').dLawValue);
+        System.assertEquals(0, rowsByLabel.get('Case Status').otherValues.size());
+    }
+
+    @IsTest
+    static void testGetMatterComparisonWithMultipleFilings() {
+        NEOS_Matter__c matter = makeMatter();
+        Topfiling__c filingOne = makeFiling(matter.Id);
+        Topfiling__c filingTwo = new Topfiling__c(
+            TREO_Matter__c = matter.Id,
+            Plaintiffs__c = 'Jane Roe',
+            Defendants__c = 'Acme Corp Subsidiary',
+            Court_Case_No__c = 'CV-2026-2000',
+            Case_Status__c = 'Settled'
+        );
+        insert filingTwo;
+
+        Test.startTest();
+        CaseComparisonController.MatterComparisonData data = CaseComparisonController.getMatterComparison(matter.Id);
+        Test.stopTest();
+
+        System.assertEquals(2, data.filingColumns.size());
+        System.assertEquals(filingOne.Id, data.filingColumns[0].filingId);
+        System.assertEquals(filingTwo.Id, data.filingColumns[1].filingId);
+        System.assertEquals('John Doe v. Acme Corp', data.filingColumns[0].header);
+        System.assertEquals('Jane Roe v. Acme Corp Subsidiary', data.filingColumns[1].header);
+        System.assertEquals('CV-2026-999', data.filingColumns[0].edits.caseNumber);
+        System.assertEquals('CV-2026-2000', data.filingColumns[1].edits.caseNumber);
+
+        Map<String, CaseComparisonController.MatterComparisonRow> rowsByLabel = new Map<String, CaseComparisonController.MatterComparisonRow>();
+        for (CaseComparisonController.MatterComparisonRow r : data.rows) {
+            rowsByLabel.put(r.label, r);
+        }
+        System.assertEquals('Active', rowsByLabel.get('Case Status').otherValues[0]);
+        System.assertEquals('Settled', rowsByLabel.get('Case Status').otherValues[1]);
+    }
+
+    @IsTest
+    static void testSaveMatterComparisonUpdatesMatterAndAllFilings() {
+        NEOS_Matter__c matter = makeMatter();
+        Topfiling__c filingOne = makeFiling(matter.Id);
+        Topfiling__c filingTwo = new Topfiling__c(TREO_Matter__c = matter.Id, Court_Case_No__c = 'CV-2026-2000');
+        insert filingTwo;
+
+        CaseComparisonController.MatterEditableValues matterEdits = new CaseComparisonController.MatterEditableValues();
+        matterEdits.stateDocket = 'CV-26-003';
+
+        CaseComparisonController.FilingEditableValues editsOne = new CaseComparisonController.FilingEditableValues();
+        editsOne.caseNumber = 'CV-2026-999-UPDATED';
+        CaseComparisonController.FilingColumnEdits columnEditsOne = new CaseComparisonController.FilingColumnEdits();
+        columnEditsOne.filingId = filingOne.Id;
+        columnEditsOne.edits = editsOne;
+
+        CaseComparisonController.FilingEditableValues editsTwo = new CaseComparisonController.FilingEditableValues();
+        editsTwo.caseNumber = 'CV-2026-2000-UPDATED';
+        CaseComparisonController.FilingColumnEdits columnEditsTwo = new CaseComparisonController.FilingColumnEdits();
+        columnEditsTwo.filingId = filingTwo.Id;
+        columnEditsTwo.edits = editsTwo;
+
+        Test.startTest();
+        CaseComparisonController.MatterComparisonData data = CaseComparisonController.saveMatterComparison(
+            matter.Id, matterEdits, new List<CaseComparisonController.FilingColumnEdits>{ columnEditsOne, columnEditsTwo }
+        );
+        Test.stopTest();
+
+        System.assertEquals(2, data.filingColumns.size());
+
+        NEOS_Matter__c refreshedMatter = [SELECT State_Docket__c FROM NEOS_Matter__c WHERE Id = :matter.Id];
+        System.assertEquals('CV-26-003', refreshedMatter.State_Docket__c);
+
+        Map<Id, Topfiling__c> refreshedFilings = new Map<Id, Topfiling__c>(
+            [SELECT Court_Case_No__c FROM Topfiling__c WHERE Id IN (:filingOne.Id, :filingTwo.Id)]
+        );
+        System.assertEquals('CV-2026-999-UPDATED', refreshedFilings.get(filingOne.Id).Court_Case_No__c);
+        System.assertEquals('CV-2026-2000-UPDATED', refreshedFilings.get(filingTwo.Id).Court_Case_No__c);
+    }
 }
