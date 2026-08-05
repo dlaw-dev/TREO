@@ -50,6 +50,9 @@ export default class EventsCalendar extends LightningElement {
     visibilityHandler;
     _subscription;
 
+    sortedBy = 'displayStart';
+    sortedDirection = 'asc';
+
     getRowActions = (row, doneCallback) => {
         if (!row || row.isInactive) {
             doneCallback([]);
@@ -260,22 +263,23 @@ export default class EventsCalendar extends LightningElement {
             }));
 
             const allNormalized = [...normalizedUpcoming, ...normalizedPast];
+            const comparator = this.buildComparator(this.sortedBy, this.sortedDirection);
 
             this.cancelledEvents = allNormalized
                 .filter(ev => ev.isCancelled)
-                .sort((a, b) => a.startMs - b.startMs);
+                .sort(comparator);
 
             this.rescheduledEvents = allNormalized
                 .filter(ev => ev.isVacated || ev.isRescheduled)
-                .sort((a, b) => a.startMs - b.startMs);
+                .sort(comparator);
 
-            this.upcomingEvents = normalizedUpcoming.filter(ev => !ev.isInactive);
-            this.pastEvents = normalizedPast.filter(ev => !ev.isInactive);
+            this.upcomingEvents = normalizedUpcoming.filter(ev => !ev.isInactive).sort(comparator);
+            this.pastEvents = normalizedPast.filter(ev => !ev.isInactive).sort(comparator);
 
             this.allEvents = [
                 ...normalizedUpcoming,
                 ...normalizedPast
-            ].sort((a, b) => a.startMs - b.startMs);
+            ].sort(comparator);
 
         } catch (error) {
             console.error('Error loading events', error);
@@ -333,6 +337,45 @@ export default class EventsCalendar extends LightningElement {
 
     handleRefresh() {
         if (this.recordId) this.loadEvents();
+    }
+
+    /* ======================
+       Sorting
+       ====================== */
+
+    getSortValue(row, fieldName) {
+        if (fieldName === 'displayStart') return row.startMs;
+        if (fieldName === 'recordLink') return (row.Subject || '').toLowerCase();
+        const value = row[fieldName];
+        return typeof value === 'string' ? value.toLowerCase() : value;
+    }
+
+    buildComparator(fieldName, direction) {
+        const multiplier = direction === 'asc' ? 1 : -1;
+        return (a, b) => {
+            const aVal = this.getSortValue(a, fieldName);
+            const bVal = this.getSortValue(b, fieldName);
+            if (aVal == null && bVal == null) return 0;
+            if (aVal == null) return 1;
+            if (bVal == null) return -1;
+            if (aVal < bVal) return -multiplier;
+            if (aVal > bVal) return multiplier;
+            return 0;
+        };
+    }
+
+    handleSort(event) {
+        const { fieldName, sortDirection } = event.detail;
+        this.sortedBy = fieldName;
+        this.sortedDirection = sortDirection;
+
+        const comparator = this.buildComparator(fieldName, sortDirection);
+
+        this.upcomingEvents = [...this.upcomingEvents].sort(comparator);
+        this.pastEvents = [...this.pastEvents].sort(comparator);
+        this.cancelledEvents = [...this.cancelledEvents].sort(comparator);
+        this.rescheduledEvents = [...this.rescheduledEvents].sort(comparator);
+        this.allEvents = [...this.allEvents].sort(comparator);
     }
 
     async handleNewEvent() {

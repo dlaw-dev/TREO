@@ -25,13 +25,16 @@
     <lightning-tabset variant="scoped">
       <lightning-tab label={upcomingTabLabel}>
         <template if:true={upcomingEvents}>
-          <c-events-calendar-datatable-refactor
+          <c-events-calendar-datatable
             key-field="Id"
             data={upcomingEvents}
             columns={columns}
             hide-checkbox-column
+            sorted-by={sortedBy}
+            sorted-direction={sortedDirection}
+            onsort={handleSort}
             onrowaction={handleRowAction}
-          ></c-events-calendar-datatable-refactor>
+          ></c-events-calendar-datatable>
         </template>
         <template if:true={isLoadingAll}>
           <lightning-spinner alternative-text="Loading upcoming events"></lightning-spinner>
@@ -40,13 +43,16 @@
 
       <lightning-tab label={pastTabLabel}>
         <template if:true={pastEvents}>
-          <c-events-calendar-datatable-refactor
+          <c-events-calendar-datatable
             key-field="Id"
             data={pastEvents}
             columns={columns}
             hide-checkbox-column
+            sorted-by={sortedBy}
+            sorted-direction={sortedDirection}
+            onsort={handleSort}
             onrowaction={handleRowAction}
-          ></c-events-calendar-datatable-refactor>
+          ></c-events-calendar-datatable>
         </template>
         <template if:true={isLoadingAll}>
           <lightning-spinner alternative-text="Loading past events"></lightning-spinner>
@@ -55,12 +61,15 @@
 
       <lightning-tab label={cancelledTabLabel}>
         <template if:true={cancelledEvents}>
-          <c-events-calendar-datatable-refactor
+          <c-events-calendar-datatable
             key-field="Id"
             data={cancelledEvents}
             columns={cancelledColumns}
             hide-checkbox-column
-          ></c-events-calendar-datatable-refactor>
+            sorted-by={sortedBy}
+            sorted-direction={sortedDirection}
+            onsort={handleSort}
+          ></c-events-calendar-datatable>
         </template>
         <template if:true={isLoadingAll}>
           <lightning-spinner alternative-text="Loading cancelled events"></lightning-spinner>
@@ -69,12 +78,15 @@
 
       <lightning-tab label={rescheduledTabLabel}>
         <template if:true={rescheduledEvents}>
-          <c-events-calendar-datatable-refactor
+          <c-events-calendar-datatable
             key-field="Id"
             data={rescheduledEvents}
             columns={rescheduledColumns}
             hide-checkbox-column
-          ></c-events-calendar-datatable-refactor>
+            sorted-by={sortedBy}
+            sorted-direction={sortedDirection}
+            onsort={handleSort}
+          ></c-events-calendar-datatable>
         </template>
         <template if:true={isLoadingAll}>
           <lightning-spinner alternative-text="Loading rescheduled events"></lightning-spinner>
@@ -83,13 +95,16 @@
 
       <lightning-tab label={allTabLabel}>
         <template if:true={allEvents}>
-          <c-events-calendar-datatable-refactor
+          <c-events-calendar-datatable
             key-field="Id"
             data={allEvents}
             columns={highlightedColumns}
             hide-checkbox-column
+            sorted-by={sortedBy}
+            sorted-direction={sortedDirection}
+            onsort={handleSort}
             onrowaction={handleRowAction}
-          ></c-events-calendar-datatable-refactor>
+          ></c-events-calendar-datatable>
         </template>
         <template if:true={isLoadingAll}>
           <lightning-spinner alternative-text="Loading all events"></lightning-spinner>
