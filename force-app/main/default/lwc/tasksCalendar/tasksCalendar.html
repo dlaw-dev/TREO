@@ -1,4 +1,5 @@
 <template>
+  <div class="task-tooltip-portal" role="tooltip" lwc:dom="manual"></div>
   <div class="panel panel--tasks">
     <div class="panel-header tasks-panel-header">
       <span class="tc-title">
@@ -69,6 +70,24 @@
                             </template>
                           </ul>
                         </template>
+                      </template>
+                      <template if:true={t.hasComments}>
+                        <span
+                          class="task-detail-wrapper"
+                          tabindex="0"
+                          data-tooltip={t.commentsTitle}
+                          onmouseenter={handleCommentsEnter}
+                          onmouseleave={handleCommentsLeave}
+                          onfocusin={handleCommentsEnter}
+                          onfocusout={handleCommentsLeave}
+                        >
+                          <lightning-icon
+                            icon-name="utility:paste"
+                            alternative-text="View task details"
+                            size="xx-small"
+                            class="task-detail-icon">
+                          </lightning-icon>
+                        </span>
                       </template>
                     </td>
                     <td class="tasks-td">{t.Priority}</td>

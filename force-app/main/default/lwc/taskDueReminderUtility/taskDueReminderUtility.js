@@ -159,6 +159,8 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
     };
 
     _boundCloseAttachmentMenu;
+    _boundHideCommentsTooltip;
+    _commentsTooltipEl;
 
     connectedCallback() {
         this.ensureBaseUtilityLabel();
@@ -179,6 +181,29 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
         // click, so this only ever fires for a genuine outside click.
         this._boundCloseAttachmentMenu = () => this.closeAttachmentMenu();
         window.addEventListener('click', this._boundCloseAttachmentMenu);
+
+        // A fixed-position tooltip anchored to a hovered row would otherwise
+        // drift away from the icon as soon as the panel scrolls underneath
+        // it - just hide it instead, same as the attachment menu.
+        this._boundHideCommentsTooltip = () => this.hideCommentsTooltip();
+        window.addEventListener('scroll', this._boundHideCommentsTooltip, { capture: true });
+        window.addEventListener('resize', this._boundHideCommentsTooltip);
+    }
+
+    renderedCallback() {
+        // Move the lwc:dom="manual" tooltip node (rendered once by the
+        // template, so it still carries this component's shadow-scoping
+        // attribute) to be a direct child of document.body - a plain
+        // document.createElement'd div appended straight to body has no
+        // scoping attribute at all, so this component's CSS silently never
+        // matches it. Guarded so this only runs once, not on every rerender.
+        if (!this._commentsTooltipEl) {
+            const portal = this.template.querySelector('.task-tooltip-portal');
+            if (portal) {
+                document.body.appendChild(portal);
+                this._commentsTooltipEl = portal;
+            }
+        }
     }
 
     disconnectedCallback() {
@@ -195,6 +220,63 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
             window.removeEventListener('click', this._boundCloseAttachmentMenu);
             this._boundCloseAttachmentMenu = null;
         }
+
+        if (this._boundHideCommentsTooltip) {
+            window.removeEventListener('scroll', this._boundHideCommentsTooltip, { capture: true });
+            window.removeEventListener('resize', this._boundHideCommentsTooltip);
+            this._boundHideCommentsTooltip = null;
+        }
+
+        if (this._commentsTooltipEl) {
+            this._commentsTooltipEl.remove();
+            this._commentsTooltipEl = null;
+        }
+    }
+
+    // Positions the portal tooltip against the hovered/focused icon's
+    // current viewport rect, flipping above it or clamping horizontally
+    // whenever the default placement (centered, just below) would run off
+    // the screen - the utility panel is narrow enough that centered-below
+    // alone routinely clipped at the panel's own edge.
+    handleCommentsEnter(event) {
+        const el = this._commentsTooltipEl;
+        if (!el) return;
+
+        const wrapper = event.currentTarget;
+        const text = wrapper.dataset.tooltip;
+        if (!text) return;
+
+        el.textContent = text;
+
+        const rect = wrapper.getBoundingClientRect();
+        const margin = 8;
+        const tooltipWidth = el.offsetWidth;
+        const tooltipHeight = el.offsetHeight;
+
+        let left = rect.left + rect.width / 2;
+        const halfWidth = tooltipWidth / 2;
+        left = Math.max(halfWidth + margin, Math.min(left, window.innerWidth - halfWidth - margin));
+
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const top = spaceBelow < tooltipHeight + margin
+            ? rect.top - tooltipHeight - 4
+            : rect.bottom + 4;
+
+        el.style.left = `${left}px`;
+        el.style.top = `${top}px`;
+        el.style.visibility = 'visible';
+        el.style.opacity = '1';
+    }
+
+    hideCommentsTooltip() {
+        const el = this._commentsTooltipEl;
+        if (!el) return;
+        el.style.visibility = 'hidden';
+        el.style.opacity = '0';
+    }
+
+    handleCommentsLeave() {
+        this.hideCommentsTooltip();
     }
 
     closeAttachmentMenu() {
@@ -249,7 +331,9 @@ export default class TaskDueReminderUtility extends NavigationMixin(LightningEle
                 attachments,
                 hasAttachments: attachments.length > 0,
                 attachmentTitle: attachments.length === 1 ? '1 attachment' : `${attachments.length} attachments`,
-                isAttachmentMenuOpen: false
+                isAttachmentMenuOpen: false,
+                hasComments: !!t.Comments,
+                commentsTitle: t.Comments || ''
             };
         });
     }

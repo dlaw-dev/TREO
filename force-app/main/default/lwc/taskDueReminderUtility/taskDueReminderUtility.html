@@ -1,4 +1,5 @@
 <template>
+    <div class="task-tooltip-portal" role="tooltip" lwc:dom="manual"></div>
     <div class="reminder-container">
         <div class="reminder-tabs" role="tablist">
             <button
@@ -90,6 +91,24 @@
                                                 </template>
                                                 <template if:true={task.hasAttachments}>
                                                     <button type="button" class="attachment-clip-btn" data-id={task.Id} onclick={handleAttachmentClick} title={task.attachmentTitle}>📎</button>
+                                                </template>
+                                                <template if:true={task.hasComments}>
+                                                    <span
+                                                        class="task-detail-wrapper"
+                                                        tabindex="0"
+                                                        data-tooltip={task.commentsTitle}
+                                                        onmouseenter={handleCommentsEnter}
+                                                        onmouseleave={handleCommentsLeave}
+                                                        onfocusin={handleCommentsEnter}
+                                                        onfocusout={handleCommentsLeave}
+                                                    >
+                                                        <lightning-icon
+                                                            icon-name="utility:paste"
+                                                            alternative-text="View task details"
+                                                            size="xx-small"
+                                                            class="task-detail-icon">
+                                                        </lightning-icon>
+                                                    </span>
                                                 </template>
                                             </div>
                                             <template if:true={task.isAttachmentMenuOpen}>

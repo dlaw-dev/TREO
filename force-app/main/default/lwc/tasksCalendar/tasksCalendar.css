@@ -221,6 +221,37 @@
 }
 .attachment-clip-btn:hover { opacity: 0.7; }
 
+.task-detail-wrapper {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0 0 4px;
+    vertical-align: middle;
+}
+
+/* Appended to document.body by JS (not rendered inline here) so it can
+   escape .tasks-table-wrap's overflow:auto scroll clipping - a plain
+   position:absolute tooltip anchored inside the row gets cut off at the
+   table's edge. See tasksCalendar.js handleCommentsEnter. */
+.task-tooltip-portal {
+    position: fixed;
+    z-index: 9999;
+    width: 16rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #c9c9c9;
+    border-radius: 0.25rem;
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 20%);
+    color: #181818;
+    font-size: 0.75rem;
+    line-height: 1.25;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateX(-50%);
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+    white-space: normal;
+}
+
 /* Rendered inline (not a floating popover) so it can never get clipped by
    the table's scroll container - just grows the row when open. */
 .attachment-menu {

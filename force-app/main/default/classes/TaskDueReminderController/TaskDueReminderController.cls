@@ -31,6 +31,7 @@ public with sharing class TaskDueReminderController {
         for (Task t : [
             SELECT Id,
                    Subject,
+                   Description,
                    ActivityDate,
                    Priority,
                    Status,
@@ -66,6 +67,7 @@ public with sharing class TaskDueReminderController {
         for (Task t : [
             SELECT Id,
                    Subject,
+                   Description,
                    ActivityDate,
                    Priority,
                    Status,
@@ -113,6 +115,7 @@ public with sharing class TaskDueReminderController {
         for (Task t : [
             SELECT Id,
                    Subject,
+                   Description,
                    ActivityDate,
                    Priority,
                    Status,
@@ -144,6 +147,7 @@ public with sharing class TaskDueReminderController {
         for (Task t : [
             SELECT Id,
                    Subject,
+                   Description,
                    ActivityDate,
                    Priority,
                    Status,
@@ -194,6 +198,7 @@ public with sharing class TaskDueReminderController {
         List<Task> waitingTasks = [
             SELECT Id,
                    Subject,
+                   Description,
                    ActivityDate,
                    Priority,
                    Status,
@@ -222,6 +227,7 @@ public with sharing class TaskDueReminderController {
         waitingTasks.addAll([
             SELECT Id,
                    Subject,
+                   Description,
                    ActivityDate,
                    Priority,
                    Status,
@@ -347,6 +353,7 @@ public with sharing class TaskDueReminderController {
         for (Task t : [
             SELECT Id,
                    Subject,
+                   Description,
                    ActivityDate,
                    Priority,
                    Status,
@@ -389,6 +396,7 @@ public with sharing class TaskDueReminderController {
         List<Task> adHocWaitingTasks = [
             SELECT Id,
                    Subject,
+                   Description,
                    ActivityDate,
                    Priority,
                    Status,
@@ -467,6 +475,7 @@ public with sharing class TaskDueReminderController {
     public class DueTask {
         @AuraEnabled public Id      Id;
         @AuraEnabled public String  Subject;
+        @AuraEnabled public String  Comments;
         @AuraEnabled public Date    ActivityDate;
         @AuraEnabled public String  Priority;
         @AuraEnabled public String  Status;
@@ -492,6 +501,7 @@ public with sharing class TaskDueReminderController {
         public DueTask(Task t, Date todayDate) {
             Id           = t.Id;
             Subject      = t.Subject;
+            Comments     = t.Description;
             ActivityDate = t.ActivityDate;
             Priority     = t.Priority;
             Status       = t.Status;
