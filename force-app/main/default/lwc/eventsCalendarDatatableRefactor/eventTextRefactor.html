@@ -1,0 +1,18 @@
+<template>
+    <template if:true={typeAttributes.isCancelled}>
+        <span style="color: #ba0517; text-decoration: line-through;">{typeAttributes.value}</span>
+    </template>
+    <template if:true={typeAttributes.isVacated}>
+        <span style="color: #c45000; text-decoration: line-through;">{typeAttributes.value}</span>
+    </template>
+    <template if:true={typeAttributes.isRescheduled}>
+        <span style="color: #c2185b; text-decoration: line-through;">{typeAttributes.value}</span>
+    </template>
+    <template if:false={typeAttributes.isCancelled}>
+        <template if:false={typeAttributes.isVacated}>
+            <template if:false={typeAttributes.isRescheduled}>
+                <span>{typeAttributes.value}</span>
+            </template>
+        </template>
+    </template>
+</template>
