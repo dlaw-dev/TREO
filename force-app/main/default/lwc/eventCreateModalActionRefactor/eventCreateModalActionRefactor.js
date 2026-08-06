@@ -85,6 +85,13 @@ export default class EventCreateModalAction extends LightningModal {
         if (val) this.showAs = val;
     }
 
+    _initialMediatorId;
+    @api get initialMediatorId() { return this._initialMediatorId; }
+    set initialMediatorId(val) {
+        this._initialMediatorId = val;
+        if (val) this.mediatorId = val;
+    }
+
     get isEditMode() { return !!this.editEventId; }
     get modalTitle()  { return this.isEditMode ? 'Edit Event' : 'New Event'; }
 
@@ -1227,7 +1234,8 @@ export default class EventCreateModalAction extends LightningModal {
                 selectedGroupIds: [...this.selectedGroupIds],
                 attachments,
                 reminderOptions:  this.isReminderSet ? this.selectedReminderOptions : [],
-                showAs:           this.showAs
+                showAs:           this.showAs,
+                mediatorId:       this.mediatorId
             });
         } else {
             if (this.isRecurring) {

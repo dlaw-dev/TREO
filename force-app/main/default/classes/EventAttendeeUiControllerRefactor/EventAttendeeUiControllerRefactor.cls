@@ -220,7 +220,8 @@ public with sharing class EventAttendeeUiControllerRefactor {
         List<String> selectedGroupIds,
         List<Map<String, String>> attachments,
         List<String> reminderOptions,
-        String showAs
+        String showAs,
+        Id mediatorId
     ) {
         Savepoint sp = null;
         try {
@@ -254,7 +255,8 @@ public with sharing class EventAttendeeUiControllerRefactor {
                 Is_All_Day__c     = isAllDay,
                 Location__c       = location,
                 Description__c    = description,
-                Show_Time_As__c   = normalizeShowAs(showAs)
+                Show_Time_As__c   = normalizeShowAs(showAs),
+                Mediator__c       = mediatorId
             );
             if (String.isNotBlank(typeValue)) ev.Event_Type__c = typeValue;
             update ev;

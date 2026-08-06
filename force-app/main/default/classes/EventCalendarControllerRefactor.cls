@@ -18,6 +18,7 @@ public with sharing class EventCalendarControllerRefactor {
                 Show_Time_As__c,
                 Start_DateTime__c,
                 End_DateTime__c,
+                Mediator__c,
                 Matter__r.State_Court__r.Name,
                 Matter__r.Federal_Court__r.Name,
                 (
@@ -54,6 +55,7 @@ public with sharing class EventCalendarControllerRefactor {
                 Show_Time_As__c,
                 Start_DateTime__c,
                 End_DateTime__c,
+                Mediator__c,
                 Matter__r.State_Court__r.Name,
                 Matter__r.Federal_Court__r.Name,
                 (

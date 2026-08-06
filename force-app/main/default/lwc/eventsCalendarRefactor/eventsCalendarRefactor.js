@@ -409,7 +409,8 @@ export default class EventsCalendar extends LightningElement {
                     initialShowAs:        row.ShowAs,
                     initialStartDateTime: row.StartDateTime,
                     initialEndDateTime:   row.EndDateTime,
-                    initialAttendees:     row.attendeeUsers || []
+                    initialAttendees:     row.attendeeUsers || [],
+                    initialMediatorId:    row.MediatorId
                 });
                 if (result === 'success') publish(this.messageContext, CALENDAR_EVENT_CHANGED, {});
 
@@ -426,7 +427,8 @@ export default class EventsCalendar extends LightningElement {
                     initialShowAs:        row.ShowAs,
                     initialStartDateTime: row.StartDateTime,
                     initialEndDateTime:   row.EndDateTime,
-                    initialAttendees:     row.attendeeUsers || []
+                    initialAttendees:     row.attendeeUsers || [],
+                    initialMediatorId:    row.MediatorId
                 });
                 if (result === 'success') publish(this.messageContext, CALENDAR_EVENT_CHANGED, {});
 
@@ -488,6 +490,7 @@ export default class EventsCalendar extends LightningElement {
             ShowAs:        ev.Show_Time_As__c,
             StartDateTime: ev.Start_DateTime__c,
             EndDateTime:   ev.End_DateTime__c,
+            MediatorId:    ev.Mediator__c,
             isCancelled:   cancelled,
             isVacated:     vacated,
             isRescheduled: rescheduled,

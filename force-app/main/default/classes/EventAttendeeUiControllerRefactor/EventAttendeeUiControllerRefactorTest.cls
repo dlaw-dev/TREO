@@ -648,7 +648,7 @@ public class EventAttendeeUiControllerRefactorTest {
             ev.Id, 'Updated Subject',
             '2026-08-01T10:00:00.000Z', '2026-08-01T11:00:00.000Z',
             false, 'Deposition', 'Room 1', 'Updated desc',
-            new List<String>(), null, new List<Map<String, String>>(), null, 'Busy'
+            new List<String>(), null, new List<Map<String, String>>(), null, 'Busy', null
         );
         Test.stopTest();
 
@@ -690,7 +690,7 @@ public class EventAttendeeUiControllerRefactorTest {
             ev.Id, 'Attendee Update Event',
             '2026-08-05T09:00:00.000Z', '2026-08-05T10:00:00.000Z',
             false, null, null, null,
-            new List<String>{ u.Id }, null, new List<Map<String, String>>(), null, 'Free'
+            new List<String>{ u.Id }, null, new List<Map<String, String>>(), null, 'Free', null
         );
         Test.stopTest();
 
@@ -721,7 +721,7 @@ public class EventAttendeeUiControllerRefactorTest {
             ev.Id, 'All Day Update',
             '2026-08-11', '2026-08-11',
             true, null, null, null,
-            new List<String>(), null, new List<Map<String, String>>(), null, 'Free'
+            new List<String>(), null, new List<Map<String, String>>(), null, 'Free', null
         );
         Test.stopTest();
 
